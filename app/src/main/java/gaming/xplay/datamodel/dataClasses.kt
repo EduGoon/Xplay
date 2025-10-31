@@ -1,28 +1,30 @@
 package gaming.xplay.datamodel
 
-data class User(
-    val uid: String = "",
+data class Player(
+    val playerid: String = "",
     val name: String = "",
     val phoneNumber: String = "",
-    val CountyOfResidence: String = "",
-    val XplayPoints: Int = 0,
-    val ranking: Int = 0,
-    var wins: Int = 0,
-    var draws: Int = 0,
-    var losses: Int = 0
-) {
-    val gamesPlayed: Int
-        get() = wins + draws + losses
+    val CountyOfResidence: String = ""
+)
 
-    fun recordWin() {
-        wins++
-    }
+data class Game(
+    val gameid: String,
+    val name: String,
+)
 
-    fun recordDraw() {
-        draws++
-    }
+data class Match(
+    val matchid: String,
+    val player1: Player,
+    val player2: Player,
+    val score: String,
+    val winner: Player,
+)
 
-    fun recordLoss() {
-        losses++
-    }
-}
+data class rankings(
+    val id: String,
+    val playerid: String,
+    val gameid: String,
+    val XPpoints: Int = 0,
+    val wins: Int = 0,
+    val losses: Int = 0,
+)
