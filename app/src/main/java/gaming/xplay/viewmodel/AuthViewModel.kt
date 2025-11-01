@@ -2,6 +2,7 @@ package gaming.xplay.viewmodel
 
 import android.app.Activity
 import androidx.lifecycle.ViewModel
+import gaming.xplay.datamodel.AuthState
 import gaming.xplay.repo.AuthRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -42,12 +43,4 @@ class AuthViewModel(
             }
         )
     }
-}
-
-sealed class AuthState {
-    object Idle : AuthState()
-    object Loading : AuthState()
-    object CodeSent : AuthState()
-    object Success : AuthState()
-    data class Error(val message: String) : AuthState()
 }
