@@ -2,15 +2,9 @@ package gaming.xplay.repo
 
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.functions.FirebaseFunctions
+import gaming.xplay.datamodel.NotificationRequest
 import kotlinx.coroutines.*
 import kotlinx.coroutines.tasks.await
-
-data class NotificationRequest(
-    val targetUserId: String,
-    val title: String,
-    val body: String,
-    val requestId: String = java.util.UUID.randomUUID().toString()
-)
 
 class NotificationRepository {
     private val firestore = FirebaseFirestore.getInstance()
@@ -90,7 +84,6 @@ class NotificationRepository {
             }
         }
 
-
     /**
      * Send feedback response (called by receiver user)
      */
@@ -100,11 +93,13 @@ class NotificationRepository {
                 firestore
                     .collection("notification_responses")
                     .document(requestId)
-                    .update(mapOf(
-                        "status" to "completed",
-                        "response" to response,
-                        "respondedAt" to com.google.firebase.Timestamp.now()
-                    ))
+                    .update(
+                        mapOf(
+                            "status" to "completed",
+                            "response" to response,
+                            "respondedAt" to com.google.firebase.Timestamp.now()
+                        )
+                    )
                     .await()
             } catch (e: Exception) {
                 println("Error sending feedback: ${e.message}")

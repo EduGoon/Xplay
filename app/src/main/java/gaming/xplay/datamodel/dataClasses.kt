@@ -36,3 +36,18 @@ data class rankings(
     val wins: Int = 0,
     val losses: Int = 0,
 )
+
+data class NotificationRequest(
+    val targetUserId: String,
+    val title: String,
+    val body: String,
+    val requestId: String = java.util.UUID.randomUUID().toString()
+)
+
+sealed class NotificationState {
+    object Idle : NotificationState()
+    object Sending : NotificationState()
+    data class Success(val accepted: Boolean) : NotificationState()
+    data class Error(val message: String) : NotificationState()
+    object Timeout : NotificationState()
+}
