@@ -11,6 +11,27 @@ class NotificationRepository {
     private val functions = FirebaseFunctions.getInstance()
 
     /**
+     * Sends a simple one-way FCM notification without waiting for feedback.
+     */
+    suspend fun sendOneWayNotification(request: NotificationRequest) = withContext(Dispatchers.IO) {
+        try {
+            val data = hashMapOf(
+                "targetUserId" to request.targetUserId,
+                "title" to request.title,
+                "body" to request.body,
+                // No requestId is needed since we aren't tracking a response
+            )
+
+            functions
+                .getHttpsCallable("sendNotification")
+                .call(data)
+                .await()
+        } catch (e: Exception) {
+            println("Error sending one-way notification: ${e.message}")
+        }
+    }
+
+    /**
      * Sends FCM notification and waits for boolean feedback
      * This is the main function you'll call from your ViewModel
      */

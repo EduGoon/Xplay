@@ -21,11 +21,13 @@ data class Game(
 )
 
 data class Match(
-    val matchid: String,
-    val player1: Player,
-    val player2: Player,
-    val score: String,
-    val winner: Player,
+    val matchid: String = "",
+    val gameId: String = "",
+    val player1Id: String = "",
+    val player2Id: String = "",
+    val score: String = "",
+    val winnerId: String = "",
+    val status: String = "pending" // can be 'pending', 'confirmed', or 'rejected'
 )
 
 data class rankings(
