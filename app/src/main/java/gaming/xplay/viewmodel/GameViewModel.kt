@@ -90,7 +90,7 @@ class GameViewModel(
         viewModelScope.launch {
             _matchHistory.value = gameRepository.getMatchHistory(playerId)
         }
-_    }
+    }
 
     fun fetchLeaderboard(gameId: String) {
         viewModelScope.launch {

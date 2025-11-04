@@ -102,4 +102,8 @@ class AuthRepository(
             .addOnSuccessListener { onComplete(true) }
             .addOnFailureListener { onComplete(false) }
     }
+
+    fun signOut() {
+        auth.signOut()
+    }
 }

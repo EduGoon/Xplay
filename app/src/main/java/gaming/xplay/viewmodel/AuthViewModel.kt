@@ -1,46 +1,75 @@
+
 package gaming.xplay.viewmodel
 
 import android.app.Activity
 import androidx.lifecycle.ViewModel
-import gaming.xplay.datamodel.AuthState
+import androidx.lifecycle.viewModelScope
+import com.google.firebase.auth.FirebaseAuth
 import gaming.xplay.repo.AuthRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 
-class AuthViewModel(
-    private val repository: AuthRepository
-) : ViewModel() {
+class AuthViewModel : ViewModel() {
 
-    private val _authState = MutableStateFlow<AuthState>(AuthState.Idle)
-    val authState: StateFlow<AuthState> = _authState
+    private val authRepository = AuthRepository(FirebaseAuth.getInstance())
 
-    fun sendVerificationCode(phoneNumber: String, activity: Activity) {
-        _authState.value = AuthState.Loading
+    private val _phoneNumber = MutableStateFlow("")
+    val phoneNumber: StateFlow<String> = _phoneNumber.asStateFlow()
 
-        repository.sendVerificationCode(
-            phoneNumber = phoneNumber,
-            activity = activity,  // ← ViewModel passes it
-            onCodeSent = {
-                _authState.value = AuthState.CodeSent
-            },
-            onError = { error ->
-                _authState.value = AuthState.Error(error)
-            }
-        )
+    private val _verificationCode = MutableStateFlow("")
+    val verificationCode: StateFlow<String> = _verificationCode.asStateFlow()
+
+    private val _isCodeSent = MutableStateFlow(false)
+    val isCodeSent: StateFlow<Boolean> = _isCodeSent.asStateFlow()
+
+    private val _error = MutableStateFlow<String?>(null)
+    val error: StateFlow<String?> = _error.asStateFlow()
+
+    private val _loginSuccess = MutableStateFlow(false)
+    val loginSuccess: StateFlow<Boolean> = _loginSuccess.asStateFlow()
+
+    private val _isLoggedOut = MutableStateFlow(false)
+    val isLoggedOut: StateFlow<Boolean> = _isLoggedOut.asStateFlow()
+
+    fun onPhoneNumberChanged(phone: String) {
+        _phoneNumber.value = phone
     }
 
-    fun verifyCode(code: String, phoneNumber: String) {
-        _authState.value = AuthState.Loading
+    fun onVerificationCodeChanged(code: String) {
+        _verificationCode.value = code
+    }
 
-        repository.verifyCode(
-            code = code,
-            phoneNumber = phoneNumber,
-            onSuccess = {
-                _authState.value = AuthState.Success
-            },
-            onError = { error ->
-                _authState.value = AuthState.Error(error)
-            }
-        )
+    fun sendVerificationCode(activity: Activity) {
+        viewModelScope.launch {
+            authRepository.sendVerificationCode(
+                phoneNumber = _phoneNumber.value,
+                activity = activity,
+                onCodeSent = { _isCodeSent.value = true },
+                onError = { _error.value = it }
+            )
+        }
+    }
+
+    fun verifyCode() {
+        viewModelScope.launch {
+            authRepository.verifyCode(
+                code = _verificationCode.value,
+                phoneNumber = _phoneNumber.value,
+                onSuccess = { _loginSuccess.value = true },
+                onError = { _error.value = it }
+            )
+        }
+    }
+
+    fun signOut() {
+        authRepository.signOut()
+        _isLoggedOut.value = true
+    }
+
+    fun onLoggedOut() {
+        _isLoggedOut.value = false
+        _loginSuccess.value = false
     }
 }
