@@ -9,11 +9,12 @@ androidx-compose-bom = "2024.04.01"
 junit = "4.13.2"
 androidx-test-ext-junit = "1.1.5"
 androidx-test-espresso-core = "3.5.1"
-firebase-bom = "32.8.1"
+firebase-bom = "33.1.0"
 google-gms-services = "4.4.2"
-navigation-runtime-android = "2.9.5"
-lifecycle-runtime-compose-android = "2.9.4"
-navigation-compose-jvmstubs = "2.9.5"
+androidx-navigation = "2.9.5"
+androidx-lifecycle-runtime-compose = "2.9.4"
+play-services-auth = "21.4.0"
+play-services-games = "24.0.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "androidx-core" }
@@ -33,9 +34,11 @@ androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-co
 androidx-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" }
 androidx-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling" }
 androidx-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest" }
-androidx-navigation-runtime-android = { group = "androidx.navigation", name = "navigation-runtime-android", version.ref = "navigation-runtime-android" }
-androidx-lifecycle-runtime-compose-android = { group = "androidx.lifecycle", name = "lifecycle-runtime-compose-android", version.ref = "lifecycle-runtime-compose-android" }
-androidx-navigation-compose-jvmstubs = { group = "androidx.navigation", name = "navigation-compose-jvmstubs", version.ref = "navigation-compose-jvmstubs" }
+androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "androidx-navigation" }
+androidx-navigation-runtime-ktx = { group = "androidx.navigation", name = "navigation-runtime-ktx", version.ref = "androidx-navigation" }
+androidx-lifecycle-runtime-compose = { group = "androidx.lifecycle", name = "lifecycle-runtime-compose", version.ref = "androidx-lifecycle-runtime-compose" }
+play-services-auth = { group = "com.google.android.gms", name = "play-services-auth", version.ref = "play-services-auth" }
+play-services-games = { group = "com.google.android.gms", name = "play-services-games", version.ref = "play-services-games" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "android-gradle-plugin" }

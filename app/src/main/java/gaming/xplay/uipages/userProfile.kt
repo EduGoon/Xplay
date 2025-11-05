@@ -1,2 +1,0 @@
-package gaming.xplay.uipages
-

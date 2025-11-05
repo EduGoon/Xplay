@@ -1,16 +1,18 @@
 package gaming.xplay.repo
 
+import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
-import com.google.firebase.firestore.ktx.firestore
-import com.google.firebase.ktx.Firebase
 import gaming.xplay.datamodel.Match
 import gaming.xplay.datamodel.rankings
 import kotlinx.coroutines.tasks.await
+import javax.inject.Inject
+import javax.inject.Singleton
 import kotlin.math.max
 
-class GameRepository {
-
-    private val db = Firebase.firestore
+@Singleton
+class GameRepository @Inject constructor(
+    private val db: FirebaseFirestore
+) {
 
     suspend fun createMatch(match: Match): String {
         val matchRef = db.collection("matches").document()

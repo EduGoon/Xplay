@@ -1,51 +1,82 @@
-
 package gaming.xplay.ui.presentation
 
 import android.app.Activity
-import androidx.compose.foundation.layout.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import android.util.Log
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.navigation.NavController
-import gaming.xplay.ui.theme.VibrantRed
+import androidx.navigation.NavHostController
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.ApiException
+import gaming.xplay.datamodel.UiState
 import gaming.xplay.ui.theme.LightText
+import gaming.xplay.ui.theme.VibrantRed
 import gaming.xplay.viewmodel.AuthViewModel
+
+// TODO: Move this to a secure place and reference it from string resources
+private const val WEB_CLIENT_ID = "219219111613-g5u92aa14eoru26tq7ph5kepe0ndg0d2.apps.googleusercontent.com"
 
 @Composable
 fun LoginScreen(
-    navController: NavController,
+    navController: NavHostController,
     authViewModel: AuthViewModel
 ) {
-    val phoneNumber by authViewModel.phoneNumber.collectAsStateWithLifecycle()
-    val verificationCode by authViewModel.verificationCode.collectAsStateWithLifecycle()
-    val isCodeSent by authViewModel.isCodeSent.collectAsStateWithLifecycle()
-    val error by authViewModel.error.collectAsStateWithLifecycle()
-    val loginSuccess by authViewModel.loginSuccess.collectAsStateWithLifecycle()
+    val uiState by authViewModel.currentUser.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
-    LaunchedEffect(loginSuccess) {
-        if (loginSuccess) {
-            navController.navigate("home") {
-                // Prevent going back to login screen
-                popUpTo("login") { inclusive = true }
+    val isLoading = uiState is UiState.Loading
+    val error = (uiState as? UiState.Error)?.message
+
+    val googleSignInLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+            try {
+                val account = task.getResult(ApiException::class.java)
+                if (account?.idToken != null) {
+                    authViewModel.signInWithGoogle(account.idToken!!)
+                } else {
+                    Log.w("LoginScreen", "Google sign-in successful but idToken is null.")
+                }
+            } catch (e: ApiException) {
+                Log.e("LoginScreen", "Google sign-in failed with ApiException", e)
             }
+        } else {
+            Log.w("LoginScreen", "Google sign-in flow was cancelled or failed.")
         }
     }
+
+    // Navigation is now handled centrally in Navigation.kt
 
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(32.dp),
+            modifier = Modifier.fillMaxSize().padding(32.dp),
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -57,57 +88,33 @@ fun LoginScreen(
                     fontSize = 50.sp
                 )
             )
-            Spacer(modifier = Modifier.height(48.dp))
+            Spacer(modifier = Modifier.height(64.dp))
 
-            if (!isCodeSent) {
-                OutlinedTextField(
-                    value = phoneNumber,
-                    onValueChange = authViewModel::onPhoneNumberChanged,
-                    label = { Text("Enter your number") },
-                    singleLine = true,
-                    colors = TextFieldDefaults.colors(
-                        focusedIndicatorColor = VibrantRed,
-                        unfocusedIndicatorColor = LightText.copy(alpha = 0.5f),
-                        cursorColor = VibrantRed,
-                        focusedLabelColor = VibrantRed,
-                        unfocusedLabelColor = LightText.copy(alpha = 0.7f)
-                    )
-                )
-                Spacer(modifier = Modifier.height(24.dp))
-                Button(
-                    onClick = { authViewModel.sendVerificationCode(context as Activity) },
-                    enabled = phoneNumber.isNotBlank(),
-                    colors = ButtonDefaults.buttonColors(containerColor = VibrantRed)
-                ) {
-                    Text("GET CODE", color = LightText)
-                }
+            if (isLoading) {
+                CircularProgressIndicator(color = VibrantRed)
             } else {
-                OutlinedTextField(
-                    value = verificationCode,
-                    onValueChange = authViewModel::onVerificationCodeChanged,
-                    label = { Text("Enter verification code") },
-                    singleLine = true,
-                     colors = TextFieldDefaults.colors(
-                        focusedIndicatorColor = VibrantRed,
-                        unfocusedIndicatorColor = LightText.copy(alpha = 0.5f),
-                        cursorColor = VibrantRed,
-                        focusedLabelColor = VibrantRed,
-                        unfocusedLabelColor = LightText.copy(alpha = 0.7f)
-                    )
-                )
-                Spacer(modifier = Modifier.height(24.dp))
                 Button(
-                    onClick = { authViewModel.verifyCode() },
-                    enabled = verificationCode.isNotBlank(),
+                    onClick = {
+                        val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+                            .requestIdToken(WEB_CLIENT_ID)
+                            .requestEmail()
+                            .build()
+                        val googleSignInClient = GoogleSignIn.getClient(context, gso)
+                        googleSignInLauncher.launch(googleSignInClient.signInIntent)
+                    },
                     colors = ButtonDefaults.buttonColors(containerColor = VibrantRed)
                 ) {
-                    Text("VERIFY & PLAY", color = LightText)
+                    Text("Sign in with Google", color = LightText)
                 }
             }
 
             error?.let {
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(text = it, color = MaterialTheme.colorScheme.error)
+                Spacer(modifier = Modifier.height(24.dp))
+                Text(
+                    text = it,
+                    color = Color.Red,
+                    style = MaterialTheme.typography.bodyMedium
+                )
             }
         }
     }

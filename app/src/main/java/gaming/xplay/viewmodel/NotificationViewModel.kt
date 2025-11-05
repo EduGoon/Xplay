@@ -2,6 +2,7 @@ package gaming.xplay.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dagger.hilt.android.lifecycle.HiltViewModel
 import gaming.xplay.datamodel.NotificationRequest
 import gaming.xplay.datamodel.NotificationState
 import gaming.xplay.repo.NotificationRepository
@@ -9,9 +10,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-class NotificationViewModel(
-    private val repository: NotificationRepository = NotificationRepository()
+@HiltViewModel
+class NotificationViewModel @Inject constructor(
+    private val repository: NotificationRepository
 ) : ViewModel() {
 
     private val _notificationState = MutableStateFlow<NotificationState>(NotificationState.Idle)

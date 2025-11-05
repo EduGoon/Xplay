@@ -1,11 +1,10 @@
 package gaming.xplay.datamodel
 
-
 data class Player(
-    val playerid: String = "",
-    val name: String = "",
-    val phoneNumber: String = "",
-    val CountyOfResidence: String = ""
+    val uid: String = "",
+    val name: String? = null,
+    val email: String? = null,
+    val profilePictureUrl: String? = null
 )
 
 data class Game(
@@ -42,7 +41,6 @@ data class NotificationRequest(
 sealed class AuthState {
     object Idle : AuthState()
     object Loading : AuthState()
-    object CodeSent : AuthState()
     object Success : AuthState()
     data class Error(val message: String) : AuthState()
 }

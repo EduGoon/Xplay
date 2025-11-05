@@ -24,8 +24,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavController
 import gaming.xplay.datamodel.NotificationState
 import gaming.xplay.ui.theme.LightText
 import gaming.xplay.ui.theme.VibrantRed
@@ -33,24 +31,13 @@ import gaming.xplay.viewmodel.AuthViewModel
 import gaming.xplay.viewmodel.NotificationViewModel
 
 @Composable
-fun HomeScreen(
-    navController: NavController,
+fun HomepageScreen(
     authViewModel: AuthViewModel,
-    notificationViewModel: NotificationViewModel = viewModel()
+    notificationViewModel: NotificationViewModel
 ) {
-    val isLoggedOut by authViewModel.isLoggedOut.collectAsStateWithLifecycle()
     val notificationState by notificationViewModel.notificationState.collectAsStateWithLifecycle()
     var targetUserId by remember { mutableStateOf("") }
     var notificationStatus by remember { mutableStateOf<String?>(null) }
-
-    LaunchedEffect(isLoggedOut) {
-        if (isLoggedOut) {
-            navController.navigate("login") {
-                popUpTo("home") { inclusive = true }
-            }
-            authViewModel.onLoggedOut() // Reset the state
-        }
-    }
 
     LaunchedEffect(notificationState) {
         notificationStatus = when (val state = notificationState) {

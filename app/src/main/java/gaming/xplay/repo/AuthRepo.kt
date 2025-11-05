@@ -1,109 +1,71 @@
 package gaming.xplay.repo
 
-import android.app.Activity
-import com.google.firebase.FirebaseException
+import android.util.Log
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.PhoneAuthCredential
-import com.google.firebase.auth.PhoneAuthOptions
-import com.google.firebase.auth.PhoneAuthProvider
+import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.SetOptions
 import gaming.xplay.datamodel.Player
-import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.tasks.await
+import javax.inject.Inject
+import javax.inject.Singleton
 
-class AuthRepository(
-    private val auth: FirebaseAuth
+@Singleton
+class AuthRepository @Inject constructor(
+    private val auth: FirebaseAuth,
+    private val firestore: FirebaseFirestore
 ) {
-    private var verificationId: String? = null
-    private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance()
 
-    // Activity passed as parameter, not stored
-    fun sendVerificationCode(
-        phoneNumber: String,
-        activity: Activity,  // ← Passed in, not stored
-        onCodeSent: () -> Unit,
-        onError: (String) -> Unit
-    ) {
-        val options = PhoneAuthOptions.newBuilder(auth)
-            .setPhoneNumber(phoneNumber)
-            .setTimeout(60L, TimeUnit.SECONDS)
-            .setActivity(activity)  // ← Used here only
-            .setCallbacks(
-                object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
-                    override fun onVerificationCompleted(credential: PhoneAuthCredential) {
-                        signInAndSaveUser(credential, phoneNumber, onError)
-                    }
-
-                    override fun onVerificationFailed(e: FirebaseException) {
-                        onError(e.message ?: "Verification failed")
-                    }
-
-                    override fun onCodeSent(
-                        vId: String,
-                        token: PhoneAuthProvider.ForceResendingToken
-                    ) {
-                        verificationId = vId
-                        onCodeSent()
-                    }
-                }
-            )
-            .build()
-
-        PhoneAuthProvider.verifyPhoneNumber(options)
-    }
-
-    fun verifyCode(
-        code: String,
-        phoneNumber: String,
-        onSuccess: () -> Unit,
-        onError: (String) -> Unit
-    ) {
-        if (verificationId == null) {
-            onError("Verification ID is null. Please resend code.")
-            return
+    suspend fun signInWithGoogle(idToken: String) {
+        val credential = GoogleAuthProvider.getCredential(idToken, null)
+        val authResult = auth.signInWithCredential(credential).await()
+        val user = authResult.user
+        if (user != null) {
+            saveUserToFirestore(user)
+        } else {
+            throw Exception("Google sign-in succeeded but user data is null.")
         }
-
-        val credential = PhoneAuthProvider.getCredential(verificationId!!, code)
-        signInAndSaveUser(credential, phoneNumber, onError, onSuccess)
     }
 
-    private fun signInAndSaveUser(
-        credential: PhoneAuthCredential,
-        phoneNumber: String,
-        onError: (String) -> Unit,
-        onSuccess: (() -> Unit)? = null
-    ) {
-        auth.signInWithCredential(credential)
-            .addOnSuccessListener { authResult ->
-                val playerid = authResult.user?.uid ?: return@addOnSuccessListener
-
-                // Create user with only phone number filled
-                val player = Player(
-                    playerid = playerid,
-                    name = "",  // Will be updated later
-                    phoneNumber = phoneNumber,
-                    CountyOfResidence = "",  // Will be updated later
-                )
-
-                saveUserToFirestore(player) { success ->
-                    if (success) {
-                        onSuccess?.invoke()
-                    } else {
-                        onError("Failed to save user to Firestore")
-                    }
-                }
-            }
-            .addOnFailureListener { e ->
-                onError(e.message ?: "Sign in failed")
-            }
+    private suspend fun saveUserToFirestore(user: FirebaseUser) {
+        val player = Player(
+            uid = user.uid,
+            email = user.email,
+            profilePictureUrl = user.photoUrl?.toString()
+        )
+        // Use set with merge to create or update user data without overwriting
+        firestore.collection("players").document(user.uid)
+            .set(player, SetOptions.merge()).await()
+        Log.d("AuthRepo", "User saved to Firestore: ${user.uid}")
     }
 
-    private fun saveUserToFirestore(player: Player, onComplete: (Boolean) -> Unit) {
-        firestore.collection("players").document(player.playerid).set(player)
-            .addOnSuccessListener { onComplete(true) }
-            .addOnFailureListener { onComplete(false) }
+    suspend fun updateUsername(userId: String, newUsername: String) {
+        firestore.collection("players").document(userId)
+            .update("name", newUsername)
+            .await()
     }
 
     fun signOut() {
         auth.signOut()
+    }
+
+    fun getCurrentUser(): FirebaseUser? {
+        return auth.currentUser
+    }
+
+    suspend fun fetchCurrentUser(): Player? {
+        val firebaseUser = auth.currentUser
+        return if (firebaseUser != null) {
+            try {
+                firestore.collection("players").document(firebaseUser.uid).get().await()
+                    .toObject(Player::class.java)
+            } catch (e: Exception) {
+                // Handle exception
+                null
+            }
+        } else {
+            null
+        }
     }
 }

@@ -2,9 +2,11 @@ package gaming.xplay.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dagger.hilt.android.lifecycle.HiltViewModel
 import gaming.xplay.datamodel.Match
 import gaming.xplay.datamodel.NotificationRequest
 import gaming.xplay.datamodel.NotificationState
+import gaming.xplay.datamodel.UiState
 import gaming.xplay.datamodel.rankings
 import gaming.xplay.repo.GameRepository
 import gaming.xplay.repo.NotificationRepository
@@ -12,20 +14,22 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-class GameViewModel(
-    private val gameRepository: GameRepository = GameRepository(),
-    private val notificationRepository: NotificationRepository = NotificationRepository()
+@HiltViewModel
+class GameViewModel @Inject constructor(
+    private val gameRepository: GameRepository,
+    private val notificationRepository: NotificationRepository
 ) : ViewModel() {
 
     private val _notificationState = MutableStateFlow<NotificationState>(NotificationState.Idle)
     val notificationState: StateFlow<NotificationState> = _notificationState.asStateFlow()
 
-    private val _matchHistory = MutableStateFlow<List<Match>>(emptyList())
-    val matchHistory: StateFlow<List<Match>> = _matchHistory.asStateFlow()
+    private val _matchHistory = MutableStateFlow<UiState<List<Match>>>(UiState.Loading)
+    val matchHistory: StateFlow<UiState<List<Match>>> = _matchHistory.asStateFlow()
 
-    private val _leaderboard = MutableStateFlow<List<rankings>>(emptyList())
-    val leaderboard: StateFlow<List<rankings>> = _leaderboard.asStateFlow()
+    private val _leaderboard = MutableStateFlow<UiState<List<rankings>>>(UiState.Loading)
+    val leaderboard: StateFlow<UiState<List<rankings>>> = _leaderboard.asStateFlow()
 
     fun uploadMatchResult(
         gameId: String,
@@ -88,13 +92,25 @@ class GameViewModel(
 
     fun fetchMatchHistory(playerId: String) {
         viewModelScope.launch {
-            _matchHistory.value = gameRepository.getMatchHistory(playerId)
+            _matchHistory.value = UiState.Loading
+            try {
+                val history = gameRepository.getMatchHistory(playerId)
+                _matchHistory.value = UiState.Success(history)
+            } catch (e: Exception) {
+                _matchHistory.value = UiState.Error(e.message ?: "An unknown error occurred")
+            }
         }
     }
 
     fun fetchLeaderboard(gameId: String) {
         viewModelScope.launch {
-            _leaderboard.value = gameRepository.getLeaderboard(gameId)
+            _leaderboard.value = UiState.Loading
+            try {
+                val board = gameRepository.getLeaderboard(gameId)
+                _leaderboard.value = UiState.Success(board)
+            } catch (e: Exception) {
+                _leaderboard.value = UiState.Error(e.message ?: "An unknown error occurred")
+            }
         }
     }
 

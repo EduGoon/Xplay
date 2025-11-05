@@ -1,37 +1,134 @@
-
 package gaming.xplay.repo
 
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.functions.FirebaseFunctions
 import gaming.xplay.datamodel.NotificationRequest
+import kotlinx.coroutines.*
 import kotlinx.coroutines.tasks.await
-import kotlinx.coroutines.withTimeoutOrNull
+import javax.inject.Inject
+import javax.inject.Singleton
 
-class NotificationRepository {
-    private val db = FirebaseFirestore.getInstance()
+@Singleton
+class NotificationRepository @Inject constructor(
+    private val firestore: FirebaseFirestore,
+    private val functions: FirebaseFunctions
+) {
 
+    /**
+     * Sends a simple one-way FCM notification without waiting for feedback.
+     */
+    suspend fun sendOneWayNotification(request: NotificationRequest) = withContext(Dispatchers.IO) {
+        try {
+            val data = hashMapOf(
+                "targetUserId" to request.targetUserId,
+                "title" to request.title,
+                "body" to request.body,
+                // No requestId is needed since we aren't tracking a response
+            )
+
+            functions
+                .getHttpsCallable("sendNotification")
+                .call(data)
+                .await()
+        } catch (e: Exception) {
+            println("Error sending one-way notification: ${e.message}")
+        }
+    }
+
+    /**
+     * Sends FCM notification and waits for boolean feedback
+     * This is the main function you'll call from your ViewModel
+     */
     suspend fun sendNotificationAndAwaitFeedback(
         request: NotificationRequest,
-        timeoutSeconds: Long
-    ): Boolean? {
-        val requestId = request.requestId
+        timeoutSeconds: Long = 30
+    ): Boolean? = withContext(Dispatchers.IO) {
+        try {
+            // Create pending response document
+            val responseRef = firestore
+                .collection("notification_responses")
+                .document(request.requestId)
 
-        return withTimeoutOrNull(timeoutSeconds * 1000) {
-            // Send the notification request to Firestore
-            db.collection("notifications").document(requestId).set(request).await()
+            responseRef.set(mapOf(
+                "status" to "pending",
+                "createdAt" to com.google.firebase.Timestamp.now(),
+                "targetUserId" to request.targetUserId
+            )).await()
 
-            // Listen for feedback in a separate document
-            val feedbackDoc = db.collection("feedback").document(requestId)
+            // Call the Cloud Function
+            val data = hashMapOf(
+                "targetUserId" to request.targetUserId,
+                "title" to request.title,
+                "body" to request.body,
+                "requestId" to request.requestId
+            )
 
-            // This is a simplified listener. In a real app, you might use a more robust
-            // solution like a snapshot listener that can be properly removed.
-            var feedback: Boolean? = null
-            while (feedback == null) {
-                val snapshot = feedbackDoc.get().await()
-                if (snapshot.exists()) {
-                    feedback = snapshot.getBoolean("accepted")
+            functions
+                .getHttpsCallable("sendNotification")
+                .call(data)
+                .await()
+
+            // Wait for response with timeout
+            withTimeoutOrNull(timeoutSeconds * 1000) {
+                waitForResponse(request.requestId)
+            }
+
+        } catch (e: Exception) {
+            println("Error sending notification: ${e.message}")
+            null
+        }
+    }
+
+    /**
+     * Listen for response updates in Firestore
+     */
+    private suspend fun waitForResponse(requestId: String): Boolean? =
+        suspendCancellableCoroutine { continuation ->
+            val responseRef = firestore
+                .collection("notification_responses")
+                .document(requestId)
+
+            val listener = responseRef.addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    continuation.resumeWith(Result.success(null))
+                    return@addSnapshotListener
+                }
+
+                snapshot?.let {
+                    val status = it.getString("status")
+                    val response = it.getBoolean("response")
+
+                    if (status == "completed" && response != null) {
+                        continuation.resumeWith(Result.success(response))
+                    }
                 }
             }
-            feedback
+
+            continuation.invokeOnCancellation {
+                listener.remove()
+            }
+        }
+
+    /**
+     * Send feedback response (called by receiver user)
+     */
+    suspend fun sendFeedback(requestId: String, response: Boolean) {
+        withContext(Dispatchers.IO) {
+            try {
+                firestore
+                    .collection("notification_responses")
+                    .document(requestId)
+                    .update(
+                        mapOf(
+                            "status" to "completed",
+                            "response" to response,
+                            "respondedAt" to com.google.firebase.Timestamp.now()
+                        )
+                    )
+                    .await()
+            } catch (e: Exception) {
+                println("Error sending feedback: ${e.message}")
+            }
         }
     }
 }
