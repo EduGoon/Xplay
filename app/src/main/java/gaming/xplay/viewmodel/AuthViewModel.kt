@@ -19,26 +19,27 @@ class AuthViewModel @Inject constructor(
     private val firebaseAuth: FirebaseAuth
 ) : ViewModel() {
 
-    private val _currentUser = MutableStateFlow<UiState<Player?>>(UiState.Loading)
+    private val _currentUser = MutableStateFlow<UiState<Player?>>(UiState.Success(null))
     val currentUser: StateFlow<UiState<Player?>> = _currentUser.asStateFlow()
 
-    init {
-        fetchPlayerProfile()
-    }
+    private val _isUserSignedIn = MutableStateFlow(firebaseAuth.currentUser != null)
+    val isUserSignedIn: StateFlow<Boolean> = _isUserSignedIn.asStateFlow()
 
     fun signInWithGoogle(idToken: String) {
         viewModelScope.launch {
             _currentUser.value = UiState.Loading
             try {
                 authRepository.signInWithGoogle(idToken)
-                fetchPlayerProfile()
+                _isUserSignedIn.value = true
+                _currentUser.value = UiState.Success(null)
             } catch (e: Exception) {
                 _currentUser.value = UiState.Error(e.message ?: "An unknown error occurred")
+                _isUserSignedIn.value = false
             }
         }
     }
 
-    private fun fetchPlayerProfile() {
+    fun fetchPlayerProfile() {
         viewModelScope.launch {
             _currentUser.value = UiState.Loading
             try {
@@ -52,6 +53,7 @@ class AuthViewModel @Inject constructor(
 
     fun signOut() {
         authRepository.signOut()
+        _isUserSignedIn.value = false
         _currentUser.value = UiState.Success(null)
     }
 }
