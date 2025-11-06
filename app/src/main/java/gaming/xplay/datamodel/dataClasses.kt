@@ -7,10 +7,11 @@ data class Player(
     val profilePictureUrl: String? = null
 )
 
-data class Game(
-    val gameid: String,
-    val name: String,
-)
+sealed class UiState<out T> {
+    object Loading : UiState<Nothing>()
+    data class Success<out T>(val data: T) : UiState<T>()
+    data class Error(val message: String) : UiState<Nothing>()
+}
 
 data class Match(
     val matchid: String = "",
@@ -38,12 +39,6 @@ data class NotificationRequest(
     val requestId: String = java.util.UUID.randomUUID().toString()
 )
 
-sealed class AuthState {
-    object Idle : AuthState()
-    object Loading : AuthState()
-    object Success : AuthState()
-    data class Error(val message: String) : AuthState()
-}
 
 sealed class NotificationState {
     object Idle : NotificationState()

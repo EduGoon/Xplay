@@ -68,6 +68,8 @@ fun MatchHistory(gameViewModel: GameViewModel = viewModel()) {
                         }
                     }
                 }
+
+                else -> {}
             }
         }
     }

@@ -19,49 +19,11 @@ class AuthViewModel @Inject constructor(
     private val firebaseAuth: FirebaseAuth
 ) : ViewModel() {
 
-    private val _currentUser = MutableStateFlow<UiState<Player>>(UiState.Loading)
-    val currentUser: StateFlow<UiState<Player>> = _currentUser.asStateFlow()
-
-    private val _loginSuccess = MutableStateFlow(false)
-    val loginSuccess: StateFlow<Boolean> = _loginSuccess.asStateFlow()
-
-    private val _isLoggedOut = MutableStateFlow(false)
-    val isLoggedOut: StateFlow<Boolean> = _isLoggedOut.asStateFlow()
-
-    private val _isLoading = MutableStateFlow(false)
-    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
-
-    private val _isUsernameSet = MutableStateFlow(false)
-    val isUsernameSet: StateFlow<Boolean> = _isUsernameSet.asStateFlow()
+    private val _currentUser = MutableStateFlow<UiState<Player?>>(UiState.Loading)
+    val currentUser: StateFlow<UiState<Player?>> = _currentUser.asStateFlow()
 
     init {
-        viewModelScope.launch {
-            if (firebaseAuth.currentUser != null) {
-                fetchPlayerProfile()
-            } else {
-                _isLoggedOut.value = true
-            }
-        }
-    }
-
-    private fun fetchPlayerProfile() {
-        viewModelScope.launch {
-            _currentUser.value = UiState.Loading
-            try {
-                val player = authRepository.fetchCurrentUser()
-                if (player != null) {
-                    _currentUser.value = UiState.Success(player)
-                    if (!player.name.isNullOrBlank()) {
-                        _loginSuccess.value = true
-                    }
-                } else {
-                    _currentUser.value = UiState.Error("Couldn't fetch user profile.")
-                    signOut() // Signing out to be safe
-                }
-            } catch (e: Exception) {
-                _currentUser.value = UiState.Error(e.message ?: "An unknown error occurred")
-            }
-        }
+        fetchPlayerProfile()
     }
 
     fun signInWithGoogle(idToken: String) {
@@ -78,32 +40,35 @@ class AuthViewModel @Inject constructor(
 
     fun updateUsername(username: String) {
         viewModelScope.launch {
-            _isLoading.value = true
+            _currentUser.value = UiState.Loading
             try {
                 val userId = firebaseAuth.currentUser?.uid
                 if (userId != null) {
                     authRepository.updateUsername(userId, username)
-                    fetchPlayerProfile() // Re-fetch profile to get updated username
-                    _isUsernameSet.value = true
+                    fetchPlayerProfile()
                 } else {
-                    // Handle user not logged in case
+                    _currentUser.value = UiState.Error("User not logged in")
                 }
             } catch (e: Exception) {
-                // Handle error
-            } finally {
-                _isLoading.value = false
+                _currentUser.value = UiState.Error(e.message ?: "An unknown error occurred")
+            }
+        }
+    }
+
+    private fun fetchPlayerProfile() {
+        viewModelScope.launch {
+            _currentUser.value = UiState.Loading
+            try {
+                val player = authRepository.fetchCurrentUser()
+                _currentUser.value = UiState.Success(player)
+            } catch (e: Exception) {
+                _currentUser.value = UiState.Error(e.message ?: "An unknown error occurred")
             }
         }
     }
 
     fun signOut() {
         authRepository.signOut()
-        _currentUser.value = UiState.Error("Signed out")
-        _loginSuccess.value = false
-        _isLoggedOut.value = true
-    }
-
-    fun onLoggedOut() {
-        _isLoggedOut.value = false
+        _currentUser.value = UiState.Success(null)
     }
 }

@@ -2,9 +2,9 @@ package gaming.xplay.ui.presentation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -18,8 +18,7 @@ fun Navigation() {
     val authViewModel: AuthViewModel = hiltViewModel()
     val notificationViewModel: NotificationViewModel = hiltViewModel()
 
-    val currentUser by authViewModel.currentUser.collectAsState()
-    val isLoggedOut by authViewModel.isLoggedOut.collectAsState()
+    val userState by authViewModel.currentUser.collectAsStateWithLifecycle()
 
     NavHost(navController = navController, startDestination = "login") {
         composable("login") {
@@ -30,39 +29,54 @@ fun Navigation() {
         }
         composable("username_setup") {
             UsernameSetupScreen(
+                navController = navController,
                 authViewModel = authViewModel
             )
         }
         composable("home") {
             MainApp(
+                mainNavController = navController,
                 authViewModel = authViewModel,
                 notificationViewModel = notificationViewModel
             )
         }
     }
 
-    LaunchedEffect(currentUser, isLoggedOut) {
-        when (val userState = currentUser) {
+    LaunchedEffect(userState) {
+        when (val state = userState) {
             is UiState.Success -> {
-                if (userState.data.name.isNullOrBlank()) {
-                    navController.navigate("username_setup") {
-                        popUpTo("login") { inclusive = true }
+                val player = state.data
+                if (player == null) {
+                    // User is signed out
+                    if (navController.currentDestination?.route != "login") {
+                        navController.navigate("login") {
+                            popUpTo(navController.graph.startDestinationId) { inclusive = true }
+                        }
+                    }
+                } else if (player.name.isNullOrBlank()) {
+                    // User needs to set a username
+                    if (navController.currentDestination?.route != "username_setup") {
+                        navController.navigate("username_setup") {
+                            popUpTo("login") { inclusive = true }
+                        }
                     }
                 } else {
-                    navController.navigate("home") {
-                        popUpTo("login") { inclusive = true }
+                    // User is authenticated
+                    if (navController.currentDestination?.route != "home") {
+                        navController.navigate("home") {
+                            popUpTo("login") { inclusive = true }
+                        }
                     }
                 }
             }
+
             is UiState.Error -> {
-                if (isLoggedOut) {
-                    navController.navigate("login") {
-                        popUpTo(navController.graph.startDestinationId) { inclusive = true }
-                    }
-                    authViewModel.onLoggedOut()
-                }
+                // Stay on the current screen. The screen itself should show the error.
             }
-            UiState.Loading -> Unit // Do nothing, maybe show a splash screen
+
+            is UiState.Loading -> {
+                // Show a splash screen or do nothing.
+            }
         }
     }
 }

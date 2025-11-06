@@ -19,6 +19,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -36,7 +37,12 @@ sealed class Screen(val route: String, val label: String, val icon: ImageVector)
 }
 
 @Composable
-fun MainApp(authViewModel: AuthViewModel, notificationViewModel: NotificationViewModel, gameViewModel: GameViewModel = viewModel()) {
+fun MainApp(
+    mainNavController: NavHostController,
+    authViewModel: AuthViewModel, 
+    notificationViewModel: NotificationViewModel, 
+    gameViewModel: GameViewModel = viewModel()
+) {
     val navController = rememberNavController()
     val items = listOf(
         Screen.Home,
@@ -78,7 +84,12 @@ fun MainApp(authViewModel: AuthViewModel, notificationViewModel: NotificationVie
             composable(Screen.Leaderboard.route) { Leaderboard(gameId = "valorant", gameViewModel = gameViewModel) }
             composable(Screen.MatchHistory.route) { MatchHistory(gameViewModel) }
             composable(Screen.Notifications.route) { NotificationsScreen() }
-            composable(Screen.Profile.route) { UserProfileScreen() }
+            composable(Screen.Profile.route) { 
+                UserProfileScreen(
+                    mainNavController = mainNavController,
+                    authViewModel = authViewModel
+                ) 
+            }
         }
     }
 }

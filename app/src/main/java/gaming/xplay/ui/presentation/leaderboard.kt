@@ -56,6 +56,7 @@ fun Leaderboard(gameId: String, gameViewModel: GameViewModel = viewModel()) {
                     }
                 }
             }
+            else -> {}
         }
     }
 }
