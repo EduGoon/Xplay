@@ -38,23 +38,6 @@ class AuthViewModel @Inject constructor(
         }
     }
 
-    fun updateUsername(username: String) {
-        viewModelScope.launch {
-            _currentUser.value = UiState.Loading
-            try {
-                val userId = firebaseAuth.currentUser?.uid
-                if (userId != null) {
-                    authRepository.updateUsername(userId, username)
-                    fetchPlayerProfile()
-                } else {
-                    _currentUser.value = UiState.Error("User not logged in")
-                }
-            } catch (e: Exception) {
-                _currentUser.value = UiState.Error(e.message ?: "An unknown error occurred")
-            }
-        }
-    }
-
     private fun fetchPlayerProfile() {
         viewModelScope.launch {
             _currentUser.value = UiState.Loading

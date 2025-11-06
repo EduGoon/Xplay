@@ -46,9 +46,6 @@ fun LoginScreen(
     val uiState by authViewModel.currentUser.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
-    val isLoading = uiState is UiState.Loading
-    val error = (uiState as? UiState.Error)?.message
-
     val googleSignInLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -69,14 +66,14 @@ fun LoginScreen(
         }
     }
 
-    // Navigation is now handled centrally in Navigation.kt
-
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
     ) {
         Column(
-            modifier = Modifier.fillMaxSize().padding(32.dp),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(32.dp),
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -90,31 +87,37 @@ fun LoginScreen(
             )
             Spacer(modifier = Modifier.height(64.dp))
 
-            if (isLoading) {
-                CircularProgressIndicator(color = VibrantRed)
-            } else {
-                Button(
-                    onClick = {
-                        val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-                            .requestIdToken(WEB_CLIENT_ID)
-                            .requestEmail()
-                            .build()
-                        val googleSignInClient = GoogleSignIn.getClient(context, gso)
-                        googleSignInLauncher.launch(googleSignInClient.signInIntent)
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = VibrantRed)
-                ) {
-                    Text("Sign in with Google", color = LightText)
+            when (uiState) {
+                is UiState.Loading -> {
+                    CircularProgressIndicator(color = VibrantRed)
                 }
-            }
-
-            error?.let {
-                Spacer(modifier = Modifier.height(24.dp))
-                Text(
-                    text = it,
-                    color = Color.Red,
-                    style = MaterialTheme.typography.bodyMedium
-                )
+                is UiState.Success -> {
+                    // Show the sign-in button only when the user is not authenticated
+                    if ((uiState as UiState.Success<*>).data == null) {
+                        Button(
+                            onClick = {
+                                val gso =
+                                    GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+                                        .requestIdToken(WEB_CLIENT_ID)
+                                        .requestEmail()
+                                        .build()
+                                val googleSignInClient = GoogleSignIn.getClient(context, gso)
+                                googleSignInLauncher.launch(googleSignInClient.signInIntent)
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = VibrantRed)
+                        ) {
+                            Text("Sign in with Google", color = LightText)
+                        }
+                    }
+                }
+                is UiState.Error -> {
+                    val error = (uiState as UiState.Error).message
+                    Text(
+                        text = error,
+                        color = Color.Red,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
             }
         }
     }

@@ -31,6 +31,7 @@ class AuthRepository @Inject constructor(
     private suspend fun saveUserToFirestore(user: FirebaseUser) {
         val player = Player(
             uid = user.uid,
+            name = user.displayName, // Set username from Google display name
             email = user.email,
             profilePictureUrl = user.photoUrl?.toString()
         )
@@ -38,12 +39,6 @@ class AuthRepository @Inject constructor(
         firestore.collection("players").document(user.uid)
             .set(player, SetOptions.merge()).await()
         Log.d("AuthRepo", "User saved to Firestore: ${user.uid}")
-    }
-
-    suspend fun updateUsername(userId: String, newUsername: String) {
-        firestore.collection("players").document(userId)
-            .update("name", newUsername)
-            .await()
     }
 
     fun signOut() {

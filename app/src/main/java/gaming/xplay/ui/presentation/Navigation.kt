@@ -27,12 +27,6 @@ fun Navigation() {
                 authViewModel = authViewModel
             )
         }
-        composable("username_setup") {
-            UsernameSetupScreen(
-                navController = navController,
-                authViewModel = authViewModel
-            )
-        }
         composable("home") {
             MainApp(
                 mainNavController = navController,
@@ -51,13 +45,6 @@ fun Navigation() {
                     if (navController.currentDestination?.route != "login") {
                         navController.navigate("login") {
                             popUpTo(navController.graph.startDestinationId) { inclusive = true }
-                        }
-                    }
-                } else if (player.name.isNullOrBlank()) {
-                    // User needs to set a username
-                    if (navController.currentDestination?.route != "username_setup") {
-                        navController.navigate("username_setup") {
-                            popUpTo("login") { inclusive = true }
                         }
                     }
                 } else {
