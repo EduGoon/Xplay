@@ -1,1 +1,4 @@
 /build
+# Ignore Google services files
+google-services.json
+GoogleService-Info.plist
