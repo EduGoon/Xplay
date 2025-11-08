@@ -42,7 +42,7 @@ class GameRepository @Inject constructor(
         }
     }
 
-    private suspend fun updatePlayerStats(playerId: String, gameId: String, xpChange: Long, winIncrement: Long, lossIncrement: Long) {
+    private suspend fun updatePlayerStats(playerId: String, gameId: String, xpChange: Long, winIncrement: Int, lossIncrement: Int) {
         val rankingsQuery = db.collection("rankings")
             .whereEqualTo("playerid", playerId)
             .whereEqualTo("gameid", gameId)
@@ -58,8 +58,8 @@ class GameRepository @Inject constructor(
                 playerid = playerId,
                 gameid = gameId,
                 XPpoints = max(0, xpChange).toInt(),
-                wins = winIncrement.toInt(),
-                losses = lossIncrement.toInt()
+                wins = winIncrement,
+                losses = lossIncrement
             )
             newRankingRef.set(newRanking).await()
         } else {

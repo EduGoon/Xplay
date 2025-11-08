@@ -23,6 +23,7 @@ class NotificationActionReceiver : BroadcastReceiver() {
         fun gameRepository(): GameRepository
     }
 
+    //after firebase receives response from the player on the confirming end
     override fun onReceive(context: Context, intent: Intent) {
         val matchId = intent.getStringExtra("requestId") ?: return
         val confirmed = when (intent.action) {

@@ -9,6 +9,8 @@ import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import gaming.xplay.receiver.NotificationActionReceiver
 
+
+//This class is for handling the receiving end of the notification
 class FCMMessagingService : FirebaseMessagingService() {
 
     override fun onMessageReceived(remoteMessage: RemoteMessage) {

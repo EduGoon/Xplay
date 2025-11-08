@@ -39,7 +39,6 @@ data class NotificationRequest(
     val requestId: String = java.util.UUID.randomUUID().toString()
 )
 
-
 sealed class NotificationState {
     object Idle : NotificationState()
     object Sending : NotificationState()
