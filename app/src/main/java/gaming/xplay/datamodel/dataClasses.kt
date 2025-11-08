@@ -4,7 +4,8 @@ data class Player(
     val uid: String = "",
     val name: String? = null,
     val email: String? = null,
-    val profilePictureUrl: String? = null
+    val profilePictureUrl: String? = null,
+    val isFirstTime: Boolean = true
 )
 
 sealed class UiState<out T> {

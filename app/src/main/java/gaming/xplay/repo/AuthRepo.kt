@@ -10,6 +10,7 @@ import gaming.xplay.datamodel.Player
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.text.get
 
 @Singleton
 class AuthRepository @Inject constructor(
@@ -33,7 +34,8 @@ class AuthRepository @Inject constructor(
             uid = user.uid,
             name = user.displayName, // Set username from Google display name
             email = user.email,
-            profilePictureUrl = user.photoUrl?.toString()
+            profilePictureUrl = user.photoUrl?.toString(),
+            isFirstTime = false
         )
         // Use set with merge to create or update user data without overwriting
         firestore.collection("players").document(user.uid)
