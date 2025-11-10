@@ -11,27 +11,25 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavController
 import com.google.accompanist.navigation.animation.AnimatedNavHost
 import com.google.accompanist.navigation.animation.composable
 import com.google.accompanist.navigation.animation.rememberAnimatedNavController
 import gaming.xplay.viewmodel.AuthViewModel
+import gaming.xplay.viewmodel.NavigationState
 
 @OptIn(ExperimentalAnimationApi::class)
 @Composable
-fun MainApp(authviewmodel: AuthViewModel = viewModel()) {
-
-    val isSignedIn by authviewmodel.isUserSignedIn.collectAsState()
+fun MainApp(authViewModel: AuthViewModel = viewModel()) {
     val navController = rememberAnimatedNavController()
+    val navigationState by authViewModel.navigationState.collectAsState()
 
-    LaunchedEffect(isSignedIn) {
-        if (isSignedIn) {
-            navController.navigate("home") {
-                popUpTo("splash") { inclusive = true }
-            }
-        } else {
-            navController.navigate("login") {
-                popUpTo("splash") { inclusive = true }
-            }
+    LaunchedEffect(navigationState) {
+        when (navigationState) {
+            is NavigationState.ToLogin -> navController.navigateAndPop("login", "splash")
+            is NavigationState.ToOnboarding -> navController.navigateAndPop("onboardingScreen", "splash")
+            is NavigationState.ToHome -> navController.navigateAndPop("home", "splash")
+            else -> Unit // Keep showing splash
         }
     }
 
@@ -46,8 +44,14 @@ fun MainApp(authviewmodel: AuthViewModel = viewModel()) {
         }
     ) {
         composable("splash") { SplashScreen() }
-        composable("login") { LoginScreen(navController) }
+        composable("login") { LoginScreen(authViewModel) }
         composable("onboardingScreen") { OnboardingScreen(navController) }
         composable("home") { HomePage(navController) }
+    }
+}
+
+fun NavController.navigateAndPop(route: String, popUpToRoute: String) {
+    navigate(route) {
+        popUpTo(popUpToRoute) { inclusive = true }
     }
 }

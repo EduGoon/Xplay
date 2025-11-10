@@ -8,10 +8,10 @@
             <InsightsFilterSettings>
               <option name="connection">
                 <ConnectionSetting>
-                  <option name="appId" value="gaming.xplay" />
-                  <option name="mobileSdkAppId" value="1:219219111613:android:a830959d82a9ac4eef91d4" />
-                  <option name="projectId" value="xplay-82496" />
-                  <option name="projectNumber" value="219219111613" />
+                  <option name="appId" value="PLACEHOLDER" />
+                  <option name="mobileSdkAppId" value="" />
+                  <option name="projectId" value="" />
+                  <option name="projectNumber" value="" />
                 </ConnectionSetting>
               </option>
               <option name="signal" value="SIGNAL_UNSPECIFIED" />

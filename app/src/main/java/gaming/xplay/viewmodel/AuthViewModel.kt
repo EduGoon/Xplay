@@ -4,8 +4,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.lifecycle.HiltViewModel
-import gaming.xplay.datamodel.Player
-import gaming.xplay.datamodel.UiState
 import gaming.xplay.repo.AuthRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -13,57 +11,62 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+sealed class NavigationState {
+    object Loading : NavigationState()
+    object ToLogin : NavigationState()
+    object ToOnboarding : NavigationState()
+    object ToHome : NavigationState()
+}
+
 @HiltViewModel
 class AuthViewModel @Inject constructor(
     private val authRepository: AuthRepository,
-    private val firebaseAuth: FirebaseAuth
 ) : ViewModel() {
 
-    private val _currentUser = MutableStateFlow<UiState<Player?>>(UiState.Success(null))
-    val currentUser: StateFlow<UiState<Player?>> = _currentUser.asStateFlow()
+    private val _navigationState = MutableStateFlow<NavigationState>(NavigationState.Loading)
+    val navigationState: StateFlow<NavigationState> = _navigationState.asStateFlow()
 
-    private val _isUserSignedIn = MutableStateFlow(firebaseAuth.currentUser != null)
-    val isUserSignedIn: StateFlow<Boolean> = _isUserSignedIn.asStateFlow()
-
-    private val authStateListener = FirebaseAuth.AuthStateListener { auth ->
-        _isUserSignedIn.value = auth.currentUser != null
-    }
+    private val _signInState = MutableStateFlow<Boolean?>(null)
+    val signInState: StateFlow<Boolean?> = _signInState.asStateFlow()
 
     init {
-        firebaseAuth.addAuthStateListener(authStateListener)
+        checkCurrentUser()
     }
 
-    override fun onCleared() {
-        super.onCleared()
-        firebaseAuth.removeAuthStateListener(authStateListener)
-    }
-
-    fun signInWithGoogle(idToken: String) {
+    private fun checkCurrentUser() {
         viewModelScope.launch {
-            _currentUser.value = UiState.Loading
-            try {
-                authRepository.signInWithGoogle(idToken)
-                _currentUser.value = UiState.Success(null)
-            } catch (e: Exception) {
-                _currentUser.value = UiState.Error(e.message ?: "An unknown error occurred")
+            val player = authRepository.fetchCurrentUserProfile()
+            if (player != null) {
+                if (player.isFirstTime) {
+                    _navigationState.value = NavigationState.ToOnboarding
+                } else {
+                    _navigationState.value = NavigationState.ToHome
+                }
+            } else {
+                _navigationState.value = NavigationState.ToLogin
             }
         }
     }
 
-    fun fetchPlayerProfile() {
+    fun signInWithGoogle(idToken: String) {
         viewModelScope.launch {
-            _currentUser.value = UiState.Loading
+            _signInState.value = null // Reset before sign-in
             try {
-                val player = authRepository.fetchCurrentUser()
-                _currentUser.value = UiState.Success(player)
+                val player = authRepository.signInWithGoogle(idToken)
+                if (player.isFirstTime) {
+                    _navigationState.value = NavigationState.ToOnboarding
+                } else {
+                    _navigationState.value = NavigationState.ToHome
+                }
+                _signInState.value = true
             } catch (e: Exception) {
-                _currentUser.value = UiState.Error(e.message ?: "An unknown error occurred")
+                _signInState.value = false
             }
         }
     }
 
     fun signOut() {
         authRepository.signOut()
-        _currentUser.value = UiState.Success(null)
+        _navigationState.value = NavigationState.ToLogin
     }
 }
