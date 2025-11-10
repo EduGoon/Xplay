@@ -63,6 +63,12 @@ class AuthRepository @Inject constructor(
         auth.signOut()
     }
 
+    suspend fun completeOnboarding() {
+        val firebaseUser = auth.currentUser ?: throw Exception("User not authenticated")
+        firestore.collection("players").document(firebaseUser.uid)
+            .update("isFirstTime", false)
+            .await()
+    }
 
     suspend fun fetchCurrentUserProfile(): Player? {
         val firebaseUser = auth.currentUser ?: return null

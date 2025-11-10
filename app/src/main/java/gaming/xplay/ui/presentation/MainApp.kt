@@ -11,7 +11,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavController
 import com.google.accompanist.navigation.animation.AnimatedNavHost
 import com.google.accompanist.navigation.animation.composable
 import com.google.accompanist.navigation.animation.rememberAnimatedNavController
@@ -24,12 +23,24 @@ fun MainApp(authViewModel: AuthViewModel = viewModel()) {
     val navController = rememberAnimatedNavController()
     val navigationState by authViewModel.navigationState.collectAsState()
 
-    LaunchedEffect(navigationState) {
+    LaunchedEffect(navigationState, navController) {
         when (navigationState) {
-            is NavigationState.ToLogin -> navController.navigateAndPop("login", "splash")
-            is NavigationState.ToOnboarding -> navController.navigateAndPop("onboardingScreen", "splash")
-            is NavigationState.ToHome -> navController.navigateAndPop("home", "splash")
-            else -> Unit // Keep showing splash
+            is NavigationState.ToLogin -> {
+                navController.navigate("login") {
+                    popUpTo("splash") { inclusive = true }
+                }
+            }
+            is NavigationState.ToOnboarding -> {
+                navController.navigate("onboardingScreen") {
+                    popUpTo("login") { inclusive = true }
+                }
+            }
+            is NavigationState.ToHome -> {
+                navController.navigate("home") {
+                    popUpTo(navController.graph.startDestinationId) { inclusive = true }
+                }
+            }
+            else -> Unit // Keep showing splash or handle other states
         }
     }
 
@@ -43,15 +54,11 @@ fun MainApp(authViewModel: AuthViewModel = viewModel()) {
             fadeOut(animationSpec = tween(300)) + slideOutHorizontally(targetOffsetX = { -it })
         }
     ) {
-        composable("splash") { SplashScreen() }
+        composable("splash") {
+            SplashScreen()
+        }
         composable("login") { LoginScreen(authViewModel) }
-        composable("onboardingScreen") { OnboardingScreen(navController) }
+        composable("onboardingScreen") { OnboardingScreen(authViewModel) }
         composable("home") { HomePage(navController) }
-    }
-}
-
-fun NavController.navigateAndPop(route: String, popUpToRoute: String) {
-    navigate(route) {
-        popUpTo(popUpToRoute) { inclusive = true }
     }
 }

@@ -37,11 +37,7 @@ class AuthViewModel @Inject constructor(
         viewModelScope.launch {
             val player = authRepository.fetchCurrentUserProfile()
             if (player != null) {
-                if (player.isFirstTime) {
-                    _navigationState.value = NavigationState.ToOnboarding
-                } else {
-                    _navigationState.value = NavigationState.ToHome
-                }
+                _navigationState.value = NavigationState.ToHome
             } else {
                 _navigationState.value = NavigationState.ToLogin
             }
@@ -61,6 +57,17 @@ class AuthViewModel @Inject constructor(
                 _signInState.value = true
             } catch (e: Exception) {
                 _signInState.value = false
+            }
+        }
+    }
+
+    fun completeOnboarding() {
+        viewModelScope.launch {
+            try {
+                authRepository.completeOnboarding()
+                _navigationState.value = NavigationState.ToHome
+            } catch (e: Exception) {
+                // Handle error
             }
         }
     }

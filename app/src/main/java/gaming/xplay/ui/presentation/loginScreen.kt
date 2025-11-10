@@ -126,7 +126,7 @@ fun SocialAuthButtons(authviewmodel: AuthViewModel) {
                             // IMPORTANT: Replace with your actual Web Client ID
                             val gso =
                                 GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-                                    .requestIdToken("requestIdToken here")
+                                    .requestIdToken("219219111613-g5u92aa14eoru26tq7ph5kepe0ndg0d2.apps.googleusercontent.com")
                                     .requestEmail()
                                     .build()
 
