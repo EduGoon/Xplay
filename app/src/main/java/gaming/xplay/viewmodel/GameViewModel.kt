@@ -117,10 +117,6 @@ class GameViewModel @Inject constructor(
         }
     }
 
-    suspend fun getPlayerProfile(playerId: String): Player? {
-        return authRepository.getPlayerProfile(playerId)
-    }
-
     fun resetState() {
         _notificationState.value = NotificationState.Idle
     }

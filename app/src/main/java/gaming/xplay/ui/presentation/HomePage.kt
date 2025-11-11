@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Card
@@ -86,10 +87,17 @@ fun HomePage(
                     )
                 },
                 actions = {
-                    IconButton(onClick = { /* TODO: Handle notifications */ }) {
+                    IconButton(onClick = { /* TODO: Handle notifications click */ }) {
                         Icon(
                             Icons.Default.Notifications,
                             contentDescription = "Notifications",
+                            tint = MaterialTheme.colorScheme.onPrimary
+                        )
+                    }
+                    IconButton(onClick = { /* TODO: Handle profile click */ }) {
+                        Icon(
+                            Icons.Filled.AccountCircle,
+                            contentDescription = "Profile",
                             tint = MaterialTheme.colorScheme.onPrimary
                         )
                     }
@@ -109,49 +117,13 @@ fun HomePage(
                 .padding(horizontal = 16.dp)
         ) {
             Spacer(modifier = Modifier.height(24.dp))
-            WelcomeSection()
-            Spacer(modifier = Modifier.height(24.dp))
             SearchBar()
             Spacer(modifier = Modifier.height(32.dp))
             val leaderboardState by gameViewModel.leaderboard.collectAsState()
-            LeaderboardSection(leaderboardState, gameViewModel)
+            LeaderboardSection(leaderboardState, authViewModel)
             Spacer(modifier = Modifier.height(32.dp))
             MyGamesSection()
         }
-    }
-}
-
-@Composable
-fun WelcomeSection() {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Column {
-            Text(
-                text = "Welcome",
-                style = MaterialTheme.typography.headlineSmall.copy(
-                    fontWeight = FontWeight.Normal,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-            )
-            Text(
-                text = "Player One", // Replace with dynamic user name
-                style = MaterialTheme.typography.headlineMedium.copy(
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-            )
-        }
-        Image(
-            painter = painterResource(id = R.drawable.ic_launcher_foreground), // Replace with user avatar
-            contentDescription = "User Avatar",
-            modifier = Modifier
-                .size(64.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surface)
-        )
     }
 }
 
@@ -180,7 +152,7 @@ fun SearchBar() {
 }
 
 @Composable
-fun LeaderboardSection(leaderboardState: UiState<List<rankings>>, gameViewModel: GameViewModel) {
+fun LeaderboardSection(leaderboardState: UiState<List<rankings>>, authViewModel: AuthViewModel) {
     Column {
         Text(
             text = "Leaderboard",
@@ -203,7 +175,7 @@ fun LeaderboardSection(leaderboardState: UiState<List<rankings>>, gameViewModel:
                         verticalArrangement = Arrangement.spacedBy(16.dp),
                     ) {
                         leaderboardState.data.forEachIndexed { index, ranking ->
-                            RankingCard(ranking = ranking, rank = index + 1, gameViewModel = gameViewModel)
+                            RankingCard(ranking = ranking, rank = index + 1, authViewModel = authViewModel)
                         }
                     }
                 }
@@ -216,11 +188,11 @@ fun LeaderboardSection(leaderboardState: UiState<List<rankings>>, gameViewModel:
 }
 
 @Composable
-fun RankingCard(ranking: rankings, rank: Int, gameViewModel: GameViewModel) {
+fun RankingCard(ranking: rankings, rank: Int, authViewModel: AuthViewModel) {
     var player by remember { mutableStateOf<Player?>(null) }
 
     LaunchedEffect(ranking.playerid) {
-        player = gameViewModel.getPlayerProfile(ranking.playerid)
+        player = authViewModel.getPlayerProfile(ranking.playerid)
     }
 
     Card(

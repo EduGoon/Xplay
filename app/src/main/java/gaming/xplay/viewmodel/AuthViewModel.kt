@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.lifecycle.HiltViewModel
+import gaming.xplay.datamodel.Player
 import gaming.xplay.repo.AuthRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -70,6 +71,10 @@ class AuthViewModel @Inject constructor(
                 // Handle error
             }
         }
+    }
+
+    suspend fun getPlayerProfile(playerId: String): Player? {
+        return authRepository.getPlayerProfile(playerId)
     }
 
     fun signOut() {
