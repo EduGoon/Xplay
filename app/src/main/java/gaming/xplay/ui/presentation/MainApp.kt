@@ -59,6 +59,6 @@ fun MainApp(authViewModel: AuthViewModel = viewModel()) {
         }
         composable("login") { LoginScreen(authViewModel) }
         composable("onboardingScreen") { OnboardingScreen(authViewModel) }
-        composable("home") { HomePage(navController) }
+        composable("home") { HomePage(navController, authViewModel) }
     }
 }
