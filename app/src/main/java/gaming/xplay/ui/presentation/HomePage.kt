@@ -16,8 +16,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Search
@@ -86,6 +88,7 @@ fun HomePage(navController: NavController, authViewModel: AuthViewModel) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .verticalScroll(rememberScrollState())
                 .padding(paddingValues)
                 .padding(horizontal = 16.dp)
         ) {
@@ -110,7 +113,7 @@ fun WelcomeSection() {
     ) {
         Column {
             Text(
-                text = "Welcome Back,",
+                text = "Welcome",
                 style = MaterialTheme.typography.headlineSmall.copy(
                     fontWeight = FontWeight.Normal,
                     color = MaterialTheme.colorScheme.onBackground
@@ -163,18 +166,19 @@ fun SearchBar() {
 fun FeaturedGamesSection() {
     Column {
         Text(
-            text = "Featured Games",
+            text = "leaderboard",
             style = MaterialTheme.typography.titleLarge.copy(
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onBackground
             )
         )
         Spacer(modifier = Modifier.height(16.dp))
-        LazyRow(
-            contentPadding = PaddingValues(horizontal = 4.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            items(listOf("Game 1", "Game 2", "Game 3")) { game ->
+            listOf("Game 1", "Game 2", "Game 3").forEach { game ->
                 GameCard(game)
             }
         }
@@ -207,7 +211,13 @@ fun MyGamesSection() {
 fun GameCard(game: String, isMyGame: Boolean = false) {
     Card(
         modifier = Modifier
-            .width(if (isMyGame) 150.dp else 220.dp)
+            .then(
+                if (isMyGame) {
+                    Modifier.width(150.dp)
+                } else {
+                    Modifier.fillMaxWidth(0.95f)
+                }
+            )
             .height(if (isMyGame) 200.dp else 140.dp),
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
