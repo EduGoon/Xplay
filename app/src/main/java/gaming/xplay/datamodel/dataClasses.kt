@@ -25,9 +25,9 @@ data class Match(
 )
 
 data class rankings(
-    val id: String,
-    val playerid: String,
-    val gameid: String,
+    val id: String = "",
+    val playerid: String = "",
+    val gameid: String = "",
     val XPpoints: Int = 0,
     val wins: Int = 0,
     val losses: Int = 0,

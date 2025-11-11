@@ -12,12 +12,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -27,6 +26,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -51,6 +51,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -152,74 +154,140 @@ fun SearchBar() {
 }
 
 @Composable
-fun LeaderboardSection(leaderboardState: UiState<List<rankings>>, authViewModel: AuthViewModel) {
-    Column {
+fun LeaderboardSection(
+    leaderboardState: UiState<List<rankings>>,
+    authViewModel: AuthViewModel
+) {
+    Column(modifier = Modifier.padding(16.dp)) {
         Text(
-            text = "Leaderboard",
-            style = MaterialTheme.typography.titleLarge.copy(
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground
+            text = "🏆 Leaderboard",
+            style = MaterialTheme.typography.headlineMedium.copy(
+                fontWeight = FontWeight.ExtraBold,
+                color = MaterialTheme.colorScheme.primary
             )
         )
-        Spacer(modifier = Modifier.height(16.dp))
+
+        Spacer(modifier = Modifier.height(12.dp))
+
         when (leaderboardState) {
             is UiState.Loading -> {
-                CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
+                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
             }
+
             is UiState.Success -> {
                 if (leaderboardState.data.isEmpty()) {
-                    Text(text = "No rankings yet. Be the first one!", modifier = Modifier.align(Alignment.CenterHorizontally))
+                    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                        Text(
+                            text = "No rankings yet. Be the first one!",
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        )
+                    }
                 } else {
                     Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+                            .padding(vertical = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(0.dp),
                     ) {
                         leaderboardState.data.forEachIndexed { index, ranking ->
-                            RankingCard(ranking = ranking, rank = index + 1, authViewModel = authViewModel)
+                            RankingRow(
+                                ranking = ranking,
+                                rank = index + 1,
+                                authViewModel = authViewModel
+                            )
+                            if (index != leaderboardState.data.lastIndex) {
+                                Divider(
+                                    modifier = Modifier.padding(horizontal = 12.dp),
+                                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
+                                )
+                            }
                         }
                     }
                 }
             }
+
             is UiState.Error -> {
-                Text(text = leaderboardState.message, color = MaterialTheme.colorScheme.error, modifier = Modifier.align(Alignment.CenterHorizontally))
+                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    Text(
+                        text = leaderboardState.message,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
-fun RankingCard(ranking: rankings, rank: Int, authViewModel: AuthViewModel) {
+fun RankingRow(ranking: rankings, rank: Int, authViewModel: AuthViewModel) {
     var player by remember { mutableStateOf<Player?>(null) }
 
     LaunchedEffect(ranking.playerid) {
         player = authViewModel.getPlayerProfile(ranking.playerid)
     }
 
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+    val medalEmoji = when (rank) {
+        1 -> "🥇"
+        2 -> "🥈"
+        3 -> "🥉"
+        else -> "⭐"
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth(0.98f) // almost full width
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
     ) {
+        // Left section: Rank + Player
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+            modifier = Modifier.weight(1f),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(text = "#$rank", style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold))
-                Spacer(modifier = Modifier.width(16.dp))
-                Text(text = player?.name ?: "Player...", style = MaterialTheme.typography.bodyLarge)
-            }
-            Column(horizontalAlignment = Alignment.End) {
-                Text(text = "XP: ${ranking.XPpoints}", fontWeight = FontWeight.Bold)
-                Text(text = "W/L: ${ranking.wins}/${ranking.losses}")
+            Text(
+                text = "$medalEmoji $rank",
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = player?.name ?: "Player...",
+                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis // prevents pushing
+                )
+                Text(
+                    text = "XP: ${ranking.XPpoints}",
+                    style = MaterialTheme.typography.labelMedium.copy(
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                )
             }
         }
+
+        // Right section: Wins/Losses (fixed width)
+        Text(
+            text = "${ranking.wins} Wins • ${ranking.losses} Losses",
+            style = MaterialTheme.typography.bodyMedium.copy(
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            ),
+            textAlign = TextAlign.End,
+            modifier = Modifier.widthIn(min = 100.dp)
+        )
     }
 }
-
 
 @Composable
 fun MyGamesSection() {
