@@ -44,13 +44,13 @@ fun OnboardingScreen(
     val pages = listOf(
         OnboardingPage(
             imageVector = Icons.Default.Games,
-            title = "Discover New Games",
-            description = "Explore a vast library of games and find your next adventure."
+            title = "Know your Ranking",
+            description = "Get to know where you rank and aim to improve"
         ),
         OnboardingPage(
             imageVector = Icons.Default.Group,
             title = "Connect with Friends",
-            description = "See what your friends are playing and team up for multiplayer action."
+            description = "See what your friends are playing, know their ranking and connect with more."
         ),
         OnboardingPage(
             imageVector = Icons.Default.Notifications,

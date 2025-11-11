@@ -1,52 +1,237 @@
 package gaming.xplay.ui.presentation
 
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import gaming.xplay.R
 import gaming.xplay.viewmodel.AuthViewModel
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomePage(navController: NavController, authViewModel: AuthViewModel = viewModel()) {
+fun HomePage(navController: NavController, authViewModel: AuthViewModel) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Xplay") },
+                title = {
+                    Text(
+                        "Xplay",
+                        style = MaterialTheme.typography.headlineMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                    )
+                },
                 actions = {
-                    IconButton(onClick = {}) {
-                        Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Sign Out")
+                    IconButton(onClick = { /* TODO: Handle notifications */ }) {
+                        Icon(
+                            Icons.Default.Notifications,
+                            contentDescription = "Notifications",
+                            tint = MaterialTheme.colorScheme.onPrimary
+                        )
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.primary
+                )
             )
-        }
-    ) {
+        },
+        containerColor = MaterialTheme.colorScheme.background
+    ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(it),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
+                .padding(paddingValues)
+                .padding(horizontal = 16.dp)
         ) {
+            Spacer(modifier = Modifier.height(24.dp))
+            WelcomeSection()
+            Spacer(modifier = Modifier.height(24.dp))
+            SearchBar()
+            Spacer(modifier = Modifier.height(32.dp))
+            FeaturedGamesSection()
+            Spacer(modifier = Modifier.height(32.dp))
+            MyGamesSection()
+        }
+    }
+}
+
+@Composable
+fun WelcomeSection() {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Column {
             Text(
-                text = "Welcome to your Homepage",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold
+                text = "Welcome Back,",
+                style = MaterialTheme.typography.headlineSmall.copy(
+                    fontWeight = FontWeight.Normal,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+            )
+            Text(
+                text = "Player One", // Replace with dynamic user name
+                style = MaterialTheme.typography.headlineMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+            )
+        }
+        Image(
+            painter = painterResource(id = R.drawable.ic_launcher_foreground), // Replace with user avatar
+            contentDescription = "User Avatar",
+            modifier = Modifier
+                .size(64.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.surface)
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SearchBar() {
+    var searchQuery by remember { mutableStateOf("") }
+    TextField(
+        value = searchQuery,
+        onValueChange = { searchQuery = it },
+        placeholder = { Text("Search for games...") },
+        modifier = Modifier.fillMaxWidth(),
+        leadingIcon = {
+            Icon(
+                Icons.Default.Search,
+                contentDescription = "Search Icon"
+            )
+        },
+        shape = RoundedCornerShape(16.dp),
+        colors = TextFieldDefaults.textFieldColors(
+            containerColor = MaterialTheme.colorScheme.surface,
+            unfocusedIndicatorColor = Color.Transparent,
+            focusedIndicatorColor = Color.Transparent
+        )
+    )
+}
+
+@Composable
+fun FeaturedGamesSection() {
+    Column {
+        Text(
+            text = "Featured Games",
+            style = MaterialTheme.typography.titleLarge.copy(
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            items(listOf("Game 1", "Game 2", "Game 3")) { game ->
+                GameCard(game)
+            }
+        }
+    }
+}
+
+@Composable
+fun MyGamesSection() {
+    Column {
+        Text(
+            text = "My Games",
+            style = MaterialTheme.typography.titleLarge.copy(
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            items(listOf("My Game 1", "My Game 2")) { game ->
+                GameCard(game, isMyGame = true)
+            }
+        }
+    }
+}
+
+@Composable
+fun GameCard(game: String, isMyGame: Boolean = false) {
+    Card(
+        modifier = Modifier
+            .width(if (isMyGame) 150.dp else 220.dp)
+            .height(if (isMyGame) 200.dp else 140.dp),
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+    ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            Image(
+                painter = painterResource(id = R.drawable.ic_launcher_background), // Replace with game image
+                contentDescription = game,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.5f))
+            )
+            Text(
+                text = game,
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(16.dp),
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                fontSize = if (isMyGame) 16.sp else 20.sp
             )
         }
     }
