@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -36,6 +37,8 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -49,14 +52,27 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import gaming.xplay.R
+import gaming.xplay.datamodel.Player
+import gaming.xplay.datamodel.UiState
+import gaming.xplay.datamodel.rankings
 import gaming.xplay.viewmodel.AuthViewModel
+import gaming.xplay.viewmodel.GameViewModel
 
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomePage(navController: NavController, authViewModel: AuthViewModel) {
+fun HomePage(
+    navController: NavController,
+    authViewModel: AuthViewModel,
+    gameViewModel: GameViewModel = hiltViewModel()
+) {
+    LaunchedEffect(Unit) {
+        gameViewModel.fetchLeaderboard("FIFA")
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -97,7 +113,8 @@ fun HomePage(navController: NavController, authViewModel: AuthViewModel) {
             Spacer(modifier = Modifier.height(24.dp))
             SearchBar()
             Spacer(modifier = Modifier.height(32.dp))
-            FeaturedGamesSection()
+            val leaderboardState by gameViewModel.leaderboard.collectAsState()
+            LeaderboardSection(leaderboardState, gameViewModel)
             Spacer(modifier = Modifier.height(32.dp))
             MyGamesSection()
         }
@@ -163,27 +180,74 @@ fun SearchBar() {
 }
 
 @Composable
-fun FeaturedGamesSection() {
+fun LeaderboardSection(leaderboardState: UiState<List<rankings>>, gameViewModel: GameViewModel) {
     Column {
         Text(
-            text = "leaderboard",
+            text = "Leaderboard",
             style = MaterialTheme.typography.titleLarge.copy(
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onBackground
             )
         )
         Spacer(modifier = Modifier.height(16.dp))
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            listOf("Game 1", "Game 2", "Game 3").forEach { game ->
-                GameCard(game)
+        when (leaderboardState) {
+            is UiState.Loading -> {
+                CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
+            }
+            is UiState.Success -> {
+                if (leaderboardState.data.isEmpty()) {
+                    Text(text = "No rankings yet. Be the first one!", modifier = Modifier.align(Alignment.CenterHorizontally))
+                } else {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                    ) {
+                        leaderboardState.data.forEachIndexed { index, ranking ->
+                            RankingCard(ranking = ranking, rank = index + 1, gameViewModel = gameViewModel)
+                        }
+                    }
+                }
+            }
+            is UiState.Error -> {
+                Text(text = leaderboardState.message, color = MaterialTheme.colorScheme.error, modifier = Modifier.align(Alignment.CenterHorizontally))
             }
         }
     }
 }
+
+@Composable
+fun RankingCard(ranking: rankings, rank: Int, gameViewModel: GameViewModel) {
+    var player by remember { mutableStateOf<Player?>(null) }
+
+    LaunchedEffect(ranking.playerid) {
+        player = gameViewModel.getPlayerProfile(ranking.playerid)
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(text = "#$rank", style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold))
+                Spacer(modifier = Modifier.width(16.dp))
+                Text(text = player?.name ?: "Player...", style = MaterialTheme.typography.bodyLarge)
+            }
+            Column(horizontalAlignment = Alignment.End) {
+                Text(text = "XP: ${ranking.XPpoints}", fontWeight = FontWeight.Bold)
+                Text(text = "W/L: ${ranking.wins}/${ranking.losses}")
+            }
+        }
+    }
+}
+
 
 @Composable
 fun MyGamesSection() {

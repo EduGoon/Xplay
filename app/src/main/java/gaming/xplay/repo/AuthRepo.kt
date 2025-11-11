@@ -19,7 +19,7 @@ class AuthRepository @Inject constructor(
         val credential = GoogleAuthProvider.getCredential(idToken, null)
         val authResult = auth.signInWithCredential(credential).await()
         val user = authResult.user ?: throw Exception("Google sign-in succeeded but user data is null.")
-        
+
         val isNewUser = authResult.additionalUserInfo?.isNewUser ?: false
         val userDocRef = firestore.collection("players").document(user.uid)
 
@@ -77,6 +77,16 @@ class AuthRepository @Inject constructor(
                 .toObject(Player::class.java)
         } catch (e: Exception) {
             Log.e("AuthRepo", "Error fetching user profile", e)
+            null
+        }
+    }
+
+    suspend fun getPlayerProfile(playerId: String): Player? {
+        return try {
+            firestore.collection("players").document(playerId).get().await()
+                .toObject(Player::class.java)
+        } catch (e: Exception) {
+            Log.e("AuthRepo", "Error fetching player profile for ID: $playerId", e)
             null
         }
     }

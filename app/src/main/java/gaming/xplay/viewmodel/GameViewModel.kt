@@ -6,8 +6,10 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import gaming.xplay.datamodel.Match
 import gaming.xplay.datamodel.NotificationRequest
 import gaming.xplay.datamodel.NotificationState
+import gaming.xplay.datamodel.Player
 import gaming.xplay.datamodel.UiState
 import gaming.xplay.datamodel.rankings
+import gaming.xplay.repo.AuthRepository
 import gaming.xplay.repo.GameRepository
 import gaming.xplay.repo.NotificationRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,7 +21,8 @@ import javax.inject.Inject
 @HiltViewModel
 class GameViewModel @Inject constructor(
     private val gameRepository: GameRepository,
-    private val notificationRepository: NotificationRepository
+    private val notificationRepository: NotificationRepository,
+    private val authRepository: AuthRepository
 ) : ViewModel() {
 
     private val _notificationState = MutableStateFlow<NotificationState>(NotificationState.Idle)
@@ -112,6 +115,10 @@ class GameViewModel @Inject constructor(
                 _leaderboard.value = UiState.Error(e.message ?: "An unknown error occurred")
             }
         }
+    }
+
+    suspend fun getPlayerProfile(playerId: String): Player? {
+        return authRepository.getPlayerProfile(playerId)
     }
 
     fun resetState() {
