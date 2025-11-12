@@ -31,7 +31,6 @@ import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
 import gaming.xplay.viewmodel.AuthViewModel
 
-
 @Composable
 fun LoginScreen(authViewModel: AuthViewModel) {
     Scaffold(

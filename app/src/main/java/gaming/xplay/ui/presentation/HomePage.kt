@@ -1,5 +1,9 @@
 package gaming.xplay.ui.presentation
 
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -12,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyRow
@@ -22,6 +27,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -47,6 +53,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
@@ -122,7 +129,9 @@ fun HomePage(
             SearchBar()
             Spacer(modifier = Modifier.height(32.dp))
             val leaderboardState by gameViewModel.leaderboard.collectAsState()
-            LeaderboardSection(leaderboardState, authViewModel)
+            LeaderboardSection(leaderboardState, authViewModel, onRefresh = {
+                gameViewModel.fetchLeaderboard("FIFA")
+            })
             Spacer(modifier = Modifier.height(32.dp))
             MyGamesSection()
         }
@@ -156,16 +165,36 @@ fun SearchBar() {
 @Composable
 fun LeaderboardSection(
     leaderboardState: UiState<List<rankings>>,
-    authViewModel: AuthViewModel
+    authViewModel: AuthViewModel,
+    onRefresh: () -> Unit // Lambda to trigger refresh
 ) {
     Column(modifier = Modifier.padding(16.dp)) {
-        Text(
-            text = "🏆 Leaderboard",
-            style = MaterialTheme.typography.headlineMedium.copy(
-                fontWeight = FontWeight.ExtraBold,
-                color = MaterialTheme.colorScheme.primary
+
+        // Title row with refresh button
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = "🏆 Leaderboard",
+                style = MaterialTheme.typography.headlineMedium.copy(
+                    fontWeight = FontWeight.ExtraBold,
+                    color = MaterialTheme.colorScheme.primary
+                )
             )
-        )
+
+            IconButton(
+                onClick = { onRefresh() },
+                modifier = Modifier.size(36.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Refresh,  // Built-in refresh icon
+                    contentDescription = "Refresh leaderboard",
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
 
         Spacer(modifier = Modifier.height(12.dp))
 

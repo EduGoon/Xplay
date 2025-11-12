@@ -54,6 +54,7 @@ fun XplayTheme(
             darkTheme -> DarkColorScheme
             else -> DarkColorScheme
         }
+
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
