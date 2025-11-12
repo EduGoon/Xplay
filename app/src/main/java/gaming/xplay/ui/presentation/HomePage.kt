@@ -145,7 +145,7 @@ fun SearchBar() {
     TextField(
         value = searchQuery,
         onValueChange = { searchQuery = it },
-        placeholder = { Text("Search for games...") },
+        placeholder = { Text("Search for players...") },
         modifier = Modifier.fillMaxWidth(),
         leadingIcon = {
             Icon(

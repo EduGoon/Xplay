@@ -10,50 +10,47 @@ import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 private val DarkColorScheme = darkColorScheme(
-    primary = FieryOrange,
-    secondary = AccentGray,
+    primary = NeonViolet,
+    secondary = NeonMagenta,
     background = DarkBackground,
-    surface = DarkBackground,
-    onPrimary = Color.Black,
-    onSecondary = Color.Black,
-    onBackground = OffWhite,
-    onSurface = OffWhite
+    surface = SurfaceDark,
+    onPrimary = OnDark,
+    onSecondary = OnDark,
+    onBackground = OnDark,
+    onSurface = OnDark
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = FieryOrange,
-    secondary = AccentGray,
-    background = OffWhite,
-    surface = OffWhite,
-    onPrimary = Color.White,
-    onSecondary = Color.Black,
-    onBackground = Color.Black,
-    onSurface = Color.Black
+    primary = NeonViolet,
+    secondary = NeonMagenta,
+    background = LightBackground,  // soft off-white
+    surface = SurfaceLight,        // bright panels/cards
+    onPrimary = OnLight,
+    onSecondary = OnLight,
+    onBackground = OnLight,
+    onSurface = OnLight
 )
 
 @Composable
 fun XplayTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
+    darkTheme: Boolean = isSystemInDarkTheme(), // uses system setting by default
     dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
-    val colorScheme =
-        when {
-            dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-                val context = LocalContext.current
-                if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-            }
-            darkTheme -> DarkColorScheme
-            else -> DarkColorScheme
+    val colorScheme = when {
+        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
+            val context = LocalContext.current
+            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
+        darkTheme -> DarkColorScheme
+        else -> LightColorScheme
+    }
 
     val view = LocalView.current
     if (!view.isInEditMode) {
@@ -66,7 +63,7 @@ fun XplayTheme(
 
     MaterialTheme(
         colorScheme = colorScheme,
-        typography = Typography,
+        typography = Typography, // keep your Typography
         content = content
     )
 }
