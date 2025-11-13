@@ -22,6 +22,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
+import gaming.xplay.datamodel.Bubble
 import kotlinx.coroutines.delay
 import kotlin.random.Random
 
@@ -95,10 +96,3 @@ private fun FloatingBubbles() {
         }
     }
 }
-
-data class Bubble(
-    val size: Dp,
-    val startPosition: Offset,
-    val color: Color,
-    val duration: Int
-)

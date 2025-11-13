@@ -1,5 +1,9 @@
 package gaming.xplay.datamodel
 
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.Dp
+
 data class Player(
     val uid: String = "",
     val name: String? = null,
@@ -47,3 +51,10 @@ sealed class NotificationState {
     data class Error(val message: String) : NotificationState()
     object Timeout : NotificationState()
 }
+
+data class Bubble(
+    val size: Dp,
+    val startPosition: Offset,
+    val color: Color,
+    val duration: Int
+)

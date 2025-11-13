@@ -131,7 +131,9 @@ fun HomePage(
             val leaderboardState by gameViewModel.leaderboard.collectAsState()
             LeaderboardSection(leaderboardState, authViewModel, onRefresh = {
                 gameViewModel.fetchLeaderboard("FIFA")
-            })
+            },
+                navController = navController
+            )
             Spacer(modifier = Modifier.height(32.dp))
             MyGamesSection()
         }
@@ -166,7 +168,8 @@ fun SearchBar() {
 fun LeaderboardSection(
     leaderboardState: UiState<List<rankings>>,
     authViewModel: AuthViewModel,
-    onRefresh: () -> Unit // Lambda to trigger refresh
+    onRefresh: () -> Unit, // Lambda to trigger refresh
+    navController: NavController
 ) {
     Column(modifier = Modifier.padding(16.dp)) {
 
@@ -228,7 +231,8 @@ fun LeaderboardSection(
                             RankingRow(
                                 ranking = ranking,
                                 rank = index + 1,
-                                authViewModel = authViewModel
+                                authViewModel = authViewModel,
+                                {playerId -> navController.navigate("profile/$playerId")}
                             )
                             if (index != leaderboardState.data.lastIndex) {
                                 Divider(
@@ -255,11 +259,12 @@ fun LeaderboardSection(
 }
 
 @Composable
-fun RankingRow(ranking: rankings, rank: Int, authViewModel: AuthViewModel) {
+fun RankingRow(ranking: rankings, rank: Int, authViewModel: AuthViewModel, onClick: (String) -> Unit) {
     var player by remember { mutableStateOf<Player?>(null) }
 
     LaunchedEffect(ranking.playerid) {
         player = authViewModel.getPlayerProfile(ranking.playerid)
+        onClick(ranking.playerid)
     }
 
     val medalEmoji = when (rank) {
