@@ -23,7 +23,7 @@ import androidx.navigation.NavType
 
 @OptIn(ExperimentalAnimationApi::class)
 @Composable
-fun MainApp(authViewModel: AuthViewModel = viewModel(), gameViewModel: GameViewModel = viewModel()) {
+fun MainApp(authViewModel: AuthViewModel = viewModel(), gameviewmodel: GameViewModel = viewModel()) {
     val navController = rememberAnimatedNavController()
     val navigationState by authViewModel.navigationState.collectAsState()
 
@@ -65,17 +65,34 @@ fun MainApp(authViewModel: AuthViewModel = viewModel(), gameViewModel: GameViewM
         composable("onboardingScreen") { OnboardingScreen(authViewModel) }
         composable("home") { HomePage(navController, authViewModel) }
         composable(
-            "profile/{playerId}",
+            "profile/{playerId}/{XPpoints}/{wins}/{losses}",
             arguments = listOf(
                 navArgument("playerId") {
                     type = NavType.StringType
+                }, navArgument("XPpoints") {
+                    type = NavType.IntType
+                }, navArgument("wins") {
+                    type = NavType.IntType
+                }, navArgument("losses") {
+                    type = NavType.IntType
                 }
             )
             ) { backStackEntry ->
             val playerId = backStackEntry.arguments?.getString("playerId")
+            val XPpoints = backStackEntry.arguments?.getString("XPpoints")?.toInt()
+            val wins = backStackEntry.arguments?.getString("wins")?.toInt()
+            val losses = backStackEntry.arguments?.getString("losses")?.toInt()
 
-            if(playerId != null) {
-            playerProfile(navController, authViewModel, gameViewModel, userId = playerId) }
+            if(playerId != null && XPpoints != null && wins != null && losses != null) {
+                PlayerProfile(
+                navController,
+                authViewModel,
+                    gameviewmodel,
+                userId = playerId,
+                XPpoints = XPpoints,
+                wins = wins,
+                losses = losses
+            )}
             else{
                 Text("Error: Player ID not found")
             }

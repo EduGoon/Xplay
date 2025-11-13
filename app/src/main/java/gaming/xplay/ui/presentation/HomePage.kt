@@ -5,7 +5,10 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -232,7 +235,9 @@ fun LeaderboardSection(
                                 ranking = ranking,
                                 rank = index + 1,
                                 authViewModel = authViewModel,
-                                {playerId -> navController.navigate("profile/$playerId")}
+                                {
+                                    playerId, XPpoints, wins, losses
+                                     -> navController.navigate("profile/$playerId/$XPpoints/$wins/$losses")}
                             )
                             if (index != leaderboardState.data.lastIndex) {
                                 Divider(
@@ -259,12 +264,11 @@ fun LeaderboardSection(
 }
 
 @Composable
-fun RankingRow(ranking: rankings, rank: Int, authViewModel: AuthViewModel, onClick: (String) -> Unit) {
+fun RankingRow(ranking: rankings, rank: Int, authViewModel: AuthViewModel, onClick: (String, Int, Int, Int) -> Unit) {
     var player by remember { mutableStateOf<Player?>(null) }
 
     LaunchedEffect(ranking.playerid) {
         player = authViewModel.getPlayerProfile(ranking.playerid)
-        onClick(ranking.playerid)
     }
 
     val medalEmoji = when (rank) {
@@ -274,13 +278,21 @@ fun RankingRow(ranking: rankings, rank: Int, authViewModel: AuthViewModel, onCli
         else -> "⭐"
     }
 
+    // THE FIX IS APPLIED HERE
     Row(
         modifier = Modifier
-            .fillMaxWidth(0.98f) // almost full width
+            .fillMaxWidth()
+            .clickable(
+                onClick = { onClick(ranking.playerid, ranking.XPpoints, ranking.wins, ranking.losses) },
+                // Make the clickable effect bounded to the row's shape
+                indication = LocalIndication.current,
+                interactionSource = remember { MutableInteractionSource() }
+            )
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
+        // ... rest of your code remains the same
         // Left section: Rank + Player
         Row(
             modifier = Modifier.weight(1f),
@@ -299,7 +311,7 @@ fun RankingRow(ranking: rankings, rank: Int, authViewModel: AuthViewModel, onCli
                     text = player?.name ?: "Player...",
                     style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis // prevents pushing
+                    overflow = TextOverflow.Ellipsis
                 )
                 Text(
                     text = "XP: ${ranking.XPpoints}",

@@ -76,9 +76,12 @@ dependencies {
     implementation(libs.firebase.functions.ktx)
     implementation(libs.play.services.auth)
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
+    implementation("com.google.android.gms:play-services-auth:21.2.0")
 
     implementation("com.google.dagger:hilt-android:2.51.1")
     kapt("com.google.dagger:hilt-compiler:2.51.1")
     implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
     implementation("com.google.accompanist:accompanist-navigation-animation:0.32.0")
+
+    implementation("io.coil-kt:coil-compose:2.6.0")
 }

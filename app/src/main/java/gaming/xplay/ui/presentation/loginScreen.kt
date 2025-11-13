@@ -70,13 +70,12 @@ private fun SocialAuthButtons(authViewModel: AuthViewModel) {
     var isLoading by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
-
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
         try {
             if (result.resultCode != Activity.RESULT_OK) {
-                Log.d("GoogleSignIn", "Sign-in cancelled")
+                Log.d("GoogleSignIn", "Sign-in was cancelled by the user.")
                 isLoading = false
                 return@rememberLauncherForActivityResult
             }
@@ -86,35 +85,36 @@ private fun SocialAuthButtons(authViewModel: AuthViewModel) {
             if (idToken != null) {
                 authViewModel.signInWithGoogle(idToken)
             } else {
-                Log.e("GoogleSignIn", "Missing idToken")
+                Log.e("GoogleSignIn", "Google Sign-In succeeded but idToken was null.")
                 isLoading = false
             }
         } catch (e: ApiException) {
-            Log.e("GoogleSignIn", "Google API error (${e.statusCode})", e)
+            Log.e("GoogleSignIn", "Google Sign-In API error (code: ${e.statusCode})", e)
             isLoading = false
         } catch (t: Throwable) {
-            Log.e("GoogleSignIn", "Unhandled launcher error", t)
+            Log.e("GoogleSignIn", "An unhandled error occurred during Google Sign-In.", t)
             isLoading = false
         }
     }
 
+    // By remembering the client, we avoid recreating it on every recomposition.
+    val googleSignInClient = remember {
+        val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+            .requestIdToken("219219111613-g5u92aa14eoru26tq7ph5kepe0ndg0d2.apps.googleusercontent.com")
+            .requestEmail()
+            .build()
+        GoogleSignIn.getClient(context, gso)
+    }
 
     GoogleAuthButton(
         onClick = {
             isLoading = true
-            val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-                .requestIdToken("219219111613-g5u92aa14eoru26tq7ph5kepe0ndg0d2.apps.googleusercontent.com")
-                .requestEmail()
-                .build()
-
-            val googleSignInClient = GoogleSignIn.getClient(context, gso)
-            googleSignInClient.signOut().addOnCompleteListener {
-                launcher.launch(googleSignInClient.signInIntent)
-            }
+            launcher.launch(googleSignInClient.signInIntent)
         },
         isLoading = isLoading
     )
 
+    // This UI feedback for a failed sign-in is good practice.
     if (signInState == false) {
         Spacer(modifier = Modifier.height(16.dp))
         Text(
