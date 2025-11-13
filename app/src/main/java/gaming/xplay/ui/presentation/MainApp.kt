@@ -79,9 +79,9 @@ fun MainApp(authViewModel: AuthViewModel = viewModel(), gameviewmodel: GameViewM
             )
             ) { backStackEntry ->
             val playerId = backStackEntry.arguments?.getString("playerId")
-            val XPpoints = backStackEntry.arguments?.getString("XPpoints")?.toInt()
-            val wins = backStackEntry.arguments?.getString("wins")?.toInt()
-            val losses = backStackEntry.arguments?.getString("losses")?.toInt()
+            val XPpoints = backStackEntry.arguments?.getInt("XPpoints")
+            val wins = backStackEntry.arguments?.getInt("wins")
+            val losses = backStackEntry.arguments?.getInt("losses")
 
             if(playerId != null && XPpoints != null && wins != null && losses != null) {
                 PlayerProfile(
