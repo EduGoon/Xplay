@@ -13,28 +13,6 @@ class NotificationRepository @Inject constructor(
     private val firestore: FirebaseFirestore,
     private val functions: FirebaseFunctions
 ) {
-
-    /**
-     * Sends a simple one-way FCM notification without waiting for feedback.
-     */
-    suspend fun sendOneWayNotification(request: NotificationRequest) = withContext(Dispatchers.IO) {
-        try {
-            val data = hashMapOf(
-                "targetUserId" to request.targetUserId,
-                "title" to request.title,
-                "body" to request.body,
-                // No requestId is needed since we aren't tracking a response
-            )
-
-            functions
-                .getHttpsCallable("sendNotification")
-                .call(data)
-                .await()
-        } catch (e: Exception) {
-            println("Error sending one-way notification: ${e.message}")
-        }
-    }
-
     /**
      * Sends FCM notification and waits for boolean feedback
      * This is the main function you'll call from your ViewModel
@@ -80,6 +58,25 @@ class NotificationRepository @Inject constructor(
     }
 
     /**
+     * Sends a one-way FCM notification without waiting for feedback.
+     */
+    suspend fun sendNotification(request: NotificationRequest) {
+        try {
+            val data = hashMapOf(
+                "targetUserId" to request.targetUserId,
+                "title" to request.title,
+                "body" to request.body
+            )
+            functions
+                .getHttpsCallable("sendNotification")
+                .call(data)
+                .await()
+        } catch (e: Exception) {
+            println("Error sending notification: ${e.message}")
+        }
+    }
+
+    /**
      * Listen for response updates in Firestore
      */
     private suspend fun waitForResponse(requestId: String): Boolean? =
@@ -108,27 +105,5 @@ class NotificationRepository @Inject constructor(
                 listener.remove()
             }
         }
-
-    /**
-     * Send feedback response (called by receiver user)
-     */
-    suspend fun sendFeedback(requestId: String, response: Boolean) {
-        withContext(Dispatchers.IO) {
-            try {
-                firestore
-                    .collection("notification_responses")
-                    .document(requestId)
-                    .update(
-                        mapOf(
-                            "status" to "completed",
-                            "response" to response,
-                            "respondedAt" to com.google.firebase.Timestamp.now()
-                        )
-                    )
-                    .await()
-            } catch (e: Exception) {
-                println("Error sending feedback: ${e.message}")
-            }
-        }
-    }
+    
 }

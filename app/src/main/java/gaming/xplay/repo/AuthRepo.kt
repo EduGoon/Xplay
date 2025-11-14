@@ -32,7 +32,6 @@ class AuthRepository @Inject constructor(
                 profilePictureUrl = user.photoUrl?.toString(),
                 isFirstTime = true
             )
-            // This operation might fail due to Firestore rules
             userDocRef.set(newPlayer).await()
             Log.d("AuthRepo", "New user profile created in Firestore: ${user.uid}")
             return newPlayer
@@ -43,15 +42,13 @@ class AuthRepository @Inject constructor(
             if (player != null) {
                 return player
             } else {
-                // This case handles a returning user that is missing a firestore document.
-                // This can happen if the document was manually deleted or the initial write failed
                 Log.w("AuthRepo", "User exists in Auth, but not in Firestore. Creating new profile.")
                  val fallbackPlayer = Player(
                     uid = user.uid,
                     name = user.displayName,
                     email = user.email,
                     profilePictureUrl = user.photoUrl?.toString(),
-                    isFirstTime = false // Not a new user, but needs a profile
+                    isFirstTime = false
                 )
                 userDocRef.set(fallbackPlayer).await()
                 return fallbackPlayer
@@ -70,6 +67,12 @@ class AuthRepository @Inject constructor(
             .await()
     }
 
+    fun checkCurrentUserUid() :String? {
+        val firebaseUser = auth.currentUser
+        val uid = firebaseUser?.uid
+        return uid
+    }
+
     suspend fun fetchCurrentUserProfile(): Player? {
         val firebaseUser = auth.currentUser ?: return null
         return try {
@@ -78,6 +81,19 @@ class AuthRepository @Inject constructor(
         } catch (e: Exception) {
             Log.e("AuthRepo", "Error fetching user profile", e)
             null
+        }
+    }
+
+    suspend fun updateFCMToken(token: String) {
+        val userId = auth.currentUser?.uid ?: return
+        try {
+            firestore.collection("players").document(userId)
+                .update("fcmToken", token)
+                .await()
+            Log.d("AuthRepo", "FCM token updated for user: $userId")
+        } catch (e: Exception) {
+            Log.e("AuthRepo", "Error updating FCM token for user: $userId", e)
+            // Depending on your error handling strategy, you might want to log this to a service like Crashlytics.
         }
     }
 

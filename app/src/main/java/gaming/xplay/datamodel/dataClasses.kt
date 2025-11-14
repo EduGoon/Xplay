@@ -18,14 +18,22 @@ sealed class UiState<out T> {
     data class Error(val message: String) : UiState<Nothing>()
 }
 
+data class Challenge(
+    val challengeId: String = "",
+    val gameId: String = "",
+    val player1Id: String = "",
+    val player2Id: String = "",
+    val status: String = "pending", // pending, accepted, completed, disputed
+    val player1Result: String? = null, // "win" or "loss"
+    val player2Result: String? = null
+)
+
 data class Match(
     val matchid: String = "",
     val gameId: String = "",
     val player1Id: String = "",
     val player2Id: String = "",
-    val score: String = "",
     val winnerId: String = "",
-    val status: String = "pending" // can be 'pending', 'confirmed', or 'rejected'
 )
 
 data class rankings(

@@ -3,10 +3,9 @@ package gaming.xplay.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import gaming.xplay.datamodel.Challenge
 import gaming.xplay.datamodel.Match
 import gaming.xplay.datamodel.NotificationRequest
-import gaming.xplay.datamodel.NotificationState
-import gaming.xplay.datamodel.Player
 import gaming.xplay.datamodel.UiState
 import gaming.xplay.datamodel.rankings
 import gaming.xplay.repo.AuthRepository
@@ -25,8 +24,14 @@ class GameViewModel @Inject constructor(
     private val authRepository: AuthRepository
 ) : ViewModel() {
 
-    private val _notificationState = MutableStateFlow<NotificationState>(NotificationState.Idle)
-    val notificationState: StateFlow<NotificationState> = _notificationState.asStateFlow()
+    private val _incomingChallenges = MutableStateFlow<UiState<List<Challenge>>>(UiState.Loading)
+    val incomingChallenges: StateFlow<UiState<List<Challenge>>> = _incomingChallenges.asStateFlow()
+
+    private val _outgoingChallenges = MutableStateFlow<UiState<List<Challenge>>>(UiState.Loading)
+    val outgoingChallenges: StateFlow<UiState<List<Challenge>>> = _outgoingChallenges.asStateFlow()
+
+    private val _acceptedChallenges = MutableStateFlow<UiState<List<Challenge>>>(UiState.Loading)
+    val acceptedChallenges: StateFlow<UiState<List<Challenge>>> = _acceptedChallenges.asStateFlow()
 
     private val _matchHistory = MutableStateFlow<UiState<List<Match>>>(UiState.Loading)
     val matchHistory: StateFlow<UiState<List<Match>>> = _matchHistory.asStateFlow()
@@ -34,61 +39,107 @@ class GameViewModel @Inject constructor(
     private val _leaderboard = MutableStateFlow<UiState<List<rankings>>>(UiState.Loading)
     val leaderboard: StateFlow<UiState<List<rankings>>> = _leaderboard.asStateFlow()
 
-    fun uploadMatchResult(
-        gameId: String,
-        player1Id: String, // The one uploading
-        player2Id: String, // The opponent
-        score: String,
-        winnerId: String
-    ) {
+    private val _errorState = MutableStateFlow<String?>(null)
+    val errorState: StateFlow<String?> = _errorState.asStateFlow()
+
+    fun createChallenge(player2Id: String, gameId: String) {
         viewModelScope.launch {
-            // 1. Create the match document in 'pending' state
-            val match = Match(
-                gameId = gameId,
-                player1Id = player1Id,
-                player2Id = player2Id,
-                score = score,
-                winnerId = winnerId,
-                status = "pending"
-            )
-            val matchId = gameRepository.createMatch(match)
-
-            // 2. Send a notification to player 2 for confirmation
-            _notificationState.value = NotificationState.Sending
-            val request = NotificationRequest(
-                targetUserId = player2Id,
-                title = "Match Result Confirmation",
-                body = "A player has submitted a match result. Please confirm.",
-                requestId = matchId
-            )
-
-            val feedback = notificationRepository.sendNotificationAndAwaitFeedback(request)
-
-            // 3. Process the feedback
-            when (feedback) {
-                true -> {
-                    // Player 2 confirmed
-                    gameRepository.confirmMatch(matchId, true)
-                    _notificationState.value = NotificationState.Success(accepted = true)
-                }
-                false -> {
-                    // Player 2 rejected
-                    gameRepository.confirmMatch(matchId, false)
-
-                    // Notify Player 1 of the rejection
-                    val rejectionNotification = NotificationRequest(
-                        targetUserId = player1Id,
-                        title = "Match Result Rejected",
-                        body = "Your recent match result was rejected by your opponent."
+            val currentUser = authRepository.fetchCurrentUserProfile()
+            if (currentUser != null) {
+                val challenge = Challenge(player1Id = currentUser.uid, player2Id = player2Id, gameId = gameId)
+                gameRepository.createChallenge(challenge)
+                notificationRepository.sendNotification(
+                    NotificationRequest(
+                        targetUserId = player2Id,
+                        title = "New Challenge!",
+                        body = "You have a new match challenge from ${currentUser.name ?: "a player"}"
                     )
-                    notificationRepository.sendOneWayNotification(rejectionNotification)
+                )
+                fetchOutgoingChallenges(currentUser.uid)
+            }
+        }
+    }
 
-                    _notificationState.value = NotificationState.Success(accepted = false)
+    fun acceptChallenge(challenge: Challenge) {
+        viewModelScope.launch {
+            gameRepository.updateChallengeStatus(challenge.challengeId, "accepted")
+            fetchChallengesForCurrentUser()
+        }
+    }
+
+    fun rejectChallenge(challenge: Challenge) {
+        viewModelScope.launch {
+            gameRepository.updateChallengeStatus(challenge.challengeId, "rejected")
+            fetchChallengesForCurrentUser()
+        }
+    }
+
+    fun submitMatchResult(challengeId: String, result: String) {
+        viewModelScope.launch {
+            _errorState.value = null // Clear previous errors
+            try {
+                val currentUser = authRepository.fetchCurrentUserProfile()
+                if (currentUser != null) {
+                    gameRepository.submitMatchResult(challengeId, currentUser.uid, result)
+                    fetchChallengesForCurrentUser() // Refresh the list
+                } else {
+                    _errorState.value = "You must be logged in to perform this action."
                 }
-                null -> {
-                    // Timeout
-                    _notificationState.value = NotificationState.Timeout
-                }
+            } catch (e: IllegalStateException) {
+                _errorState.value = e.message // Display user-friendly error from the repository
+            } catch (e: Exception) {
+                _errorState.value = "An unexpected error occurred. Please try again."
+            }
+        }
+    }
+
+    fun fetchChallengesForCurrentUser() {
+        viewModelScope.launch {
+            val currentUser = authRepository.fetchCurrentUserProfile()
+            if (currentUser != null) {
+                fetchIncomingChallenges(currentUser.uid)
+                fetchOutgoingChallenges(currentUser.uid)
+                fetchAcceptedChallenges(currentUser.uid)
+            } else {
+                _incomingChallenges.value = UiState.Error("User not logged in")
+                _outgoingChallenges.value = UiState.Error("User not logged in")
+                _acceptedChallenges.value = UiState.Error("User not logged in")
+            }
+        }
+    }
+
+    private fun fetchIncomingChallenges(playerId: String) {
+        viewModelScope.launch {
+            _incomingChallenges.value = UiState.Loading
+            try {
+                val challenges = gameRepository.getIncomingChallenges(playerId)
+                _incomingChallenges.value = UiState.Success(challenges)
+            } catch (e: Exception) {
+                _incomingChallenges.value = UiState.Error(e.message ?: "An error occurred")
+            }
+        }
+    }
+
+    private fun fetchOutgoingChallenges(playerId: String) {
+        viewModelScope.launch {
+            _outgoingChallenges.value = UiState.Loading
+            try {
+                val challenges = gameRepository.getOutgoingChallenges(playerId)
+                _outgoingChallenges.value = UiState.Success(challenges)
+            } catch (e: Exception) {
+                _outgoingChallenges.value = UiState.Error(e.message ?: "An error occurred")
+            }
+        }
+    }
+
+    private fun fetchAcceptedChallenges(playerId: String) {
+        viewModelScope.launch {
+            _acceptedChallenges.value = UiState.Loading
+            try {
+                val challenges = gameRepository.getAcceptedChallenges(playerId)
+                _acceptedChallenges.value = UiState.Success(challenges)
+            } catch (e: Exception) {
+                _acceptedChallenges.value = UiState.Error(e.message ?: "An error occurred")
             }
         }
     }
@@ -115,9 +166,5 @@ class GameViewModel @Inject constructor(
                 _leaderboard.value = UiState.Error(e.message ?: "An unknown error occurred")
             }
         }
-    }
-
-    fun resetState() {
-        _notificationState.value = NotificationState.Idle
     }
 }

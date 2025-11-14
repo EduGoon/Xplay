@@ -73,6 +73,11 @@ class AuthViewModel @Inject constructor(
         }
     }
 
+    fun checkCurrentUserUid() : String? {
+        val userId = authRepository.checkCurrentUserUid()
+        return userId
+    }
+
     suspend fun getPlayerProfile(playerId: String): Player? {
         return authRepository.getPlayerProfile(playerId)
     }

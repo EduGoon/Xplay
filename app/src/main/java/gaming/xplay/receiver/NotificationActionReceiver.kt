@@ -23,9 +23,8 @@ class NotificationActionReceiver : BroadcastReceiver() {
         fun gameRepository(): GameRepository
     }
 
-    //after firebase receives response from the player on the confirming end
     override fun onReceive(context: Context, intent: Intent) {
-        val matchId = intent.getStringExtra("requestId") ?: return
+        val challengeId = intent.getStringExtra("requestId") ?: return
         val confirmed = when (intent.action) {
             "ACTION_YES" -> true
             "ACTION_NO" -> false
@@ -39,11 +38,17 @@ class NotificationActionReceiver : BroadcastReceiver() {
         val gameRepository = hiltEntryPoint.gameRepository()
 
         coroutineScope.launch {
-            gameRepository.confirmMatch(matchId, confirmed)
+            if (confirmed) {
+                // The only action is to update the status to "accepted".
+                // The match itself is created later, after both players submit results.
+                gameRepository.updateChallengeStatus(challengeId, "accepted")
+            } else {
+                gameRepository.updateChallengeStatus(challengeId, "rejected")
+            }
         }
 
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE)
                 as NotificationManager
-        notificationManager.cancel(matchId.hashCode())
+        notificationManager.cancel(challengeId.hashCode())
     }
 }
