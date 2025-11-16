@@ -9,8 +9,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import com.google.firebase.FirebaseApp
 import dagger.hilt.android.AndroidEntryPoint
-import gaming.xplay.ui.presentation.MainApp
-import gaming.xplay.ui.theme.XplayTheme
+import gaming.xplay.model.presentation.MainApp
+import gaming.xplay.model.theme.XplayTheme
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {

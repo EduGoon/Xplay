@@ -2,7 +2,6 @@ package gaming.xplay.repo
 
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
-import com.google.firebase.firestore.Transaction
 import gaming.xplay.datamodel.Challenge
 import gaming.xplay.datamodel.Match
 import gaming.xplay.datamodel.rankings
@@ -17,8 +16,6 @@ class GameRepository @Inject constructor(
     private val db: FirebaseFirestore
 ) {
 
-    // --- Challenge Functions ---
-
     suspend fun createChallenge(challenge: Challenge): String {
         val challengeRef = db.collection("challenges").document()
         val newChallenge = challenge.copy(challengeId = challengeRef.id)
@@ -26,8 +23,8 @@ class GameRepository @Inject constructor(
         return challengeRef.id
     }
 
-    suspend fun getChallenge(challengeId: String): Challenge? {
-        return db.collection("challenges").document(challengeId).get().await().toObject(Challenge::class.java)
+    suspend fun updateChallengeStatus(challengeId: String, status: String) {
+        db.collection("challenges").document(challengeId).update("status", status).await()
     }
 
     suspend fun getIncomingChallenges(playerId: String): List<Challenge> {
@@ -46,7 +43,7 @@ class GameRepository @Inject constructor(
             .await()
             .toObjects(Challenge::class.java)
     }
-    
+
     suspend fun getAcceptedChallenges(playerId: String): List<Challenge> {
         val player1Accepted = db.collection("challenges")
             .whereEqualTo("player1Id", playerId)
@@ -63,10 +60,6 @@ class GameRepository @Inject constructor(
             .toObjects(Challenge::class.java)
 
         return player1Accepted + player2Accepted
-    }
-
-    suspend fun updateChallengeStatus(challengeId: String, status: String) {
-        db.collection("challenges").document(challengeId).update("status", status).await()
     }
 
     suspend fun submitMatchResult(challengeId: String, playerId: String, result: String) {
@@ -155,7 +148,7 @@ class GameRepository @Inject constructor(
         }
     }
 
-    // --- Match and Ranking Functions (Originals, now for reference) ---
+    // --- Match and Ranking Functions ---
 
     suspend fun getMatchHistory(playerId: String): List<Match> {
         val player1Matches = db.collection("matches")

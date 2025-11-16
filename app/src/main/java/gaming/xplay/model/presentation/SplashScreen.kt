@@ -1,4 +1,4 @@
-package gaming.xplay.ui.presentation
+package gaming.xplay.model.presentation
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
@@ -21,7 +21,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.Dp
 import gaming.xplay.datamodel.Bubble
 import kotlinx.coroutines.delay
 import kotlin.random.Random

@@ -1,4 +1,4 @@
-package gaming.xplay.ui.presentation
+package gaming.xplay.model.presentation
 
 import android.app.Activity
 import android.util.Log

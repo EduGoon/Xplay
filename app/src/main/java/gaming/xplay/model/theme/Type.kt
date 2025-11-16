@@ -1,4 +1,4 @@
-package gaming.xplay.ui.theme
+package gaming.xplay.model.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle

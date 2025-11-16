@@ -17,50 +17,53 @@ class NotificationRepository @Inject constructor(
      * Sends FCM notification and waits for boolean feedback
      * This is the main function you'll call from your ViewModel
      */
-    suspend fun sendNotificationAndAwaitFeedback(
-        request: NotificationRequest,
-        timeoutSeconds: Long = 30
-    ): Boolean? = withContext(Dispatchers.IO) {
-        try {
-            // Create pending response document
-            val responseRef = firestore
-                .collection("notification_responses")
-                .document(request.requestId)
-
-            responseRef.set(mapOf(
-                "status" to "pending",
-                "createdAt" to com.google.firebase.Timestamp.now(),
-                "targetUserId" to request.targetUserId
-            )).await()
-
-            // Call the Cloud Function
-            val data = hashMapOf(
-                "targetUserId" to request.targetUserId,
-                "title" to request.title,
-                "body" to request.body,
-                "requestId" to request.requestId
-            )
-
-            functions
-                .getHttpsCallable("sendNotification")
-                .call(data)
-                .await()
-
-            // Wait for response with timeout
-            withTimeoutOrNull(timeoutSeconds * 1000) {
-                waitForResponse(request.requestId)
-            }
-
-        } catch (e: Exception) {
-            println("Error sending notification: ${e.message}")
-            null
-        }
-    }
+//    suspend fun sendNotificationAndAwaitFeedback(
+//        request: NotificationRequest,
+//        timeoutSeconds: Long = 30
+//    ): Boolean? = withContext(Dispatchers.IO) {
+//        try {
+//            // Create pending response document
+//            val responseRef = firestore
+//                .collection("notification_responses")
+//                .document(request.requestId)
+//
+//            responseRef.set(mapOf(
+//                "status" to "pending",
+//                "createdAt" to com.google.firebase.Timestamp.now(),
+//                "targetUserId" to request.targetUserId
+//            )).await()
+//
+//            // Call the Cloud Function
+//            val data = hashMapOf(
+//                "targetUserId" to request.targetUserId,
+//                "title" to request.title,
+//                "body" to request.body,
+//                "requestId" to request.requestId
+//            )
+//
+//            functions
+//                .getHttpsCallable("sendNotification")
+//                .call(data)
+//                .await()
+//
+//            // Wait for response with timeout
+//            withTimeoutOrNull(timeoutSeconds * 1000) {
+//                waitForResponse(request.requestId)
+//            }
+//
+//        } catch (e: Exception) {
+//            println("Error sending notification: ${e.message}")
+//            null
+//        }
+//    }
 
     /**
      * Sends a one-way FCM notification without waiting for feedback.
      */
-    suspend fun sendNotification(request: NotificationRequest) {
+    suspend fun sendNotification(
+        request: NotificationRequest,
+        timeoutSeconds: Long = 30
+        ) {
         try {
             val data = hashMapOf(
                 "targetUserId" to request.targetUserId,
@@ -71,6 +74,11 @@ class NotificationRepository @Inject constructor(
                 .getHttpsCallable("sendNotification")
                 .call(data)
                 .await()
+
+            // Wait for response with timeout
+            withTimeoutOrNull(timeoutSeconds * 1000) {
+                waitForResponse(request.requestId)
+            }
         } catch (e: Exception) {
             println("Error sending notification: ${e.message}")
         }

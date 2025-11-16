@@ -1,4 +1,4 @@
-package gaming.xplay.ui.presentation
+package gaming.xplay.model.presentation
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween

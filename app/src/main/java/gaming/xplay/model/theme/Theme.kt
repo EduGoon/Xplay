@@ -1,4 +1,4 @@
-package gaming.xplay.ui.theme
+package gaming.xplay.model.theme
 
 import android.app.Activity
 import android.os.Build

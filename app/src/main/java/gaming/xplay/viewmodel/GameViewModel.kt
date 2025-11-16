@@ -53,7 +53,7 @@ class GameViewModel @Inject constructor(
                         targetUserId = player2Id,
                         title = "New Challenge!",
                         body = "You have a new match challenge from ${currentUser.name ?: "a player"}"
-                    )
+                    ),30
                 )
                 fetchOutgoingChallenges(currentUser.uid)
             }
@@ -63,33 +63,12 @@ class GameViewModel @Inject constructor(
     fun acceptChallenge(challenge: Challenge) {
         viewModelScope.launch {
             gameRepository.updateChallengeStatus(challenge.challengeId, "accepted")
-            fetchChallengesForCurrentUser()
         }
     }
 
     fun rejectChallenge(challenge: Challenge) {
         viewModelScope.launch {
             gameRepository.updateChallengeStatus(challenge.challengeId, "rejected")
-            fetchChallengesForCurrentUser()
-        }
-    }
-
-    fun submitMatchResult(challengeId: String, result: String) {
-        viewModelScope.launch {
-            _errorState.value = null // Clear previous errors
-            try {
-                val currentUser = authRepository.fetchCurrentUserProfile()
-                if (currentUser != null) {
-                    gameRepository.submitMatchResult(challengeId, currentUser.uid, result)
-                    fetchChallengesForCurrentUser() // Refresh the list
-                } else {
-                    _errorState.value = "You must be logged in to perform this action."
-                }
-            } catch (e: IllegalStateException) {
-                _errorState.value = e.message // Display user-friendly error from the repository
-            } catch (e: Exception) {
-                _errorState.value = "An unexpected error occurred. Please try again."
-            }
         }
     }
 
@@ -140,6 +119,25 @@ class GameViewModel @Inject constructor(
                 _acceptedChallenges.value = UiState.Success(challenges)
             } catch (e: Exception) {
                 _acceptedChallenges.value = UiState.Error(e.message ?: "An error occurred")
+            }
+        }
+    }
+
+    fun submitMatchResult(challengeId: String, result: String) {
+        viewModelScope.launch {
+            _errorState.value = null // Clear previous errors
+            try {
+                val currentUser = authRepository.fetchCurrentUserProfile()
+                if (currentUser != null) {
+                    gameRepository.submitMatchResult(challengeId, currentUser.uid, result)
+                    fetchChallengesForCurrentUser() // Refresh the list
+                } else {
+                    _errorState.value = "You must be logged in to perform this action."
+                }
+            } catch (e: IllegalStateException) {
+                _errorState.value = e.message // Display user-friendly error from the repository
+            } catch (e: Exception) {
+                _errorState.value = "An unexpected error occurred. Please try again."
             }
         }
     }
