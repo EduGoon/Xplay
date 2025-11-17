@@ -12,8 +12,8 @@ import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import dagger.hilt.android.AndroidEntryPoint
 import gaming.xplay.R
+import gaming.xplay.data.repo.AuthRepository
 import gaming.xplay.receiver.NotificationActionReceiver
-import gaming.xplay.repo.AuthRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob

@@ -21,3 +21,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "Xplay"
 include(":app")
+include(":data")
+include(":presentation")

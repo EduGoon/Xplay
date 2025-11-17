@@ -15,6 +15,12 @@ androidx-navigation = "2.9.5"
 androidx-lifecycle-runtime-compose = "2.9.4"
 play-services-auth = "21.4.0"
 play-services-games = "24.0.0"
+appcompat = "1.6.1"
+material = "1.10.0"
+material3 = "1.4.0"
+play-services-basement = "18.9.0"
+foundation = "1.9.4"
+firebase-messaging-ktx = "25.0.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "androidx-core" }
@@ -39,9 +45,16 @@ androidx-navigation-runtime-ktx = { group = "androidx.navigation", name = "navig
 androidx-lifecycle-runtime-compose = { group = "androidx.lifecycle", name = "lifecycle-runtime-compose", version.ref = "androidx-lifecycle-runtime-compose" }
 play-services-auth = { group = "com.google.android.gms", name = "play-services-auth", version.ref = "play-services-auth" }
 play-services-games = { group = "com.google.android.gms", name = "play-services-games", version.ref = "play-services-games" }
+androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
+material = { group = "com.google.android.material", name = "material", version.ref = "material" }
+androidx-compose-material3 = { group = "androidx.compose.material3", name = "material3", version.ref = "material3" }
+play-services-basement = { group = "com.google.android.gms", name = "play-services-basement", version.ref = "play-services-basement" }
+androidx-compose-foundation = { group = "androidx.compose.foundation", name = "foundation", version.ref = "foundation" }
+firebase-messaging-ktx = { group = "com.google.firebase", name = "firebase-messaging-ktx", version.ref = "firebase-messaging-ktx" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "android-gradle-plugin" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 googleServices = { id = "com.google.gms.google-services", version.ref = "google-gms-services" }
+android-library = { id = "com.android.library", version.ref = "android-gradle-plugin" }
