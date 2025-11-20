@@ -4,6 +4,7 @@ import android.util.Log
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.functions.FirebaseFunctions
 import gaming.xplay.data.model.Player
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
@@ -12,48 +13,29 @@ import javax.inject.Singleton
 @Singleton
 class AuthRepository @Inject constructor(
     private val auth: FirebaseAuth,
-    private val firestore: FirebaseFirestore
+    private val firestore: FirebaseFirestore,
+    private val functions: FirebaseFunctions
 ) {
 
     suspend fun signInWithGoogle(idToken: String): Player {
         val credential = GoogleAuthProvider.getCredential(idToken, null)
-        val authResult = auth.signInWithCredential(credential).await()
-        val user = authResult.user ?: throw Exception("Google sign-in succeeded but user data is null.")
+        auth.signInWithCredential(credential).await()
+        val data = hashMapOf("idToken" to idToken)
 
-        val isNewUser = authResult.additionalUserInfo?.isNewUser ?: false
-        val userDocRef = firestore.collection("players").document(user.uid)
+        val result = functions
+            .getHttpsCallable("signIn")
+            .call(data)
+            .await()
 
-        if (isNewUser) {
-            Log.d("AuthRepo", "New user detected, creating profile...")
-            val newPlayer = Player(
-                uid = user.uid,
-                name = user.displayName,
-                email = user.email,
-                profilePictureUrl = user.photoUrl?.toString(),
-                isFirstTime = true
-            )
-            userDocRef.set(newPlayer).await()
-            Log.d("AuthRepo", "New user profile created in Firestore: ${user.uid}")
-            return newPlayer
-        } else {
-            Log.d("AuthRepo", "Returning user detected, fetching profile...")
-            val snapshot = userDocRef.get().await()
-            val player = snapshot.toObject(Player::class.java)
-            if (player != null) {
-                return player
-            } else {
-                Log.w("AuthRepo", "User exists in Auth, but not in Firestore. Creating new profile.")
-                 val fallbackPlayer = Player(
-                    uid = user.uid,
-                    name = user.displayName,
-                    email = user.email,
-                    profilePictureUrl = user.photoUrl?.toString(),
-                    isFirstTime = false
-                )
-                userDocRef.set(fallbackPlayer).await()
-                return fallbackPlayer
-            }
-        }
+        val resultMap = result.data as HashMap<String, Any>
+
+        return Player(
+            uid = resultMap["uid"] as String?,
+            name = resultMap["name"] as String?,
+            email = resultMap["email"] as String?,
+            profilePictureUrl = resultMap["profilePictureUrl"] as String?,
+            isFirstTime = resultMap["isFirstTime"] as Boolean
+        )
     }
 
     fun signOut() {

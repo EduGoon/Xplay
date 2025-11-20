@@ -1,18 +1,3 @@
-/**
- * Import necessary Firebase Admin SDK modules.
- */
-const functions = require("firebase-functions");
-const admin = require("firebase-admin");
-
-// Initialize the Firebase Admin SDK.
-admin.initializeApp();
-
-/**
- * An onCall HTTPS Cloud Function that sends a push notification to a specific user.
- *
- * @param {object} data - The data passed from the client app.
- * @param {string} data.targetUserId - The UID of the user to send the notification to.
- * @param {string} data.title - The title of the notification.
 "use strict";
 /**
  * Import necessary Firebase Admin SDK modules.
@@ -22,6 +7,14 @@ const admin = require("firebase-admin");
 
 // Initialize the Firebase Admin SDK.
 admin.initializeApp();
+
+// Import other functions
+const authFunctions = require("./auth");
+const gameFunctions = require("./game");
+
+// Export functions
+exports.signIn = authFunctions.signIn;
+exports.submitMatchResult = gameFunctions.submitMatchResult;
 
 /**
  * An onCall HTTPS Cloud Function that sends a push notification to a specific user.
