@@ -30,7 +30,7 @@ class AuthRepository @Inject constructor(
         val resultMap = result.data as HashMap<String, Any>
 
         return Player(
-            uid = resultMap["uid"] as String?,
+            uid = resultMap["uid"] as String,
             name = resultMap["name"] as String?,
             email = resultMap["email"] as String?,
             profilePictureUrl = resultMap["profilePictureUrl"] as String?,

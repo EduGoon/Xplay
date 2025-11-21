@@ -17,7 +17,6 @@ exports.signIn = functions.https.onCall(async (data, context) => {
         const userRecord = await admin.auth().getUser(uid);
         const user = userRecord.toJSON();
 
-
         const userDocRef = admin.firestore().collection("players").doc(uid);
         const userDoc = await userDocRef.get();
 

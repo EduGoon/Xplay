@@ -129,7 +129,7 @@ class GameViewModel @Inject constructor(
             try {
                 val currentUser = authRepository.fetchCurrentUserProfile()
                 if (currentUser != null) {
-                    gameRepository.submitMatchResult(challengeId, currentUser.uid, result)
+                    gameRepository.submitMatchResult(challengeId, result)
                     fetchChallengesForCurrentUser() // Refresh the list
                 } else {
                     _errorState.value = "You must be logged in to perform this action."

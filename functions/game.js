@@ -127,4 +127,3 @@ async function updatePlayerStatsWithBatch(batch, playerId, gameId, xpChange, win
         });
     }
 }
-
