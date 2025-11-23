@@ -53,7 +53,7 @@ class GameViewModel @Inject constructor(
                         targetUserId = player2Id,
                         title = "New Challenge!",
                         body = "You have a new match challenge from ${currentUser.name ?: "a player"}"
-                    ),30
+                    )
                 )
                 fetchOutgoingChallenges(currentUser.uid)
             }

@@ -1,8 +1,8 @@
 package gaming.xplay.data.repo
 
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.functions.FirebaseFunctions
 import gaming.xplay.data.model.NotificationRequest
+import gaming.xplay.data.network.ApiService
 import kotlinx.coroutines.*
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
@@ -11,7 +11,7 @@ import javax.inject.Singleton
 @Singleton
 class NotificationRepository @Inject constructor(
     private val firestore: FirebaseFirestore,
-    private val functions: FirebaseFunctions
+    private val apiService: ApiService
 ) {
     /**
      * Sends FCM notification and waits for boolean feedback
@@ -33,18 +33,8 @@ class NotificationRepository @Inject constructor(
                 "targetUserId" to request.targetUserId
             )).await()
 
-            // Call the Cloud Function
-            val data = hashMapOf(
-                "targetUserId" to request.targetUserId,
-                "title" to request.title,
-                "body" to request.body,
-                "requestId" to request.requestId
-            )
-
-            functions
-                .getHttpsCallable("sendNotification")
-                .call(data)
-                .await()
+            // Call the api service
+            apiService.sendNotification(request)
 
             // Wait for response with timeout
             withTimeoutOrNull(timeoutSeconds * 1000) {
@@ -62,23 +52,9 @@ class NotificationRepository @Inject constructor(
      */
     suspend fun sendNotification(
         request: NotificationRequest,
-        timeoutSeconds: Long = 30
         ) {
         try {
-            val data = hashMapOf(
-                "targetUserId" to request.targetUserId,
-                "title" to request.title,
-                "body" to request.body
-            )
-            functions
-                .getHttpsCallable("sendNotification")
-                .call(data)
-                .await()
-
-            // Wait for response with timeout
-            withTimeoutOrNull(timeoutSeconds * 1000) {
-                waitForResponse(request.requestId)
-            }
+            apiService.sendNotification(request)
         } catch (e: Exception) {
             println("Error sending notification: ${e.message}")
         }

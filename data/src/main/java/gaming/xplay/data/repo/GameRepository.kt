@@ -2,10 +2,11 @@ package gaming.xplay.data.repo
 
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
-import com.google.firebase.functions.FirebaseFunctions
 import gaming.xplay.data.model.Challenge
 import gaming.xplay.data.model.Match
+import gaming.xplay.data.model.SubmitMatchResultRequest
 import gaming.xplay.data.model.rankings
+import gaming.xplay.data.network.ApiService
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -13,7 +14,7 @@ import javax.inject.Singleton
 @Singleton
 class GameRepository @Inject constructor(
     private val db: FirebaseFirestore,
-    private val functions: FirebaseFunctions
+    private val apiService: ApiService
 ) {
 
     suspend fun createChallenge(challenge: Challenge): String {
@@ -63,15 +64,8 @@ class GameRepository @Inject constructor(
     }
 
     suspend fun submitMatchResult(challengeId: String, result: String) {
-        val data = hashMapOf(
-            "challengeId" to challengeId,
-            "result" to result
-        )
-
-        functions
-            .getHttpsCallable("submitMatchResult")
-            .call(data)
-            .await()
+        val request = SubmitMatchResultRequest(challengeId, result)
+        apiService.submitMatchResult(request)
     }
 
     // --- Match and Ranking Functions ---

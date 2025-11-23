@@ -4,8 +4,9 @@ import android.util.Log
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.functions.FirebaseFunctions
 import gaming.xplay.data.model.Player
+import gaming.xplay.data.model.SignInRequest
+import gaming.xplay.data.network.ApiService
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -14,28 +15,14 @@ import javax.inject.Singleton
 class AuthRepository @Inject constructor(
     private val auth: FirebaseAuth,
     private val firestore: FirebaseFirestore,
-    private val functions: FirebaseFunctions
+    private val apiService: ApiService
 ) {
 
     suspend fun signInWithGoogle(idToken: String): Player {
         val credential = GoogleAuthProvider.getCredential(idToken, null)
         auth.signInWithCredential(credential).await()
-        val data = hashMapOf("idToken" to idToken)
-
-        val result = functions
-            .getHttpsCallable("signIn")
-            .call(data)
-            .await()
-
-        val resultMap = result.data as HashMap<String, Any>
-
-        return Player(
-            uid = resultMap["uid"] as String,
-            name = resultMap["name"] as String?,
-            email = resultMap["email"] as String?,
-            profilePictureUrl = resultMap["profilePictureUrl"] as String?,
-            isFirstTime = resultMap["isFirstTime"] as Boolean
-        )
+        val request = SignInRequest(idToken)
+        return apiService.signIn(request)
     }
 
     fun signOut() {
