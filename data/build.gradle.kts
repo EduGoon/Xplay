@@ -47,7 +47,6 @@ dependencies {
     implementation(platform(libs.firebase.bom))
 
     // 2. Declare Firebase dependencies without the "-ktx" suffix.
-    implementation("com.google.firebase:firebase-functions")
     implementation("com.google.firebase:firebase-messaging")
     implementation("com.google.firebase:firebase-firestore")
     implementation("com.google.firebase:firebase-auth")
