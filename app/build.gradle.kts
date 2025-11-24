@@ -42,9 +42,12 @@ android {
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.8"
     }
+    packaging {
+        resources {
+            excludes += "/META-INF/{AL2.0,LGPL2.1}"
+        }
+    }
 }
-
-// In C:/Users/Edu/AppDevelopment/Xplay/app/build.gradle.kts
 
 dependencies {
     // Project Modules
@@ -54,44 +57,20 @@ dependencies {
     // AndroidX & UI Libraries
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
-    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.6.2")
     implementation(libs.androidx.activity.compose)
+    implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
-    implementation("androidx.compose.material:material-icons-extended:1.5.8")
-    implementation(libs.androidx.lifecycle.runtime.compose)
 
-    // Navigation
-    implementation(libs.androidx.navigation.compose)
-    implementation(libs.androidx.navigation.runtime.ktx)
-    implementation("androidx.hilt:hilt-navigation-compose:1.1.0")
-    implementation("com.google.accompanist:accompanist-navigation-animation:0.32.0")
-
-    // Compose Bill of Materials (BoM) - Manages versions for Compose libs
-    implementation(platform(libs.androidx.compose.bom))
-
-    // --- FIREBASE LIBRARIES (CLEANED UP) ---
-    // 1. Import the Firebase Bill of Materials (BoM) ONCE.
-    // This controls the versions of all other Firebase libraries.
+    // Firebase - App specific
     implementation(platform(libs.firebase.bom))
-
-    // 2. Declare the Firebase dependencies you need WITHOUT versions.
     implementation("com.google.firebase:firebase-analytics")
-    implementation("com.google.firebase:firebase-auth")
-    implementation("com.google.firebase:firebase-firestore")
-    implementation("com.google.firebase:firebase-messaging") // Use this, not the -ktx version
+    implementation("com.google.firebase:firebase-messaging") // Restored dependency
 
-    // Play Services & Auth
-    implementation(libs.play.services.games)
-    implementation(libs.play.services.auth) // Assuming this is from your libs.versions.toml
-
-    // Hilt (Dependency Injection)
+    // Hilt
     implementation("com.google.dagger:hilt-android:2.51.1")
     kapt("com.google.dagger:hilt-android-compiler:2.51.1")
-
-    // Image Loading
-    implementation("io.coil-kt:coil-compose:2.5.0")
 
     // Testing
     testImplementation(libs.junit)

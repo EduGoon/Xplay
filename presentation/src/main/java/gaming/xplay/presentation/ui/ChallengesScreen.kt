@@ -16,6 +16,9 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.PrimaryTabRow
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -41,6 +44,14 @@ fun ChallengesScreen(
 ) {
     var selectedTabIndex by remember { mutableStateOf(0) }
     val tabs = listOf("Incoming", "Outgoing", "Active")
+    val snackbarHostState = remember { SnackbarHostState() }
+    val errorState by gameViewModel.errorState.collectAsState()
+
+    LaunchedEffect(errorState) {
+        errorState?.let {
+            snackbarHostState.showSnackbar(it)
+        }
+    }
 
     // Fetch all challenges when the screen is first launched
     LaunchedEffect(Unit) {
@@ -49,35 +60,37 @@ fun ChallengesScreen(
 
     val currentUserId = authViewModel.checkCurrentUserUid()
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        PrimaryTabRow(selectedTabIndex = selectedTabIndex) {
-            tabs.forEachIndexed { index, title ->
-                Tab(
-                    selected = selectedTabIndex == index,
-                    onClick = { selectedTabIndex = index },
-                    text = { Text(title) }
-                )
+    Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }) {
+        Column(modifier = Modifier.fillMaxSize().padding(it)) {
+            PrimaryTabRow(selectedTabIndex = selectedTabIndex) {
+                tabs.forEachIndexed { index, title ->
+                    Tab(
+                        selected = selectedTabIndex == index,
+                        onClick = { selectedTabIndex = index },
+                        text = { Text(title) }
+                    )
+                }
             }
-        }
 
-        when (selectedTabIndex) {
-            0 -> {
-                val incomingState by gameViewModel.incomingChallenges.collectAsState()
-                ChallengeList(uiState = incomingState) { challenge ->
-                    IncomingChallengeCard(challenge, gameViewModel)
+            when (selectedTabIndex) {
+                0 -> {
+                    val incomingState by gameViewModel.incomingChallenges.collectAsState()
+                    ChallengeList(uiState = incomingState) { challenge ->
+                        IncomingChallengeCard(challenge, gameViewModel)
+                    }
                 }
-            }
-            1 -> {
-                val outgoingState by gameViewModel.outgoingChallenges.collectAsState()
-                ChallengeList(uiState = outgoingState) { challenge ->
-                    OutgoingChallengeCard(challenge)
+                1 -> {
+                    val outgoingState by gameViewModel.outgoingChallenges.collectAsState()
+                    ChallengeList(uiState = outgoingState) { challenge ->
+                        OutgoingChallengeCard(challenge)
+                    }
                 }
-            }
-            2 -> {
-                val acceptedState by gameViewModel.acceptedChallenges.collectAsState()
-                ChallengeList(uiState = acceptedState) { challenge ->
-                    if (currentUserId != null) {
-                        ActiveChallengeCard(challenge, currentUserId, gameViewModel)
+                2 -> {
+                    val acceptedState by gameViewModel.acceptedChallenges.collectAsState()
+                    ChallengeList(uiState = acceptedState) { challenge ->
+                        if (currentUserId != null) {
+                            ActiveChallengeCard(challenge, currentUserId, gameViewModel)
+                        }
                     }
                 }
             }

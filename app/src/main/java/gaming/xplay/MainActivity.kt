@@ -21,9 +21,12 @@ class MainActivity : ComponentActivity() {
         setContent {
             XplayTheme {
                 // A surface container using the 'background' color from the theme
-                Surface(modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background) {
-                    MainApp()
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background
+                ) {
+                    val webClientId = getString(R.string.default_web_client_id)
+                    MainApp(webClientId = webClientId)
                 }
             }
         }

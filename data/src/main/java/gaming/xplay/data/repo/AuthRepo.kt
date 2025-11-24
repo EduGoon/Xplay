@@ -5,6 +5,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.firestore.FirebaseFirestore
 import gaming.xplay.data.model.Player
+import gaming.xplay.data.model.Result
 import gaming.xplay.data.model.SignInRequest
 import gaming.xplay.data.network.ApiService
 import kotlinx.coroutines.tasks.await
@@ -18,38 +19,49 @@ class AuthRepository @Inject constructor(
     private val apiService: ApiService
 ) {
 
-    suspend fun signInWithGoogle(idToken: String): Player {
-        val credential = GoogleAuthProvider.getCredential(idToken, null)
-        auth.signInWithCredential(credential).await()
-        val request = SignInRequest(idToken)
-        return apiService.signIn(request)
+    suspend fun signInWithGoogle(idToken: String): Result<Player> {
+        return try {
+            val credential = GoogleAuthProvider.getCredential(idToken, null)
+            auth.signInWithCredential(credential).await()
+            val request = SignInRequest(idToken)
+            val player = apiService.signIn(request)
+            Result.Success(player)
+        } catch (e: Exception) {
+            Log.e("AuthRepo", "Error in signInWithGoogle", e)
+            Result.Error(e)
+        }
     }
 
     fun signOut() {
         auth.signOut()
     }
 
-    suspend fun completeOnboarding() {
-        val firebaseUser = auth.currentUser ?: throw Exception("User not authenticated")
-        firestore.collection("players").document(firebaseUser.uid)
-            .update("isFirstTime", false)
-            .await()
-    }
-
-    fun checkCurrentUserUid() :String? {
-        val firebaseUser = auth.currentUser
-        val uid = firebaseUser?.uid
-        return uid
-    }
-
-    suspend fun fetchCurrentUserProfile(): Player? {
-        val firebaseUser = auth.currentUser ?: return null
+    suspend fun completeOnboarding(): Result<Unit> {
         return try {
-            firestore.collection("players").document(firebaseUser.uid).get().await()
+            val firebaseUser = auth.currentUser ?: throw Exception("User not authenticated")
+            firestore.collection("players").document(firebaseUser.uid)
+                .update("isFirstTime", false)
+                .await()
+            Result.Success(Unit)
+        } catch (e: Exception) {
+            Log.e("AuthRepo", "Error in completeOnboarding", e)
+            Result.Error(e)
+        }
+    }
+
+    fun checkCurrentUserUid(): String? {
+        return auth.currentUser?.uid
+    }
+
+    suspend fun fetchCurrentUserProfile(): Result<Player?> {
+        return try {
+            val firebaseUser = auth.currentUser ?: return Result.Success(null)
+            val player = firestore.collection("players").document(firebaseUser.uid).get().await()
                 .toObject(Player::class.java)
+            Result.Success(player)
         } catch (e: Exception) {
             Log.e("AuthRepo", "Error fetching user profile", e)
-            null
+            Result.Error(e)
         }
     }
 
@@ -62,17 +74,17 @@ class AuthRepository @Inject constructor(
             Log.d("AuthRepo", "FCM token updated for user: $userId")
         } catch (e: Exception) {
             Log.e("AuthRepo", "Error updating FCM token for user: $userId", e)
-            // Depending on your error handling strategy, you might want to log this to a service like Crashlytics.
         }
     }
 
-    suspend fun getPlayerProfile(playerId: String): Player? {
+    suspend fun getPlayerProfile(playerId: String): Result<Player?> {
         return try {
-            firestore.collection("players").document(playerId).get().await()
+            val player = firestore.collection("players").document(playerId).get().await()
                 .toObject(Player::class.java)
+            Result.Success(player)
         } catch (e: Exception) {
             Log.e("AuthRepo", "Error fetching player profile for ID: $playerId", e)
-            null
+            Result.Error(e)
         }
     }
 }

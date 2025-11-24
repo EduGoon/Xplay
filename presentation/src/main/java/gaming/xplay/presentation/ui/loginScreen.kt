@@ -1,127 +1,71 @@
 package gaming.xplay.presentation.ui
 
-import android.app.Activity
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
 import gaming.xplay.presentation.viewmodel.AuthViewModel
 
 @Composable
-fun LoginScreen(authViewModel: AuthViewModel = hiltViewModel()) {
-    Scaffold(
-        modifier = Modifier.background(MaterialTheme.colorScheme.background)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(it),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-
-            Text(
-                "Welcome to Xplay",
-                style = MaterialTheme.typography.headlineLarge,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-
-            Text(
-                "Sign in to continue",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurface,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(top = 8.dp, bottom = 64.dp)
-            )
-            SocialAuthButtons(authViewModel)
-
-        }
-    }
-}
-
-@Composable
-private fun SocialAuthButtons(authViewModel: AuthViewModel) {
+fun LoginScreen(authViewModel: AuthViewModel, webClientId: String) {
     val signInState by authViewModel.signInState.collectAsState()
-    var isLoading by remember { mutableStateOf(false) }
+    val isLoading by authViewModel.isLoading.collectAsState()
     val context = LocalContext.current
 
-    val launcher = rememberLauncherForActivityResult(
+    val googleSignInLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
         try {
-            if (result.resultCode != Activity.RESULT_OK) {
-                Log.d("GoogleSignIn", "Sign-in was cancelled by the user.")
-                isLoading = false
-                return@rememberLauncherForActivityResult
-            }
             val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
             val account = task.getResult(ApiException::class.java)
-            val idToken = account.idToken
-            if (idToken != null) {
+            account?.idToken?.let { idToken ->
                 authViewModel.signInWithGoogle(idToken)
-            } else {
-                Log.e("GoogleSignIn", "Google Sign-In succeeded but idToken was null.")
-                isLoading = false
+            } ?: run {
+                Log.w("LoginScreen", "Sign-in cancelled by user.")
             }
         } catch (e: ApiException) {
-            Log.e("GoogleSignIn", "Google Sign-In API error (code: ${e.statusCode})", e)
-            isLoading = false
-        } catch (t: Throwable) {
-            Log.e("GoogleSignIn", "An unhandled error occurred during Google Sign-In.", t)
-            isLoading = false
+            Log.e("LoginScreen", "Google sign in failed after user selection.", e)
+            authViewModel.resetSignInState() // Also reset on this failure
         }
     }
 
-    // By remembering the client, we avoid recreating it on every recomposition.
-    val googleSignInClient = remember {
-        val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-            .requestIdToken("219219111613-g5u92aa14eoru26tq7ph5kepe0ndg0d2.apps.googleusercontent.com")
-            .requestEmail()
-            .build()
-        GoogleSignIn.getClient(context, gso)
+    // Optional: handle sign-in failure UI, like showing a toast.
+    LaunchedEffect(signInState) {
+        if (signInState == false) {
+            Log.d("LoginScreen", "Sign-in failed as reported by ViewModel.")
+        }
     }
 
-    GoogleAuthButton(
-        onClick = {
-            isLoading = true
-            launcher.launch(googleSignInClient.signInIntent)
-        },
-        isLoading = isLoading
-    )
-
-    // This UI feedback for a failed sign-in is good practice.
-    if (signInState == false) {
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            "Sign-in failed. Please try again.",
-            color = MaterialTheme.colorScheme.error,
-            modifier = Modifier.padding(top = 8.dp)
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        GoogleAuthButton(
+            onClick = {
+                val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+                    .requestIdToken(webClientId)
+                    .requestEmail()
+                    .build()
+                val googleSignInClient = GoogleSignIn.getClient(context, gso)
+                googleSignInClient.signOut().addOnCompleteListener {
+                    googleSignInLauncher.launch(googleSignInClient.signInIntent)
+                }
+            },
+            isLoading = isLoading,
+            webClientId = webClientId
         )
     }
 }

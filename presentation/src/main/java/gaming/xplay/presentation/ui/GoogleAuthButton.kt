@@ -22,7 +22,8 @@ import gaming.xplay.presentation.R
 fun GoogleAuthButton(
     onClick: () -> Unit,
     text: String = "Sign in with Google",
-    isLoading: Boolean = false
+    isLoading: Boolean = false,
+    webClientId: String
 ) {
     Button(
         onClick = onClick,

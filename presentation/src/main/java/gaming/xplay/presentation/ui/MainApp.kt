@@ -14,11 +14,14 @@ import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -35,9 +38,18 @@ import gaming.xplay.presentation.viewmodel.NavigationState
 
 @OptIn(ExperimentalAnimationApi::class)
 @Composable
-fun MainApp(authViewModel: AuthViewModel = hiltViewModel(), gameViewModel: GameViewModel = hiltViewModel()) {
+fun MainApp(authViewModel: AuthViewModel = hiltViewModel(), gameViewModel: GameViewModel = hiltViewModel(), webClientId: String) {
     val navController = rememberAnimatedNavController()
     val navigationState by authViewModel.navigationState.collectAsState()
+    val errorState by authViewModel.errorState.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(errorState) {
+        errorState?.let {
+            snackbarHostState.showSnackbar(it)
+            authViewModel.dismissError()
+        }
+    }
 
     // This handles the initial navigation from Splash to Login/Home
     LaunchedEffect(navigationState, navController) {
@@ -63,6 +75,7 @@ fun MainApp(authViewModel: AuthViewModel = hiltViewModel(), gameViewModel: GameV
     val showBottomBar = currentDestination?.route in bottomBarRoutes
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
             if (showBottomBar) {
                 BottomAppBar {
@@ -92,7 +105,7 @@ fun MainApp(authViewModel: AuthViewModel = hiltViewModel(), gameViewModel: GameV
             exitTransition = { fadeOut(animationSpec = tween(300)) + slideOutHorizontally(targetOffsetX = { -it }) }
         ) {
             composable("splash") { SplashScreen() }
-            composable("login") { LoginScreen(authViewModel) }
+            composable("login") { LoginScreen(authViewModel, webClientId) }
             composable("onboardingScreen") { OnboardingScreen(authViewModel) }
             composable("home") { HomePage(navController, authViewModel) }
             composable("challenges") { ChallengesScreen(gameViewModel, authViewModel) }
