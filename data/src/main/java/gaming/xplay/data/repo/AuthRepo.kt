@@ -19,19 +19,33 @@ class AuthRepository @Inject constructor(
     private val apiService: ApiService
 ) {
 
-    suspend fun signInWithGoogle(idToken: String): Result<Player> {
+    suspend fun signInWithGoogle(googleIdToken: String): Result<Player> {
         return try {
-            val credential = GoogleAuthProvider.getCredential(idToken, null)
-            auth.signInWithCredential(credential).await()
-            val request = SignInRequest(idToken)
+            // 1. Convert Google ID token → Firebase credential
+            val credential = GoogleAuthProvider.getCredential(googleIdToken, null)
+
+            // 2. Sign in to Firebase
+            val authResult = auth.signInWithCredential(credential).await()
+
+            // 3. Get the Firebase ID token (THIS is what your server needs)
+            val firebaseIdToken = authResult.user
+                ?.getIdToken(true)
+                ?.await()
+                ?.token
+                ?: throw IllegalStateException("Failed to obtain Firebase ID token")
+
+            // 4. Send Firebase ID token to backend
+            val request = SignInRequest(firebaseIdToken)
             val player = apiService.signIn(request)
+
             Result.Success(player)
+
         } catch (e: Exception) {
             Log.e("AuthRepo", "Error in signInWithGoogle", e)
             Result.Error(e)
         }
     }
-
+    
     fun signOut() {
         auth.signOut()
     }

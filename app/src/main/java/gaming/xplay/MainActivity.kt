@@ -25,6 +25,7 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
+                    // Use the default web client ID from the google-services.json file
                     val webClientId = getString(R.string.default_web_client_id)
                     MainApp(webClientId = webClientId)
                 }
