@@ -171,4 +171,14 @@ class GameViewModel @Inject constructor(
             }
         }
     }
+
+    suspend fun getPlayerRanking(playerId: String, gameId: String): rankings? {
+        return when (val result = gameRepository.getPlayerRanking(playerId, gameId)) {
+            is Result.Success -> result.data
+            is Result.Error -> {
+                _errorState.value = result.exception.message ?: "An unknown error occurred"
+                null
+            }
+        }
+    }
 }

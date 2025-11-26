@@ -1,6 +1,5 @@
 package gaming.xplay.presentation.ui
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -18,6 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -62,6 +62,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import gaming.xplay.data.model.Player
 import gaming.xplay.data.model.rankings
+import gaming.xplay.presentation.model.PlayerSearchResult
 import gaming.xplay.presentation.ui.State.UiState
 import gaming.xplay.presentation.viewmodel.AuthViewModel
 import gaming.xplay.presentation.viewmodel.GameViewModel
@@ -76,6 +77,10 @@ fun HomePage(
     LaunchedEffect(Unit) {
         gameViewModel.fetchLeaderboard("FIFA")
     }
+
+    var searchQuery by remember { mutableStateOf("") }
+    val searchResults by authViewModel.searchResults.collectAsState()
+    val isLoading by authViewModel.isLoading.collectAsState()
 
     Scaffold(
         topBar = {
@@ -97,7 +102,10 @@ fun HomePage(
                             tint = MaterialTheme.colorScheme.onPrimary
                         )
                     }
-                    IconButton(onClick = { /* TODO: Handle profile click */ }) {
+                    IconButton(onClick = {
+                        // TODO: Use current user's actual data
+                        navController.navigate("profile/somePlayerId/100/10/5")
+                    }) {
                         Icon(
                             Icons.Filled.AccountCircle,
                             contentDescription = "Profile",
@@ -115,32 +123,144 @@ fun HomePage(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
                 .padding(paddingValues)
                 .padding(horizontal = 16.dp)
         ) {
             Spacer(modifier = Modifier.height(24.dp))
-            SearchBar()
-            Spacer(modifier = Modifier.height(32.dp))
-            val leaderboardState by gameViewModel.leaderboard.collectAsState()
-            LeaderboardSection(leaderboardState, authViewModel, onRefresh = {
-                gameViewModel.fetchLeaderboard("FIFA")
-            },
-                navController = navController
+            SearchBar(
+                searchQuery = searchQuery,
+                onQueryChange = {
+                    searchQuery = it
+                    authViewModel.searchPlayers(it)
+                }
             )
             Spacer(modifier = Modifier.height(32.dp))
-            MyGamesSection()
+            if (searchQuery.isBlank()) {
+                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                    val leaderboardState by gameViewModel.leaderboard.collectAsState()
+                    LeaderboardSection(
+                        leaderboardState,
+                        authViewModel,
+                        onRefresh = {
+                            gameViewModel.fetchLeaderboard("FIFA")
+                        },
+                        navController = navController
+                    )
+                    Spacer(modifier = Modifier.height(32.dp))
+                    MyGamesSection()
+                }
+            } else {
+                if (isLoading) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
+                    }
+                } else {
+                    SearchResultsList(
+                        results = searchResults,
+                        navController = navController
+                    )
+                }
+            }
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SearchBar() {
-    var searchQuery by remember { mutableStateOf("") }
+fun SearchResultsList(
+    results: List<PlayerSearchResult>,
+    navController: NavController
+) {
+    if (results.isEmpty()) {
+        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+            Text(
+                text = "No players found.",
+                style = MaterialTheme.typography.bodyMedium.copy(
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            )
+        }
+    } else {
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)),
+            verticalArrangement = Arrangement.spacedBy(0.dp),
+        ) {
+            items(results) { result ->
+                PlayerRow(
+                    result = result,
+                    onClick = {
+                        val player = result.player
+                        val ranking = result.ranking
+                        if (ranking != null) {
+                            navController.navigate("profile/${player.uid}/${ranking.XPpoints}/${ranking.wins}/${ranking.losses}")
+                        }
+                    }
+                )
+                HorizontalDivider(
+                    modifier = Modifier.padding(horizontal = 12.dp),
+                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun PlayerRow(
+    result: PlayerSearchResult,
+    onClick: () -> Unit
+) {
+    val player = result.player
+    val ranking = result.ranking
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Row(
+            modifier = Modifier.weight(1f),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // You can add a player avatar here later
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = player.name ?: "Player...",
+                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = "XP: ${ranking?.XPpoints ?: 0}",
+                    style = MaterialTheme.typography.labelMedium.copy(
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                )
+            }
+        }
+        Text(
+            text = "${ranking?.wins ?: 0} Wins • ${ranking?.losses ?: 0} Losses",
+            style = MaterialTheme.typography.bodyMedium.copy(
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            ),
+            textAlign = TextAlign.End,
+            modifier = Modifier.widthIn(min = 100.dp)
+        )
+    }
+}
+
+@Composable
+fun SearchBar(searchQuery: String, onQueryChange: (String) -> Unit) {
     TextField(
         value = searchQuery,
-        onValueChange = { searchQuery = it },
+        onValueChange = onQueryChange,
         placeholder = { Text("Search for players...") },
         modifier = Modifier.fillMaxWidth(),
         leadingIcon = {
@@ -163,12 +283,10 @@ fun SearchBar() {
 fun LeaderboardSection(
     leaderboardState: UiState<List<rankings>>,
     authViewModel: AuthViewModel,
-    onRefresh: () -> Unit, // Lambda to trigger refresh
+    onRefresh: () -> Unit,
     navController: NavController
 ) {
     Column(modifier = Modifier.padding(16.dp)) {
-
-        // Title row with refresh button
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
@@ -181,28 +299,24 @@ fun LeaderboardSection(
                     color = MaterialTheme.colorScheme.primary
                 )
             )
-
             IconButton(
                 onClick = { onRefresh() },
                 modifier = Modifier.size(36.dp)
             ) {
                 Icon(
-                    imageVector = Icons.Default.Refresh,  // Built-in refresh icon
+                    imageVector = Icons.Default.Refresh,
                     contentDescription = "Refresh leaderboard",
                     tint = MaterialTheme.colorScheme.primary
                 )
             }
         }
-
         Spacer(modifier = Modifier.height(12.dp))
-
         when (leaderboardState) {
             is UiState.Loading -> {
                 Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
                 }
             }
-
             is UiState.Success -> {
                 if (leaderboardState.data.isEmpty()) {
                     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
@@ -240,7 +354,6 @@ fun LeaderboardSection(
                     }
                 }
             }
-
             is UiState.Error -> {
                 Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                     Text(
@@ -274,13 +387,11 @@ fun RankingRow(
         else -> "⭐"
     }
 
-    // THE FIX IS APPLIED HERE
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(
                 onClick = { onClick(ranking.playerid, ranking.XPpoints, ranking.wins, ranking.losses) },
-                // Make the clickable effect bounded to the row's shape
                 indication = LocalIndication.current,
                 interactionSource = remember { MutableInteractionSource() }
             )
@@ -288,8 +399,6 @@ fun RankingRow(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        // ... rest of your code remains the same
-        // Left section: Rank + Player
         Row(
             modifier = Modifier.weight(1f),
             verticalAlignment = Alignment.CenterVertically
@@ -317,8 +426,6 @@ fun RankingRow(
                 )
             }
         }
-
-        // Right section: Wins/Losses (fixed width)
         Text(
             text = "${ranking.wins} Wins • ${ranking.losses} Losses",
             style = MaterialTheme.typography.bodyMedium.copy(

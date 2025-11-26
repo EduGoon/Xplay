@@ -45,7 +45,7 @@ class AuthRepository @Inject constructor(
             Result.Error(e)
         }
     }
-    
+
     fun signOut() {
         auth.signOut()
     }
@@ -98,6 +98,25 @@ class AuthRepository @Inject constructor(
             Result.Success(player)
         } catch (e: Exception) {
             Log.e("AuthRepo", "Error fetching player profile for ID: $playerId", e)
+            Result.Error(e)
+        }
+    }
+    
+    suspend fun searchPlayers(query: String): Result<List<Player>> {
+        return try {
+            if (query.isBlank()) {
+                return Result.Success(emptyList())
+            }
+            val players = firestore.collection("players")
+                .whereGreaterThanOrEqualTo("name", query)
+                .whereLessThanOrEqualTo("name", query + '')
+                .limit(10)
+                .get()
+                .await()
+                .toObjects(Player::class.java)
+            Result.Success(players)
+        } catch (e: Exception) {
+            Log.e("AuthRepo", "Error searching players", e)
             Result.Error(e)
         }
     }

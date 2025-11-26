@@ -7,6 +7,10 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import gaming.xplay.data.model.Player
 import gaming.xplay.data.model.Result
 import gaming.xplay.data.repo.AuthRepository
+import gaming.xplay.data.repo.GameRepository
+import gaming.xplay.presentation.model.PlayerSearchResult
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -23,6 +27,7 @@ sealed class NavigationState {
 @HiltViewModel
 class AuthViewModel @Inject constructor(
     private val authRepository: AuthRepository,
+    private val gameRepository: GameRepository
 ) : ViewModel() {
 
     private val _navigationState = MutableStateFlow<NavigationState>(NavigationState.Loading)
@@ -36,6 +41,9 @@ class AuthViewModel @Inject constructor(
 
     private val _errorState = MutableStateFlow<String?>(null)
     val errorState: StateFlow<String?> = _errorState.asStateFlow()
+
+    private val _searchResults = MutableStateFlow<List<PlayerSearchResult>>(emptyList())
+    val searchResults: StateFlow<List<PlayerSearchResult>> = _searchResults.asStateFlow()
 
     init {
         checkCurrentUser()
@@ -76,6 +84,40 @@ class AuthViewModel @Inject constructor(
                     Log.e(TAG, "signInWithGoogle: failed", result.exception)
                     _errorState.value = "Sign-in failed. Please try again."
                     _signInState.value = false
+                }
+            }
+            _isLoading.value = false
+        }
+    }
+
+    fun searchPlayers(query: String) {
+        viewModelScope.launch {
+            if (query.length < 2) {
+                _searchResults.value = emptyList()
+                return@launch
+            }
+            _isLoading.value = true
+            when (val playersResult = authRepository.searchPlayers(query)) {
+                is Result.Success -> {
+                    val players = playersResult.data
+                    val searchResultsList = players.map { player ->
+                        async {
+                            val ranking = when (val rankingResult = gameRepository.getPlayerRanking(player.uid, "FIFA")) {
+                                is Result.Success -> rankingResult.data
+                                is Result.Error -> {
+                                    Log.e(TAG, "Failed to get ranking for ${player.uid}", rankingResult.exception)
+                                    null
+                                }
+                            }
+                            PlayerSearchResult(player, ranking)
+                        }
+                    }.awaitAll()
+                    _searchResults.value = searchResultsList
+                }
+                is Result.Error -> {
+                    Log.e(TAG, "searchPlayers failed", playersResult.exception)
+                    _errorState.value = "Failed to search for players."
+                    _searchResults.value = emptyList()
                 }
             }
             _isLoading.value = false

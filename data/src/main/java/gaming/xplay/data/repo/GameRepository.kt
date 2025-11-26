@@ -132,4 +132,19 @@ class GameRepository @Inject constructor(
             Result.Error(e)
         }
     }
+
+    suspend fun getPlayerRanking(playerId: String, gameId: String): Result<rankings?> {
+        return try {
+            val ranking = db.collection("rankings")
+                .whereEqualTo("playerid", playerId)
+                .whereEqualTo("gameid", gameId)
+                .get()
+                .await()
+                .toObjects(rankings::class.java)
+                .firstOrNull()
+            Result.Success(ranking)
+        } catch (e: Exception) {
+            Result.Error(e)
+        }
+    }
 }
