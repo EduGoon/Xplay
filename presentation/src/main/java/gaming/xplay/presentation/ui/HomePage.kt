@@ -52,6 +52,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -114,7 +115,7 @@ fun HomePage(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary
+                    containerColor = MaterialTheme.colorScheme.surface
                 )
             )
         },
@@ -123,6 +124,7 @@ fun HomePage(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
                 .padding(paddingValues)
                 .padding(horizontal = 16.dp)
         ) {
@@ -152,7 +154,7 @@ fun HomePage(
             } else {
                 if (isLoading) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator()
+                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                     }
                 } else {
                     SearchResultsList(
@@ -170,21 +172,23 @@ fun SearchBar(searchQuery: String, onQueryChange: (String) -> Unit) {
     TextField(
         value = searchQuery,
         onValueChange = onQueryChange,
-        placeholder = { Text("Search for players...") },
+        placeholder = { Text("Search for players...", color = MaterialTheme.colorScheme.onSurfaceVariant) },
         modifier = Modifier.fillMaxWidth(),
         leadingIcon = {
             Icon(
                 Icons.Default.Search,
-                contentDescription = "Search Icon"
+                contentDescription = "Search Icon",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
         },
         shape = RoundedCornerShape(16.dp),
         colors = TextFieldDefaults.colors(
-            unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-            focusedContainerColor = MaterialTheme.colorScheme.surface,
+            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
             unfocusedIndicatorColor = Color.Transparent,
-            focusedIndicatorColor = Color.Transparent
-        )
+            focusedIndicatorColor = Color.Transparent,
+        ),
+        singleLine = true
     )
 }
 
@@ -197,9 +201,8 @@ fun SearchResultsList(
         Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
             Text(
                 text = "No players found.",
-                style = MaterialTheme.typography.bodyMedium.copy(
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     } else {
@@ -207,7 +210,7 @@ fun SearchResultsList(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(12.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)),
+                .background(MaterialTheme.colorScheme.surfaceVariant),
             verticalArrangement = Arrangement.spacedBy(0.dp),
         ) {
             items(results) { result ->
@@ -255,24 +258,24 @@ fun PlayerRow(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = player.name ?: "Player...",
-                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Medium,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
                     text = "XP: ${ranking?.XPpoints ?: 0}",
-                    style = MaterialTheme.typography.labelMedium.copy(
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
         Text(
             text = "${ranking?.wins ?: 0} Wins • ${ranking?.losses ?: 0} Losses",
-            style = MaterialTheme.typography.bodyMedium.copy(
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            ),
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.End,
             modifier = Modifier.widthIn(min = 100.dp)
         )
@@ -294,10 +297,9 @@ fun LeaderboardSection(
         ) {
             Text(
                 text = "🏆 Leaderboard",
-                style = MaterialTheme.typography.headlineMedium.copy(
-                    fontWeight = FontWeight.ExtraBold,
-                    color = MaterialTheme.colorScheme.primary
-                )
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.ExtraBold,
+                color = MaterialTheme.colorScheme.primary
             )
             IconButton(
                 onClick = { onRefresh() },
@@ -314,7 +316,7 @@ fun LeaderboardSection(
         when (leaderboardState) {
             is UiState.Loading -> {
                 Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                 }
             }
             is UiState.Success -> {
@@ -322,9 +324,8 @@ fun LeaderboardSection(
                     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                         Text(
                             text = "No rankings yet. Be the first one!",
-                            style = MaterialTheme.typography.bodyMedium.copy(
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 } else {
@@ -332,7 +333,7 @@ fun LeaderboardSection(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(12.dp))
-                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
                             .padding(vertical = 8.dp),
                         verticalArrangement = Arrangement.spacedBy(0.dp),
                     ) {
@@ -405,33 +406,32 @@ fun RankingRow(
         ) {
             Text(
                 text = "$medalEmoji $rank",
-                style = MaterialTheme.typography.titleMedium.copy(
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
             )
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = player?.name ?: "Player...",
-                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Medium,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
                     text = "XP: ${ranking.XPpoints}",
-                    style = MaterialTheme.typography.labelMedium.copy(
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
         Text(
             text = "${ranking.wins} Wins • ${ranking.losses} Losses",
-            style = MaterialTheme.typography.bodyMedium.copy(
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            ),
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.End,
             modifier = Modifier.widthIn(min = 100.dp)
         )
@@ -443,10 +443,9 @@ fun MyGamesSection() {
     Column {
         Text(
             text = "My Games",
-            style = MaterialTheme.typography.titleLarge.copy(
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground
-            )
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onBackground
         )
         Spacer(modifier = Modifier.height(16.dp))
         LazyRow(
@@ -485,14 +484,21 @@ fun GameCard(game: String, isMyGame: Boolean = false) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.5f))
+                    .background(
+                        brush = Brush.verticalGradient(
+                            colors = listOf(
+                                MaterialTheme.colorScheme.primary,
+                                MaterialTheme.colorScheme.secondary
+                            )
+                        )
+                    )
             )
             Text(
                 text = game,
                 modifier = Modifier
                     .align(Alignment.BottomStart)
                     .padding(16.dp),
-                color = Color.White,
+                color = MaterialTheme.colorScheme.onPrimary,
                 fontWeight = FontWeight.Bold,
                 fontSize = if (isMyGame) 16.sp else 20.sp
             )

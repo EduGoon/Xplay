@@ -10,31 +10,84 @@ import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
+// ============ DARK THEME ============
 private val DarkColorScheme = darkColorScheme(
-    primary = NeonViolet,
-    secondary = NeonMagenta,
+    primary = NeonBlue,
+    onPrimary = Color(0xFF00171D),
+    primaryContainer = NeonBlueDim,
+    onPrimaryContainer = TextPrimaryDark,
+
+    secondary = UltraViolet,
+    onSecondary = Color(0xFF120022),
+    secondaryContainer = UltraVioletDim,
+    onSecondaryContainer = TextPrimaryDark,
+
+    tertiary = CrimsonPulse,
+    onTertiary = Color(0xFF190006),
+    tertiaryContainer = CrimsonPulseDim,
+    onTertiaryContainer = TextPrimaryDark,
+
+    error = FlameOrange,
+    onError = Color.Black,
+    errorContainer = FlameOrangeDim,
+    onErrorContainer = TextPrimaryDark,
+
     background = DarkBackground,
+    onBackground = TextPrimaryDark,
+
     surface = SurfaceDark,
-    onPrimary = OnDark,
-    onSecondary = OnDark,
-    onBackground = OnDark,
-    onSurface = OnDark
+    onSurface = TextPrimaryDark,
+    surfaceVariant = SurfaceVariantDark,
+    onSurfaceVariant = TextSecondaryDark,
+
+    outline = BorderDark,
+    outlineVariant = DividerDark,
+
+    surfaceTint = NeonBlue,
+    scrim = Color(0xFF000000),
 )
 
+// ============ LIGHT THEME ============
 private val LightColorScheme = lightColorScheme(
-    primary = NeonViolet,
-    secondary = NeonMagenta,
-    background = LightBackground,  // soft off-white
-    surface = SurfaceLight,        // bright panels/cards
-    onPrimary = OnLight,
-    onSecondary = OnLight,
-    onBackground = OnLight,
-    onSurface = OnLight
+    primary = NeonBlue,
+    onPrimary = TextPrimaryLight,
+    primaryContainer = NeonBlueDim,
+    onPrimaryContainer = TextPrimaryLight,
+
+    secondary = UltraViolet,
+    onSecondary = Color(0xFFFFFFFF),
+    secondaryContainer = UltraVioletDim,
+    onSecondaryContainer = TextPrimaryLight,
+
+    tertiary = CrimsonPulse,
+    onTertiary = TextPrimaryLight,
+    tertiaryContainer = CrimsonPulseDim,
+    onTertiaryContainer = TextPrimaryLight,
+
+    error = FlameOrange,
+    onError = Color(0xFFFFFFFF),
+    errorContainer = FlameOrangeDim,
+    onErrorContainer = TextPrimaryLight,
+
+    background = LightBackground,
+    onBackground = TextPrimaryLight,
+
+    surface = SurfaceLight,
+    onSurface = TextPrimaryLight,
+    surfaceVariant = SurfaceVariantLight,
+    onSurfaceVariant = TextSecondaryLight,
+
+    outline = BorderLight,
+    outlineVariant = DividerLight,
+
+    surfaceTint = NeonBlue,
+    scrim = Color(0xFF000000),
 )
 
 @Composable
@@ -56,7 +109,14 @@ fun XplayTheme(
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            window.statusBarColor = colorScheme.background.toArgb()
+            // Set the status bar color to a gradient for dark theme, or a solid color for light theme
+            window.statusBarColor = if (darkTheme) {
+                // Create a gradient drawable or use a library to apply a gradient to the status bar
+                // For simplicity, we'll use the start color of the gradient
+                DarkGradientStart.toArgb()
+            } else {
+                colorScheme.background.toArgb()
+            }
             WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
         }
     }

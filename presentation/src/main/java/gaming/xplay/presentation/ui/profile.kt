@@ -21,6 +21,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -88,12 +90,20 @@ fun PlayerProfile(
     val winRate = if (totalMatches > 0) ((wins ?: 0) * 100f / totalMatches).toInt() else 0
 
     Scaffold(
-        snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
+        containerColor = Color.Transparent
     ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
+                .background(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            MaterialTheme.colorScheme.surface,
+                            MaterialTheme.colorScheme.background
+                        )
+                    )
+                )
                 .verticalScroll(rememberScrollState()) // Make the page scrollable
                 .padding(paddingValues)
                 .padding(24.dp),
@@ -115,8 +125,8 @@ fun PlayerProfile(
                 text = playerName,
                 style = MaterialTheme.typography.headlineSmall.copy(
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
+                ),
+                color = MaterialTheme.colorScheme.onBackground
             )
 
             Spacer(Modifier.height(24.dp)) // Increased spacing
@@ -130,7 +140,7 @@ fun PlayerProfile(
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
                 StatCard("Wins", wins ?: 0, MaterialTheme.colorScheme.primary)
-                StatCard("Losses", losses ?: 0, MaterialTheme.colorScheme.secondary)
+                StatCard("Losses", losses ?: 0, MaterialTheme.colorScheme.error)
                 StatCard("Winrate", "$winRate%", MaterialTheme.colorScheme.tertiary)
             }
 
@@ -187,9 +197,8 @@ fun XPBar(currentXP: Int) {
             )
             Text(
                 text = "$xpForLevel / 1000 XP",
-                style = MaterialTheme.typography.bodyMedium.copy(
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
 
@@ -223,20 +232,19 @@ fun XPBar(currentXP: Int) {
 
 
 @Composable
-fun StatCard(label: String, value: Any, accentColor: Color) {
+fun StatCard(label: String, value: Any, color: Color) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
             text = "$value",
             style = MaterialTheme.typography.headlineSmall.copy(
-                color = accentColor,
+                color = color,
                 fontWeight = FontWeight.Bold
             )
         )
         Text(
             text = label.uppercase(),
-            style = MaterialTheme.typography.bodySmall.copy(
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-            )
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
@@ -247,28 +255,29 @@ fun MatchHistory(){
         Text(
             text = "Match History",
             style = MaterialTheme.typography.titleLarge.copy(
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground
-            )
+                fontWeight = FontWeight.Bold
+            ),
+            color = MaterialTheme.colorScheme.onBackground
         )
         Spacer(modifier = Modifier.height(16.dp))
-        Box(
+        Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(100.dp)
-                .background(
-                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                    shape = RoundedCornerShape(16.dp)
-                )
-                .padding(16.dp),
-            contentAlignment = Alignment.Center
+                .height(100.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
         ) {
-            Text(
-                text = "Coming Soon!",
-                style = MaterialTheme.typography.bodyLarge.copy(
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "Coming Soon!",
+                    style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-            )
+            }
         }
     }
 }

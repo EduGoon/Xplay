@@ -1,5 +1,6 @@
 package gaming.xplay.presentation.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,8 +12,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.PrimaryTabRow
@@ -30,6 +34,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import gaming.xplay.data.model.Challenge
@@ -47,21 +54,34 @@ fun ChallengesScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val errorState by gameViewModel.errorState.collectAsState()
 
-    // Fetch all challenges when the screen is first launched
     LaunchedEffect(Unit) {
         gameViewModel.fetchChallengesForCurrentUser()
     }
 
     val currentUserId = authViewModel.checkCurrentUserUid()
 
-    Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }) {
-        Column(modifier = Modifier.fillMaxSize().padding(it)) {
-            PrimaryTabRow(selectedTabIndex = selectedTabIndex) {
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        containerColor = MaterialTheme.colorScheme.background
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+                .padding(it)
+        ) {
+            PrimaryTabRow(
+                selectedTabIndex = selectedTabIndex,
+                containerColor = MaterialTheme.colorScheme.surface,
+                contentColor = MaterialTheme.colorScheme.onBackground
+            ) {
                 tabs.forEachIndexed { index, title ->
                     Tab(
                         selected = selectedTabIndex == index,
                         onClick = { selectedTabIndex = index },
-                        text = { Text(title) }
+                        text = { Text(title, fontWeight = FontWeight.Bold) },
+                        selectedContentColor = MaterialTheme.colorScheme.primary,
+                        unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -97,13 +117,13 @@ fun <T> ChallengeList(uiState: UiState<List<T>>, itemContent: @Composable (T) ->
     when (uiState) {
         is UiState.Loading -> {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
+                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
             }
         }
         is UiState.Success -> {
             if (uiState.data.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("No challenges here.")
+                    Text("No challenges here.", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             } else {
                 LazyColumn(modifier = Modifier.padding(16.dp)) {
@@ -122,18 +142,47 @@ fun <T> ChallengeList(uiState: UiState<List<T>>, itemContent: @Composable (T) ->
 }
 
 @Composable
-fun IncomingChallengeCard(challenge: Challenge, viewModel: GameViewModel) {
-    Card(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+fun ChallengeCard(content: @Composable () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text("Challenge from: ${challenge.player1Id}") // You might want to resolve player names
-            Spacer(modifier = Modifier.height(8.dp))
-            Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
-                Button(onClick = { viewModel.acceptChallenge(challenge) }) {
-                    Text("Accept")
-                }
-                Button(onClick = { viewModel.rejectChallenge(challenge) }, modifier = Modifier.padding(start = 8.dp)) {
-                    Text("Reject")
-                }
+            content()
+        }
+    }
+}
+
+@Composable
+fun IncomingChallengeCard(challenge: Challenge, viewModel: GameViewModel) {
+    ChallengeCard {
+        Text("Challenge from: ${challenge.player1Id}", color = MaterialTheme.colorScheme.onSurface) // You might want to resolve player names
+        Spacer(modifier = Modifier.height(8.dp))
+        Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
+            Button(
+                onClick = { viewModel.acceptChallenge(challenge) },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.secondary
+                ),
+                modifier = Modifier.padding(horizontal = 8.dp)
+            ) {
+                Text("Accept", color = MaterialTheme.colorScheme.onSecondary)
+            }
+            Spacer(modifier = Modifier.padding(start = 8.dp))
+            Button(
+                onClick = { viewModel.rejectChallenge(challenge) },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.error
+                ),
+                modifier = Modifier.padding(horizontal = 8.dp)
+            ) {
+                Text("Reject", color = MaterialTheme.colorScheme.onError)
             }
         }
     }
@@ -141,11 +190,12 @@ fun IncomingChallengeCard(challenge: Challenge, viewModel: GameViewModel) {
 
 @Composable
 fun OutgoingChallengeCard(challenge: Challenge) {
-    Card(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text("Challenge to: ${challenge.player2Id}")
-            Text("Status: ${challenge.status.replaceFirstChar { it.uppercase() }}")
-        }
+    ChallengeCard {
+        Text("Challenge to: ${challenge.player2Id}", color = MaterialTheme.colorScheme.onSurface)
+        Text(
+            "Status: ${challenge.status.replaceFirstChar { it.uppercase() }}",
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 
@@ -154,31 +204,39 @@ fun ActiveChallengeCard(challenge: Challenge, currentUserId: String, viewModel: 
     val opponentId = if (currentUserId == challenge.player1Id) challenge.player2Id else challenge.player1Id
     val myResult = if (currentUserId == challenge.player1Id) challenge.player1Result else challenge.player2Result
 
-    Card(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text("Match against: $opponentId")
-            Spacer(modifier = Modifier.height(16.dp))
+    ChallengeCard {
+        Text("Match against: $opponentId", color = MaterialTheme.colorScheme.onSurface)
+        Spacer(modifier = Modifier.height(16.dp))
 
-            if (challenge.status == "disputed") {
-                Text("Match Disputed", color = MaterialTheme.colorScheme.error)
-            } else if (myResult == null) {
-                // Player has not submitted their result yet
-                Text("Match played? Submit your result:")
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                    Button(onClick = { viewModel.submitMatchResult(challenge.challengeId, "win") }) {
-                        Text("I Won")
-                    }
-                    Button(onClick = { viewModel.submitMatchResult(challenge.challengeId, "loss") }) {
-                        Text("I Lost")
-                    }
+        if (challenge.status == "disputed") {
+            Text("Match Disputed", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
+        } else if (myResult == null) {
+            Text("Match played? Submit your result:", color = MaterialTheme.colorScheme.onSurface)
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                Button(
+                    onClick = { viewModel.submitMatchResult(challenge.challengeId, "win") },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.secondary
+                    ),
+                    modifier = Modifier.padding(horizontal = 8.dp)
+                ) {
+                    Text("I Won", color = MaterialTheme.colorScheme.onSecondary)
                 }
-            } else {
-                // Player has submitted, waiting for opponent
-                Text("Your result: ${myResult.replaceFirstChar { it.uppercase() }}")
-                Spacer(modifier = Modifier.height(8.dp))
-                Text("Waiting for opponent...", style = MaterialTheme.typography.bodySmall)
+                Button(
+                    onClick = { viewModel.submitMatchResult(challenge.challengeId, "loss") },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error
+                    ),
+                    modifier = Modifier.padding(horizontal = 8.dp)
+                ) {
+                    Text("I Lost", color = MaterialTheme.colorScheme.onError)
+                }
             }
+        } else {
+            Text("Your result: ${myResult.replaceFirstChar { it.uppercase() }}", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(modifier = Modifier.height(8.dp))
+            Text("Waiting for opponent...", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
