@@ -47,12 +47,6 @@ fun ChallengesScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val errorState by gameViewModel.errorState.collectAsState()
 
-    LaunchedEffect(errorState) {
-        errorState?.let {
-            snackbarHostState.showSnackbar(it)
-        }
-    }
-
     // Fetch all challenges when the screen is first launched
     LaunchedEffect(Unit) {
         gameViewModel.fetchChallengesForCurrentUser()

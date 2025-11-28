@@ -18,6 +18,12 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+sealed class ChallengeCreationState {
+    object Idle : ChallengeCreationState()
+    object Success : ChallengeCreationState()
+    data class Error(val message: String) : ChallengeCreationState()
+}
+
 @HiltViewModel
 class GameViewModel @Inject constructor(
     private val gameRepository: GameRepository,
@@ -43,6 +49,13 @@ class GameViewModel @Inject constructor(
     private val _errorState = MutableStateFlow<String?>(null)
     val errorState: StateFlow<String?> = _errorState.asStateFlow()
 
+    private val _challengeCreationState = MutableStateFlow<ChallengeCreationState>(ChallengeCreationState.Idle)
+    val challengeCreationState: StateFlow<ChallengeCreationState> = _challengeCreationState.asStateFlow()
+
+    fun onChallengeCreationStatusConsumed() {
+        _challengeCreationState.value = ChallengeCreationState.Idle
+    }
+
     fun createChallenge(player2Id: String, gameId: String) {
         viewModelScope.launch {
             when (val currentUserResult = authRepository.fetchCurrentUserProfile()) {
@@ -52,6 +65,7 @@ class GameViewModel @Inject constructor(
                         val challenge = Challenge(player1Id = currentUser.uid, player2Id = player2Id, gameId = gameId)
                         when (gameRepository.createChallenge(challenge)) {
                             is Result.Success -> {
+                                _challengeCreationState.value = ChallengeCreationState.Success
                                 /*
                                 notificationRepository.sendNotification(
                                     NotificationRequest(
@@ -63,11 +77,13 @@ class GameViewModel @Inject constructor(
                                  */
                                 fetchOutgoingChallenges(currentUser.uid)
                             }
-                            is Result.Error -> _errorState.value = "Failed to create challenge."
+                            is Result.Error -> _challengeCreationState.value = ChallengeCreationState.Error("Failed to create challenge.")
                         }
+                    } else {
+                        _challengeCreationState.value = ChallengeCreationState.Error("Could not identify current user.")
                     }
                 }
-                is Result.Error -> _errorState.value = "Failed to fetch current user."
+                is Result.Error -> _challengeCreationState.value = ChallengeCreationState.Error("Failed to fetch current user.")
             }
         }
     }

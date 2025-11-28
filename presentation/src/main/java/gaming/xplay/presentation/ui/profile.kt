@@ -22,9 +22,13 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -41,6 +45,7 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import gaming.xplay.data.model.Player
 import gaming.xplay.presentation.viewmodel.AuthViewModel
+import gaming.xplay.presentation.viewmodel.ChallengeCreationState
 import gaming.xplay.presentation.viewmodel.GameViewModel
 
 @Composable
@@ -54,9 +59,27 @@ fun PlayerProfile(
     losses: Int? = null
 ) {
     var player by remember { mutableStateOf<Player?>(null) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val challengeCreationState by gameviewmodel.challengeCreationState.collectAsState()
 
     LaunchedEffect(userId) {
         player = authViewModel.getPlayerProfile(userId)
+    }
+
+    LaunchedEffect(challengeCreationState) {
+        when (val state = challengeCreationState) {
+            is ChallengeCreationState.Success -> {
+                snackbarHostState.showSnackbar("Challenge created successfully!")
+                gameviewmodel.onChallengeCreationStatusConsumed()
+            }
+            is ChallengeCreationState.Error -> {
+                snackbarHostState.showSnackbar(state.message)
+                gameviewmodel.onChallengeCreationStatusConsumed()
+            }
+            ChallengeCreationState.Idle -> {
+                // Do nothing
+            }
+        }
     }
 
     val playerName = player?.name ?: "Loading..."
@@ -64,67 +87,72 @@ fun PlayerProfile(
     val totalMatches = (wins ?: 0) + (losses ?: 0)
     val winRate = if (totalMatches > 0) ((wins ?: 0) * 100f / totalMatches).toInt() else 0
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .verticalScroll(rememberScrollState()) // Make the page scrollable
-            .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        AsyncImage(
-            model = playerAvi ?: "https://via.placeholder.com/150",
-            contentDescription = "Player Avatar",
+    Scaffold(
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
+    ) { paddingValues ->
+        Column(
             modifier = Modifier
-                .size(110.dp)
-                .clip(CircleShape)
-                .border(3.dp, MaterialTheme.colorScheme.primary, CircleShape),
-            contentScale = ContentScale.Crop
-        )
-
-        Spacer(Modifier.height(12.dp))
-
-        Text(
-            text = playerName,
-            style = MaterialTheme.typography.headlineSmall.copy(
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+                .verticalScroll(rememberScrollState()) // Make the page scrollable
+                .padding(paddingValues)
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            AsyncImage(
+                model = playerAvi ?: "https://via.placeholder.com/150",
+                contentDescription = "Player Avatar",
+                modifier = Modifier
+                    .size(110.dp)
+                    .clip(CircleShape)
+                    .border(3.dp, MaterialTheme.colorScheme.primary, CircleShape),
+                contentScale = ContentScale.Crop
             )
-        )
 
-        Spacer(Modifier.height(24.dp)) // Increased spacing
+            Spacer(Modifier.height(12.dp))
 
-        XPBar(currentXP = XPpoints ?: 0)
+            Text(
+                text = playerName,
+                style = MaterialTheme.typography.headlineSmall.copy(
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            )
 
-        Spacer(Modifier.height(32.dp)) // Increased spacing
+            Spacer(Modifier.height(24.dp)) // Increased spacing
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly
-        ) {
-            StatCard("Wins", wins ?: 0, MaterialTheme.colorScheme.primary)
-            StatCard("Losses", losses ?: 0, MaterialTheme.colorScheme.secondary)
-            StatCard("Winrate", "$winRate%", MaterialTheme.colorScheme.tertiary)
+            XPBar(currentXP = XPpoints ?: 0)
+
+            Spacer(Modifier.height(32.dp)) // Increased spacing
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                StatCard("Wins", wins ?: 0, MaterialTheme.colorScheme.primary)
+                StatCard("Losses", losses ?: 0, MaterialTheme.colorScheme.secondary)
+                StatCard("Winrate", "$winRate%", MaterialTheme.colorScheme.tertiary)
+            }
+
+            Spacer(Modifier.height(24.dp))
+
+            Button(
+                onClick = { gameviewmodel.createChallenge(userId, "FIFA") },
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary
+                ),
+                modifier = Modifier
+                    .fillMaxWidth(0.8f)
+                    .height(48.dp)
+            ) {
+                Text("Challenge", color = MaterialTheme.colorScheme.onPrimary)
+            }
+
+            Spacer(Modifier.height(40.dp))
+
+            MatchHistory()
         }
-
-        Spacer(Modifier.height(24.dp))
-
-        Button(
-            onClick = { gameviewmodel.createChallenge(userId, "FIFA") },
-            shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.primary
-            ),
-            modifier = Modifier
-                .fillMaxWidth(0.8f)
-                .height(48.dp)
-        ) {
-            Text("Challenge", color = MaterialTheme.colorScheme.onPrimary)
-        }
-
-        Spacer(Modifier.height(40.dp))
-
-        MatchHistory()
     }
 }
 

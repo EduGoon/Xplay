@@ -1,5 +1,6 @@
 package gaming.xplay.data.repo
 
+import android.util.Log
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import gaming.xplay.data.model.Challenge
@@ -25,6 +26,7 @@ class GameRepository @Inject constructor(
             challengeRef.set(newChallenge).await()
             Result.Success(challengeRef.id)
         } catch (e: Exception) {
+            Log.e("GameRepository","error creating challenge", e)
             Result.Error(e)
         }
     }
