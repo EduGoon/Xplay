@@ -1,6 +1,7 @@
 package gaming.xplay.data.repo
 
 import android.util.Log
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import gaming.xplay.data.model.Challenge
@@ -10,6 +11,7 @@ import gaming.xplay.data.model.SubmitMatchResultRequest
 import gaming.xplay.data.model.rankings
 import gaming.xplay.data.network.ApiService
 import kotlinx.coroutines.tasks.await
+import java.util.Date
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -22,18 +24,24 @@ class GameRepository @Inject constructor(
     suspend fun createChallenge(challenge: Challenge): Result<String> {
         return try {
             val challengeRef = db.collection("challenges").document()
-            val newChallenge = challenge.copy(challengeId = challengeRef.id)
+            val newChallenge = challenge.copy(
+                challengeId = challengeRef.id
+            )
             challengeRef.set(newChallenge).await()
             Result.Success(challengeRef.id)
         } catch (e: Exception) {
-            Log.e("GameRepository","error creating challenge", e)
+            Log.e("GameRepository", "error creating challenge", e)
             Result.Error(e)
         }
     }
 
     suspend fun updateChallengeStatus(challengeId: String, status: String): Result<Unit> {
         return try {
-            db.collection("challenges").document(challengeId).update("status", status).await()
+            val updates = mutableMapOf<String, Any>("status" to status)
+            if (status == "accepted") {
+                updates["acceptedAt"] = FieldValue.serverTimestamp()
+            }
+            db.collection("challenges").document(challengeId).update(updates).await()
             Result.Success(Unit)
         } catch (e: Exception) {
             Result.Error(e)
@@ -45,6 +53,7 @@ class GameRepository @Inject constructor(
             val challenges = db.collection("challenges")
                 .whereEqualTo("player2Id", playerId)
                 .whereEqualTo("status", "pending")
+                .orderBy("createdAt", Query.Direction.DESCENDING)
                 .get()
                 .await()
                 .toObjects(Challenge::class.java)
@@ -58,6 +67,7 @@ class GameRepository @Inject constructor(
         return try {
             val challenges = db.collection("challenges")
                 .whereEqualTo("player1Id", playerId)
+                .orderBy("createdAt", Query.Direction.DESCENDING)
                 .get()
                 .await()
                 .toObjects(Challenge::class.java)
@@ -72,6 +82,7 @@ class GameRepository @Inject constructor(
             val player1Accepted = db.collection("challenges")
                 .whereEqualTo("player1Id", playerId)
                 .whereEqualTo("status", "accepted")
+                .orderBy("acceptedAt", Query.Direction.DESCENDING)
                 .get()
                 .await()
                 .toObjects(Challenge::class.java)
@@ -79,11 +90,12 @@ class GameRepository @Inject constructor(
             val player2Accepted = db.collection("challenges")
                 .whereEqualTo("player2Id", playerId)
                 .whereEqualTo("status", "accepted")
+                .orderBy("acceptedAt", Query.Direction.DESCENDING)
                 .get()
                 .await()
                 .toObjects(Challenge::class.java)
 
-            Result.Success(player1Accepted + player2Accepted)
+            Result.Success((player1Accepted + player2Accepted).sortedByDescending { it.acceptedAt })
         } catch (e: Exception) {
             Result.Error(e)
         }
