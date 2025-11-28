@@ -124,35 +124,7 @@ fun PlayerProfile(
 
         Spacer(Modifier.height(40.dp))
 
-        // Placeholder for Match History
-        Column(modifier = Modifier.fillMaxWidth()) {
-            Text(
-                text = "Match History",
-                style = MaterialTheme.typography.titleLarge.copy(
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(100.dp)
-                    .background(
-                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                        shape = RoundedCornerShape(16.dp)
-                    )
-                    .padding(16.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "Coming Soon!",
-                    style = MaterialTheme.typography.bodyLarge.copy(
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                )
-            }
-        }
+        MatchHistory()
     }
 }
 
@@ -238,5 +210,37 @@ fun StatCard(label: String, value: Any, accentColor: Color) {
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
             )
         )
+    }
+}
+
+@Composable
+fun MatchHistory(){
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = "Match History",
+            style = MaterialTheme.typography.titleLarge.copy(
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(100.dp)
+                .background(
+                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                    shape = RoundedCornerShape(16.dp)
+                )
+                .padding(16.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "Coming Soon!",
+                style = MaterialTheme.typography.bodyLarge.copy(
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            )
+        }
     }
 }

@@ -52,6 +52,7 @@ class GameViewModel @Inject constructor(
                         val challenge = Challenge(player1Id = currentUser.uid, player2Id = player2Id, gameId = gameId)
                         when (gameRepository.createChallenge(challenge)) {
                             is Result.Success -> {
+                                /*
                                 notificationRepository.sendNotification(
                                     NotificationRequest(
                                         targetUserId = player2Id,
@@ -59,6 +60,7 @@ class GameViewModel @Inject constructor(
                                         body = "You have a new match challenge from ${currentUser.name ?: "a player"}"
                                     )
                                 )
+                                 */
                                 fetchOutgoingChallenges(currentUser.uid)
                             }
                             is Result.Error -> _errorState.value = "Failed to create challenge."

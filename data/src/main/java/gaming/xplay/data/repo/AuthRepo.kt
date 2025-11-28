@@ -109,7 +109,7 @@ class AuthRepository @Inject constructor(
             }
             val players = firestore.collection("players")
                 .whereGreaterThanOrEqualTo("name", query)
-                .whereLessThanOrEqualTo("name", query + '')
+                .whereLessThanOrEqualTo("name", query + '\uf8ff')
                 .limit(10)
                 .get()
                 .await()

@@ -131,7 +131,7 @@ fun HomePage(
                 searchQuery = searchQuery,
                 onQueryChange = {
                     searchQuery = it
-                    authViewModel.searchPlayers(it)
+                    authViewModel.searchPlayers(searchQuery)
                 }
             )
             Spacer(modifier = Modifier.height(32.dp))
@@ -163,6 +163,29 @@ fun HomePage(
             }
         }
     }
+}
+
+@Composable
+fun SearchBar(searchQuery: String, onQueryChange: (String) -> Unit) {
+    TextField(
+        value = searchQuery,
+        onValueChange = onQueryChange,
+        placeholder = { Text("Search for players...") },
+        modifier = Modifier.fillMaxWidth(),
+        leadingIcon = {
+            Icon(
+                Icons.Default.Search,
+                contentDescription = "Search Icon"
+            )
+        },
+        shape = RoundedCornerShape(16.dp),
+        colors = TextFieldDefaults.colors(
+            unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+            focusedContainerColor = MaterialTheme.colorScheme.surface,
+            unfocusedIndicatorColor = Color.Transparent,
+            focusedIndicatorColor = Color.Transparent
+        )
+    )
 }
 
 @Composable
@@ -254,29 +277,6 @@ fun PlayerRow(
             modifier = Modifier.widthIn(min = 100.dp)
         )
     }
-}
-
-@Composable
-fun SearchBar(searchQuery: String, onQueryChange: (String) -> Unit) {
-    TextField(
-        value = searchQuery,
-        onValueChange = onQueryChange,
-        placeholder = { Text("Search for players...") },
-        modifier = Modifier.fillMaxWidth(),
-        leadingIcon = {
-            Icon(
-                Icons.Default.Search,
-                contentDescription = "Search Icon"
-            )
-        },
-        shape = RoundedCornerShape(16.dp),
-        colors = TextFieldDefaults.colors(
-            unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-            focusedContainerColor = MaterialTheme.colorScheme.surface,
-            unfocusedIndicatorColor = Color.Transparent,
-            focusedIndicatorColor = Color.Transparent
-        )
-    )
 }
 
 @Composable
