@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.Leaderboard
 import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -76,7 +77,7 @@ fun MainApp(authViewModel: AuthViewModel = hiltViewModel(), gameViewModel: GameV
     // Determine if the bottom bar should be shown
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
-    val bottomBarRoutes = setOf("home", "challenges")
+    val bottomBarRoutes = setOf("home", "challenges", "leaderboard")
     val showBottomBar = currentDestination?.route in bottomBarRoutes
 
     Scaffold(
@@ -114,6 +115,20 @@ fun MainApp(authViewModel: AuthViewModel = hiltViewModel(), gameViewModel: GameV
                             indicatorColor = MaterialTheme.colorScheme.surface
                         )
                     )
+                    // Leaderboard Tab
+                    NavigationBarItem(
+                        icon = { Icon(Icons.Filled.Leaderboard, contentDescription = "Leaderboard") },
+                        label = { Text("Leaderboard") },
+                        selected = currentDestination?.hierarchy?.any { it.route == "leaderboard" } == true,
+                        onClick = { navController.navigate("leaderboard") { launchSingleTop = true } },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = MaterialTheme.colorScheme.primary,
+                            selectedTextColor = MaterialTheme.colorScheme.primary,
+                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            indicatorColor = MaterialTheme.colorScheme.surface
+                        )
+                    )
                 }
             }
         }
@@ -128,8 +143,10 @@ fun MainApp(authViewModel: AuthViewModel = hiltViewModel(), gameViewModel: GameV
             composable("splash") { SplashScreen() }
             composable("login") { LoginScreen(authViewModel, webClientId) }
             composable("onboardingScreen") { OnboardingScreen(authViewModel) }
-            composable("home") { HomePage(navController, authViewModel) }
+            composable("home") { HomePage(navController) }
             composable("challenges") { ChallengesScreen(gameViewModel, authViewModel) }
+            composable("leaderboard") { LeaderboardScreen(navController, authViewModel, gameViewModel) }
+            composable("notifications") { NotificationsScreen() }
             composable(
                 "profile/{playerId}/{XPpoints}/{wins}/{losses}",
                 arguments = listOf(
