@@ -54,7 +54,7 @@ import gaming.xplay.presentation.viewmodel.GameViewModel
 fun PlayerProfile(
     navController: NavController,
     authViewModel: AuthViewModel = hiltViewModel(),
-    gameviewmodel: GameViewModel,
+    gameviewmodel: GameViewModel = hiltViewModel(),
     userId: String,
     XPpoints: Int? = null,
     wins: Int? = null,
@@ -161,7 +161,7 @@ fun PlayerProfile(
 
             Spacer(Modifier.height(40.dp))
 
-            MatchHistory()
+            MatchHistory(gameviewmodel, userId)
         }
     }
 }
@@ -230,7 +230,6 @@ fun XPBar(currentXP: Int) {
     }
 }
 
-
 @Composable
 fun StatCard(label: String, value: Any, color: Color) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -250,7 +249,13 @@ fun StatCard(label: String, value: Any, color: Color) {
 }
 
 @Composable
-fun MatchHistory(){
+fun MatchHistory(gameviewmodel: GameViewModel, userId: String){
+
+    LaunchedEffect(userId) {
+        gameviewmodel.fetchMatchHistory(userId)
+    }
+
+    //Handle the List of matches from the MatchHistory state handler in gameviewmodel inside the column below
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
             text = "Match History",

@@ -291,10 +291,12 @@ fun ActiveChallengeCard(
                     Text("I Lost", color = MaterialTheme.colorScheme.onError)
                 }
             }
-        } else {
+        } else if (challenge.status == "waiting verification"){
             Text("Your result: ${myResult.replaceFirstChar { it.uppercase() }}", color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(modifier = Modifier.height(8.dp))
             Text("Waiting for opponent...", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }else if(challenge.status == "completed"){
+             /*TODO : Create something like a pop up dialog box that shows match completed with a tick*/
         }
     }
 }

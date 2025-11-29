@@ -39,6 +39,7 @@ fun MyProfileScreen(
     val leaderboardState by gameViewModel.leaderboard.collectAsState()
 
     LaunchedEffect(Unit) {
+        authViewModel.refreshCurrentUser()
         gameViewModel.fetchLeaderboard("FIFA")
     }
 
@@ -62,9 +63,7 @@ fun MyProfileScreen(
             .verticalScroll(rememberScrollState())
     ) {
 
-        // ---------------------------
         // Header
-        // ---------------------------
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -134,9 +133,7 @@ fun MyProfileScreen(
 
             Spacer(Modifier.height(36.dp))
 
-            // ---------------------------
-            // Tabs: MyClubs & MatchHistory
-            // ---------------------------
+
             var selectedTab by remember { mutableStateOf(0) }
             val tabs = listOf("My Clubs", "Match History")
 
@@ -188,7 +185,7 @@ fun MyProfileScreen(
                     }
                 }
                 1 -> { // Match History
-                    MatchHistory()
+                    MatchHistory(gameViewModel, currentUser?.uid ?: "")
                 }
             }
         }
@@ -211,9 +208,7 @@ fun ClubCard(club: Club, isAdmin: Boolean) {
 
             Spacer(Modifier.height(8.dp))
 
-            // ----------------------------------------------------------
             // Clean Member Row + Green “Admin” Tag
-            // ----------------------------------------------------------
             Row(verticalAlignment = Alignment.CenterVertically) {
 
                 Text(

@@ -58,17 +58,18 @@ fun OnboardingScreen(
         OnboardingPage(
             imageVector = Icons.Default.Games,
             title = "Know your Ranking",
-            description = "Get to know where you rank and aim to improve"
+            description = "Get to know where you rank countrywide and aim to improve"
         ),
         OnboardingPage(
             imageVector = Icons.Default.Group,
-            title = "Connect with Friends",
-            description = "See what your friends are playing, know their ranking and connect with more."
+            title = "Create and Join Game Clubs",
+            description = "You can create tournaments with members within a club and track the outcomes." +
+                    "You can Join existing clubs to be able to play tournaments"
         ),
         OnboardingPage(
             imageVector = Icons.Default.Notifications,
             title = "Stay Updated",
-            description = "Get notified about new releases, friend activities, and game invites."
+            description = "Get notified about new releases, club activities, and challenge invites."
         )
     )
 
