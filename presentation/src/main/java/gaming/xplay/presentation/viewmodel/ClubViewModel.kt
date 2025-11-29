@@ -5,7 +5,6 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import gaming.xplay.data.model.Club
 import gaming.xplay.data.model.CreateClubRequest
-import gaming.xplay.data.model.JoinClubRequest
 import gaming.xplay.data.model.Result
 import gaming.xplay.data.repo.ClubRepository
 import gaming.xplay.presentation.ui.State.UiState
@@ -21,6 +20,9 @@ class ClubViewModel @Inject constructor(
 
     private val _clubs = MutableStateFlow<UiState<List<Club>>>(UiState.Loading)
     val clubs: StateFlow<UiState<List<Club>>> = _clubs
+
+    private val _createClubState = MutableStateFlow<UiState<Club>>(UiState.Loading)
+    val createClubState: StateFlow<UiState<Club>> = _createClubState
 
     init {
         fetchClubs()
@@ -39,19 +41,12 @@ class ClubViewModel @Inject constructor(
     fun createClub(clubName: String, adminId: String) {
         viewModelScope.launch {
             val request = CreateClubRequest(clubName, adminId)
-            when (clubRepository.createClub(request)) {
-                is Result.Success -> fetchClubs()
-                is Result.Error -> _clubs.value = UiState.Error("Failed to create club")
-            }
-        }
-    }
-
-    fun joinClub(clubId: String, playerId: String) {
-        viewModelScope.launch {
-            val request = JoinClubRequest(clubId, playerId)
-            when (clubRepository.joinClub(request)) {
-                is Result.Success -> fetchClubs()
-                is Result.Error -> _clubs.value = UiState.Error("Failed to join club")
+            when (val result = clubRepository.createClub(request)) {
+                is Result.Success -> {
+                    _createClubState.value = UiState.Success(result.data)
+                    fetchClubs()
+                }
+                is Result.Error -> _createClubState.value = UiState.Error("Failed to create club")
             }
         }
     }

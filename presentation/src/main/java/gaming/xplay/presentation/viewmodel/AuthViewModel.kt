@@ -71,6 +71,10 @@ class AuthViewModel @Inject constructor(
         }
     }
 
+    fun refreshCurrentUser() {
+        checkCurrentUser()
+    }
+
     fun signInWithGoogle(idToken: String) {
         viewModelScope.launch {
             _isLoading.value = true

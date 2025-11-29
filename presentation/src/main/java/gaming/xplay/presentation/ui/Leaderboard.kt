@@ -230,6 +230,7 @@ fun LeaderboardSection(
     onRefresh: () -> Unit,
     navController: NavController
 ) {
+    val currentUser by authViewModel.currentUser.collectAsState()
     Column(modifier = Modifier.padding(horizontal = 16.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -283,8 +284,13 @@ fun LeaderboardSection(
                                 ranking = ranking,
                                 rank = index + 1,
                                 authViewModel = authViewModel,
+                                isCurrentUser = currentUser?.uid == ranking.playerid
                             ) { playerId, xpPoints, wins, losses ->
-                                navController.navigate("profile/$playerId/$xpPoints/$wins/$losses")
+                                if (currentUser?.uid == playerId) {
+                                    navController.navigate("myprofile")
+                                } else {
+                                    navController.navigate("profile/$playerId/$xpPoints/$wins/$losses")
+                                }
                             }
                             if (index != leaderboardState.data.lastIndex) {
                                 HorizontalDivider(
@@ -314,6 +320,7 @@ fun RankingRow(
     ranking: rankings,
     rank: Int,
     authViewModel: AuthViewModel,
+    isCurrentUser: Boolean,
     onClick: (String, Int, Int, Int) -> Unit
 ) {
     var player by remember { mutableStateOf<Player?>(null) }
@@ -332,6 +339,7 @@ fun RankingRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .background(if (isCurrentUser) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
             .clickable(
                 onClick = { onClick(ranking.playerid, ranking.XPpoints, ranking.wins, ranking.losses) },
                 indication = LocalIndication.current,
