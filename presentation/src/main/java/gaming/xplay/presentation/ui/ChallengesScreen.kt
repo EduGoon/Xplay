@@ -62,7 +62,7 @@ fun ChallengesScreen(
     challengeDetailsViewModel: ChallengeDetailsViewModel = hiltViewModel()
 ) {
     var selectedTabIndex by remember { mutableStateOf(0) }
-    val tabs = listOf("Incoming", "Outgoing", "Active")
+    val tabs = listOf("Outgoing", "Incoming", "Active")
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(Unit) {
@@ -99,17 +99,17 @@ fun ChallengesScreen(
 
             when (selectedTabIndex) {
                 0 -> {
-                    val incomingState by gameViewModel.incomingChallenges.collectAsState()
-                    ChallengeList(uiState = incomingState) { challenge ->
-                        IncomingChallengeCard(challenge, gameViewModel, challengeDetailsViewModel)
-                    }
-                }
-                1 -> {
                     val outgoingState by gameViewModel.outgoingChallenges.collectAsState()
                     ChallengeList(uiState = outgoingState) { challenge ->
                         OutgoingChallengeCard(challenge, challengeDetailsViewModel)
                     }
                 }
+                1 -> {
+                val incomingState by gameViewModel.incomingChallenges.collectAsState()
+                ChallengeList(uiState = incomingState) { challenge ->
+                    IncomingChallengeCard(challenge, gameViewModel, challengeDetailsViewModel)
+                }
+            }
                 2 -> {
                     val acceptedState by gameViewModel.acceptedChallenges.collectAsState()
                     ChallengeList(uiState = acceptedState) { challenge ->

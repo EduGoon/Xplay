@@ -62,9 +62,9 @@ fun MyProfileScreen(
             .verticalScroll(rememberScrollState())
     ) {
 
-        // ----------------------------------------------------------
-        // 1. Twitter-like Header with Fallback
-        // ----------------------------------------------------------
+        // ---------------------------
+        // Header
+        // ---------------------------
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -79,7 +79,6 @@ fun MyProfileScreen(
                 when (painter.state) {
                     is coil.compose.AsyncImagePainter.State.Error,
                     is coil.compose.AsyncImagePainter.State.Empty -> {
-                        // **Fallback gradient (Twitter-like empty header)**
                         Box(
                             Modifier
                                 .fillMaxSize()
@@ -97,7 +96,6 @@ fun MyProfileScreen(
                 }
             }
 
-            // Avatar overlapped
             AsyncImage(
                 model = currentUser?.profilePictureUrl ?: "",
                 contentDescription = "Avatar",
@@ -113,9 +111,6 @@ fun MyProfileScreen(
 
         Spacer(Modifier.height(70.dp))
 
-        // ----------------------------------------------------------
-        // 2. Username + Stats
-        // ----------------------------------------------------------
         Column(Modifier.padding(horizontal = 16.dp)) {
             Text(
                 text = currentUser?.name ?: "My Profile",
@@ -123,18 +118,15 @@ fun MyProfileScreen(
             )
 
             Spacer(Modifier.height(12.dp))
-
             XPBar(currentXP = userRanking?.XPpoints ?: 0)
 
             Spacer(Modifier.height(28.dp))
-
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 StatCard("Wins", userRanking?.wins ?: 0, MaterialTheme.colorScheme.primary)
                 StatCard("Losses", userRanking?.losses ?: 0, MaterialTheme.colorScheme.error)
-
                 val total = (userRanking?.wins ?: 0) + (userRanking?.losses ?: 0)
                 val winRate = if (total > 0) ((userRanking?.wins ?: 0) * 100) / total else 0
                 StatCard("Winrate", "$winRate%", MaterialTheme.colorScheme.tertiary)
@@ -142,39 +134,61 @@ fun MyProfileScreen(
 
             Spacer(Modifier.height(36.dp))
 
-            // ----------------------------------------------------------
-            // 3. Clubs List – Redesigned
-            // ----------------------------------------------------------
-            when (val state = clubsState) {
-                is UiState.Loading -> {
-                    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator()
-                    }
-                }
+            // ---------------------------
+            // Tabs: MyClubs & MatchHistory
+            // ---------------------------
+            var selectedTab by remember { mutableStateOf(0) }
+            val tabs = listOf("My Clubs", "Match History")
 
-                is UiState.Success -> {
-                    val all = state.data
-                    val my = all.filter {
-                        currentUser?.clubs?.contains(it.clubId) == true ||
-                                it.adminId == currentUser?.uid
-                    }
-
-                    Text(
-                        text = "My Clubs (${my.size})",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
+            TabRow(
+                selectedTabIndex = selectedTab,
+                containerColor = MaterialTheme.colorScheme.surface,
+                contentColor = MaterialTheme.colorScheme.primary
+            ) {
+                tabs.forEachIndexed { index, title ->
+                    Tab(
+                        selected = selectedTab == index,
+                        onClick = { selectedTab = index },
+                        text = { Text(title) }
                     )
+                }
+            }
 
-                    Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(16.dp))
 
-                    my.forEach { club ->
-                        ClubCard(club = club, isAdmin = club.adminId == currentUser?.uid)
-                        Spacer(Modifier.height(16.dp))
+            when (selectedTab) {
+                0 -> { // My Clubs
+                    when (val state = clubsState) {
+                        is UiState.Loading -> {
+                            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                                CircularProgressIndicator()
+                            }
+                        }
+
+                        is UiState.Success -> {
+                            val all = state.data
+                            val my = all.filter {
+                                currentUser?.clubs?.contains(it.clubId) == true ||
+                                        it.adminId == currentUser?.uid
+                            }
+
+                            if (my.isNotEmpty()) {
+                                my.forEach { club ->
+                                    ClubCard(club = club, isAdmin = club.adminId == currentUser?.uid)
+                                    Spacer(Modifier.height(16.dp))
+                                }
+                            } else {
+                                Text("You haven't joined any clubs yet.")
+                            }
+                        }
+
+                        is UiState.Error -> {
+                            Text(state.message)
+                        }
                     }
                 }
-
-                is UiState.Error -> {
-                    Text(state.message)
+                1 -> { // Match History
+                    MatchHistory()
                 }
             }
         }
