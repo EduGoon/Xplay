@@ -5,5 +5,7 @@ data class Player(
     val name: String? = null,
     val email: String? = null,
     val profilePictureUrl: String? = null,
-    val isFirstTime: Boolean = true
+    val isFirstTime: Boolean = true,
+    val isClubOwner: Boolean = false,
+    val clubs: List<String> = emptyList()
 )

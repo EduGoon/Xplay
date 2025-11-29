@@ -10,8 +10,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Leaderboard
+import androidx.compose.material.icons.filled.List
 import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -143,10 +143,12 @@ fun MainApp(authViewModel: AuthViewModel = hiltViewModel(), gameViewModel: GameV
             composable("splash") { SplashScreen() }
             composable("login") { LoginScreen(authViewModel, webClientId) }
             composable("onboardingScreen") { OnboardingScreen(authViewModel) }
-            composable("home") { HomePage(navController) }
+            composable("home") { HomePage(navController, authViewModel) }
             composable("challenges") { ChallengesScreen(gameViewModel, authViewModel) }
             composable("leaderboard") { LeaderboardScreen(navController, authViewModel, gameViewModel) }
             composable("notifications") { NotificationsScreen() }
+            composable("myprofile") { MyProfileScreen(authViewModel) }
+            composable("clubdetails/{clubId}", arguments = listOf(navArgument("clubId") { type = NavType.StringType })) { ClubDetailsScreen() }
             composable(
                 "profile/{playerId}/{XPpoints}/{wins}/{losses}",
                 arguments = listOf(

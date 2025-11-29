@@ -45,6 +45,9 @@ class AuthViewModel @Inject constructor(
     private val _searchResults = MutableStateFlow<List<PlayerSearchResult>>(emptyList())
     val searchResults: StateFlow<List<PlayerSearchResult>> = _searchResults.asStateFlow()
 
+    private val _currentUser = MutableStateFlow<Player?>(null)
+    val currentUser: StateFlow<Player?> = _currentUser.asStateFlow()
+
     init {
         checkCurrentUser()
     }
@@ -53,6 +56,7 @@ class AuthViewModel @Inject constructor(
         viewModelScope.launch {
             when (val result = authRepository.fetchCurrentUserProfile()) {
                 is Result.Success -> {
+                    _currentUser.value = result.data
                     if (result.data != null) {
                         _navigationState.value = NavigationState.ToHome
                     } else {
