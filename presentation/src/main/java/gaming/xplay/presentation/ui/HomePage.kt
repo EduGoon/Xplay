@@ -309,11 +309,11 @@ data class Game(
 @Composable
 fun UpcomingGamesSection() {
     val games = listOf(
-        Game("Mortal Kombat 11", "https://upload.wikimedia.org/wikipedia/en/7/7e/Mortal_Kombat_11_cover_art.png"),
+        Game("Street Fighter", "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1172540/ss_ae8ae2947e0789d322ffc1cdddf0671888336da8.1920x1080.jpg?t=1684260292"),
         Game("Tekken 7", "https://w0.peakpx.com/wallpaper/856/677/HD-wallpaper-tekken-7-fighters.jpg"),
         Game("PUBG", "https://i.ebayimg.com/images/g/ajAAAOSwbn1eNMu6/s-l1200.jpg"),
         Game("Fortnite", "https://m.media-amazon.com/images/M/MV5BMTZlMmIxM2EtN2Y4Zi00M2ZhLTk3NzgtNjJmZTU0MTQ3YjcwXkEyXkFqcGc%40._V1_FMjpg_UX1000_.jpg"),
-        Game("Street Fighter", "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1172540/ss_ae8ae2947e0789d322ffc1cdddf0671888336da8.1920x1080.jpg?t=1684260292"),
+        Game("Mortal Kombat 11", "https://upload.wikimedia.org/wikipedia/en/7/7e/Mortal_Kombat_11_cover_art.png"),
         Game("Guilty Gear Strive", "https://upload.wikimedia.org/wikipedia/en/7/7d/Guilty_Gear_Strive.jpg")
     )
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) { // Fill at least 90% width
