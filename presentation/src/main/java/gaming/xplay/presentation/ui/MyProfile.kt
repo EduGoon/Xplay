@@ -185,7 +185,7 @@ fun MyProfileScreen(
                     }
                 }
                 1 -> { // Match History
-                    MatchHistory(gameViewModel, currentUser?.uid ?: "")
+                    MatchHistory(gameViewModel, authViewModel, currentUser?.uid ?: "")
                 }
             }
         }

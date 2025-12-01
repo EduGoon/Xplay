@@ -2,9 +2,9 @@ package gaming.xplay.presentation.ui
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -23,6 +24,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -39,13 +41,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import gaming.xplay.data.model.Match
 import gaming.xplay.data.model.Player
+import gaming.xplay.presentation.ui.State.UiState
 import gaming.xplay.presentation.viewmodel.AuthViewModel
 import gaming.xplay.presentation.viewmodel.ChallengeCreationState
 import gaming.xplay.presentation.viewmodel.GameViewModel
@@ -161,7 +166,7 @@ fun PlayerProfile(
 
             Spacer(Modifier.height(40.dp))
 
-            MatchHistory(gameviewmodel, userId)
+            MatchHistory(gameviewmodel, authViewModel, userId)
         }
     }
 }
@@ -249,13 +254,17 @@ fun StatCard(label: String, value: Any, color: Color) {
 }
 
 @Composable
-fun MatchHistory(gameviewmodel: GameViewModel, userId: String){
+fun MatchHistory(
+    gameViewModel: GameViewModel,
+    authViewModel: AuthViewModel,
+    userId: String
+) {
+    val matchHistoryState by gameViewModel.matchHistory.collectAsState()
 
     LaunchedEffect(userId) {
-        gameviewmodel.fetchMatchHistory(userId)
+        gameViewModel.fetchMatchHistory(userId)
     }
 
-    //Handle the List of matches from the MatchHistory state handler in gameviewmodel inside the column below
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
             text = "Match History",
@@ -265,24 +274,87 @@ fun MatchHistory(gameviewmodel: GameViewModel, userId: String){
             color = MaterialTheme.colorScheme.onBackground
         )
         Spacer(modifier = Modifier.height(16.dp))
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(100.dp),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-        ) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "Coming Soon!",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+
+        when (val state = matchHistoryState) {
+            is UiState.Loading -> {
+                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
             }
+            is UiState.Success -> {
+                val matches = state.data
+                if (matches.isEmpty()) {
+                    Text("No match history found.")
+                } else {
+                    matches.forEach { match ->
+                        MatchCard(match = match, currentUserId = userId, authViewModel = authViewModel)
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+                }
+            }
+            is UiState.Error -> {
+                Text(state.message)
+            }
+        }
+    }
+}
+
+@Composable
+fun MatchCard(match: Match, currentUserId: String, authViewModel: AuthViewModel) {
+    val opponentId = if (match.player1Id == currentUserId) match.player2Id else match.player1Id
+    var opponent by remember { mutableStateOf<Player?>(null) }
+
+    LaunchedEffect(opponentId) {
+        opponent = authViewModel.getPlayerProfile(opponentId)
+    }
+
+    val won = match.winnerId == currentUserId
+    val cardColor = if (won) Color(0xFF3DDC84).copy(alpha = 0.1f) else MaterialTheme.colorScheme.error.copy(alpha = 0.1f)
+    val borderColor = if (won) Color(0xFF3DDC84) else MaterialTheme.colorScheme.error
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = cardColor),
+        border = BorderStroke(1.dp, borderColor)
+    ) {
+        Row(
+            modifier = Modifier
+                .padding(12.dp)
+                .fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                AsyncImage(
+                    model = opponent?.profilePictureUrl ?: "",
+                    contentDescription = "Opponent Avatar",
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .border(1.dp, MaterialTheme.colorScheme.onSurface, CircleShape),
+                    contentScale = ContentScale.Crop
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Column {
+                    Text(
+                        text = opponent?.name ?: "Opponent",
+                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold)
+                    )
+                    Text(
+                        text = "Game: ${match.gameId}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            Text(
+                text = if (won) "WIN" else "LOSS",
+                style = MaterialTheme.typography.bodyLarge.copy(
+                    fontWeight = FontWeight.Bold,
+                    color = borderColor
+                )
+            )
         }
     }
 }

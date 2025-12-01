@@ -6,7 +6,6 @@ import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.firestore.FirebaseFirestore
 import gaming.xplay.data.model.Player
 import gaming.xplay.data.model.Result
-import gaming.xplay.data.model.SignInRequest
 import gaming.xplay.data.network.ApiService
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
@@ -25,18 +24,12 @@ class AuthRepository @Inject constructor(
             val credential = GoogleAuthProvider.getCredential(googleIdToken, null)
 
             // 2. Sign in to Firebase
-            val authResult = auth.signInWithCredential(credential).await()
+            auth.signInWithCredential(credential).await()
 
-            // 3. Get the Firebase ID token (THIS is what your server needs)
-            val firebaseIdToken = authResult.user
-                ?.getIdToken(true)
-                ?.await()
-                ?.token
-                ?: throw IllegalStateException("Failed to obtain Firebase ID token")
+            val firebaseIdToken = auth.currentUser?.getIdToken(true)?.await()?.token
+                ?: throw Exception("Failed to get Firebase ID token")
 
-            // 4. Send Firebase ID token to backend
-            val request = SignInRequest(firebaseIdToken)
-            val player = apiService.signIn(request)
+            val player = apiService.signIn()
 
             Result.Success(player)
 

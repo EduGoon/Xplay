@@ -13,15 +13,24 @@ import gaming.xplay.data.repo.GameRepository
 import gaming.xplay.presentation.ui.State.UiState
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+
+sealed class JoinClubActionState {
+    object Idle : JoinClubActionState()
+    object Success : JoinClubActionState()
+    data class Error(val message: String) : JoinClubActionState()
+}
 
 @HiltViewModel
 class ClubDetailsViewModel @Inject constructor(
     private val clubRepository: ClubRepository,
     private val gameRepository: GameRepository,
+    private val notificationRepository: gaming.xplay.data.repo.NotificationRepository,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -35,6 +44,9 @@ class ClubDetailsViewModel @Inject constructor(
 
     private val _rankings = MutableStateFlow<UiState<List<rankings>>>(UiState.Loading)
     val rankings: StateFlow<UiState<List<rankings>>> = _rankings
+
+    private val _joinClubActionState = MutableSharedFlow<JoinClubActionState>()
+    val joinClubActionState: SharedFlow<JoinClubActionState> = _joinClubActionState
 
     init {
         fetchClubDetails()
@@ -83,13 +95,33 @@ class ClubDetailsViewModel @Inject constructor(
         }
     }
 
-    fun joinClub(playerId: String) {
+    fun joinClub(playerId: String, club: Club, playerName: String) {
         viewModelScope.launch {
             val request = gaming.xplay.data.model.JoinClubRequest(clubId, playerId)
-            when (clubRepository.joinClub(request)) {
-                is Result.Success -> fetchClubDetails()
-                is Result.Error -> { /* Handle error */ }
+            when (val result = clubRepository.requestToJoinClub(request)) {
+                is Result.Success -> {
+                    _joinClubActionState.emit(JoinClubActionState.Success)
+                    sendJoinClubRequestNotification(club.adminId, club.clubName, playerName)
+                    fetchClubDetails()
+                }
+                is Result.Error -> {
+                    _joinClubActionState.emit(JoinClubActionState.Error(result.exception.message ?: "An unknown error occurred"))
+                }
             }
+        }
+    }
+
+    private fun sendJoinClubRequestNotification(adminId: String, clubName: String, playerName: String) {
+        viewModelScope.launch {
+            /*
+            notificationRepository.sendNotification(
+                gaming.xplay.data.model.NotificationRequest(
+                    targetUserId = adminId,
+                    title = "New Join Request",
+                    body = "$playerName wants to join $clubName"
+                )
+            )
+             */
         }
     }
 }

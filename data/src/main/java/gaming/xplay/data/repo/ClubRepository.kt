@@ -40,7 +40,17 @@ class ClubRepository @Inject constructor(
         }
     }
 
-    suspend fun joinClub(request: JoinClubRequest): Result<Unit> {
+    suspend fun requestToJoinClub(request: JoinClubRequest): Result<Unit> {
+        return try {
+            firestore.collection("clubs").document(request.clubId)
+                .update("pendingMemberIds", FieldValue.arrayUnion(request.playerId)).await()
+            Result.Success(Unit)
+        } catch (e: Exception) {
+            Result.Error(e)
+        }
+    }
+
+    suspend fun approveJoinRequest(request: JoinClubRequest): Result<Unit> {
         return try {
             val clubRef = firestore.collection("clubs").document(request.clubId)
             val playerRef = firestore.collection("players").document(request.playerId)
@@ -51,8 +61,20 @@ class ClubRepository @Inject constructor(
 
                 it.update(clubRef, "members", club.members + 1)
                 it.update(clubRef, "memberIds", FieldValue.arrayUnion(request.playerId))
+                it.update(clubRef, "pendingMemberIds", FieldValue.arrayRemove(request.playerId))
                 it.update(playerRef, "clubs", FieldValue.arrayUnion(request.clubId))
             }.await()
+            Result.Success(Unit)
+        } catch (e: Exception) {
+            Result.Error(e)
+        }
+    }
+
+    suspend fun declineJoinRequest(request: JoinClubRequest): Result<Unit> {
+        return try {
+            firestore.collection("clubs").document(request.clubId)
+                .update("pendingMemberIds", FieldValue.arrayRemove(request.playerId))
+                .await()
             Result.Success(Unit)
         } catch (e: Exception) {
             Result.Error(e)
@@ -62,6 +84,15 @@ class ClubRepository @Inject constructor(
     suspend fun getClubs(): Result<List<Club>> {
         return try {
             val clubs = firestore.collection("clubs").get().await().toObjects(Club::class.java)
+            Result.Success(clubs)
+        } catch (e: Exception) {
+            Result.Error(e)
+        }
+    }
+
+    suspend fun getAdminClubs(adminId: String): Result<List<Club>> {
+        return try {
+            val clubs = firestore.collection("clubs").whereEqualTo("adminId", adminId).get().await().toObjects(Club::class.java)
             Result.Success(clubs)
         } catch (e: Exception) {
             Result.Error(e)

@@ -6,5 +6,6 @@ data class Club(
     val adminId: String = "",
     val members: Int = 0,
     val imageUrl: String = "",
-    val memberIds: List<String> = emptyList()
+    val memberIds: List<String> = emptyList(),
+    val pendingMemberIds: List<String> = emptyList()
 )
