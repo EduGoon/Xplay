@@ -5,8 +5,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import gaming.xplay.data.model.Club
+import gaming.xplay.data.model.CreateTournamentRequest
 import gaming.xplay.data.model.Player
 import gaming.xplay.data.model.Result
+import gaming.xplay.data.model.Tournament
 import gaming.xplay.data.model.rankings
 import gaming.xplay.data.repo.ClubRepository
 import gaming.xplay.data.repo.GameRepository
@@ -24,6 +26,12 @@ sealed class JoinClubActionState {
     object Idle : JoinClubActionState()
     object Success : JoinClubActionState()
     data class Error(val message: String) : JoinClubActionState()
+}
+
+sealed class CreateTournamentState {
+    object Idle : CreateTournamentState()
+    object Success : CreateTournamentState()
+    data class Error(val message: String) : CreateTournamentState()
 }
 
 @HiltViewModel
@@ -45,8 +53,14 @@ class ClubDetailsViewModel @Inject constructor(
     private val _rankings = MutableStateFlow<UiState<List<rankings>>>(UiState.Loading)
     val rankings: StateFlow<UiState<List<rankings>>> = _rankings
 
+    private val _tournaments = MutableStateFlow<UiState<List<Tournament>>>(UiState.Loading)
+    val tournaments: StateFlow<UiState<List<Tournament>>> = _tournaments
+
     private val _joinClubActionState = MutableSharedFlow<JoinClubActionState>()
     val joinClubActionState: SharedFlow<JoinClubActionState> = _joinClubActionState
+
+    private val _createTournamentState = MutableStateFlow<CreateTournamentState>(CreateTournamentState.Idle)
+    val createTournamentState: StateFlow<CreateTournamentState> = _createTournamentState
 
     init {
         fetchClubDetails()
@@ -60,6 +74,7 @@ class ClubDetailsViewModel @Inject constructor(
                     if (clubData != null) {
                         _club.value = UiState.Success(clubData)
                         fetchClubMembers(clubData.memberIds)
+                        fetchTournaments(clubId)
                     } else {
                         _club.value = UiState.Error("Club not found")
                     }
@@ -92,6 +107,29 @@ class ClubDetailsViewModel @Inject constructor(
                 }
             }.awaitAll().filterNotNull()
             _rankings.value = UiState.Success(rankingsList)
+        }
+    }
+
+    private fun fetchTournaments(clubId: String) {
+        viewModelScope.launch {
+            _tournaments.value = UiState.Loading
+            when (val result = clubRepository.getTournamentsForClub(clubId)) {
+                is Result.Success -> _tournaments.value = UiState.Success(result.data)
+                is Result.Error -> _tournaments.value = UiState.Error(result.exception.message ?: "An error occurred")
+            }
+        }
+    }
+
+    fun createTournament(tournamentName: String, adminId: String) {
+        viewModelScope.launch {
+            val request = CreateTournamentRequest(clubId, adminId, tournamentName)
+            when (val result = clubRepository.createTournament(request)) {
+                is Result.Success -> {
+                    _createTournamentState.value = CreateTournamentState.Success
+                    fetchTournaments(clubId)
+                }
+                is Result.Error -> _createTournamentState.value = CreateTournamentState.Error("Failed to create tournament")
+            }
         }
     }
 

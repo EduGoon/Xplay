@@ -4,9 +4,11 @@ import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import gaming.xplay.data.model.Club
 import gaming.xplay.data.model.CreateClubRequest
+import gaming.xplay.data.model.CreateTournamentRequest
 import gaming.xplay.data.model.JoinClubRequest
 import gaming.xplay.data.model.Player
 import gaming.xplay.data.model.Result
+import gaming.xplay.data.model.Tournament
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
@@ -35,6 +37,38 @@ class ClubRepository @Inject constructor(
             }.await()
 
             Result.Success(newClub)
+        } catch (e: Exception) {
+            Result.Error(e)
+        }
+    }
+
+    suspend fun createTournament(request: CreateTournamentRequest): Result<Tournament> {
+        return try {
+            val newTournamentRef = firestore.collection("tournaments").document()
+            val clubRef = firestore.collection("clubs").document(request.clubId)
+
+            val newTournament = Tournament(
+                tournamentId = newTournamentRef.id,
+                clubId = request.clubId,
+                name = request.tournamentName,
+                adminId = request.adminId
+            )
+
+            firestore.runBatch {
+                it.set(newTournamentRef, newTournament)
+                it.update(clubRef, "tournaments", FieldValue.arrayUnion(newTournamentRef.id))
+            }.await()
+
+            Result.Success(newTournament)
+        } catch (e: Exception) {
+            Result.Error(e)
+        }
+    }
+
+    suspend fun getTournamentsForClub(clubId: String): Result<List<Tournament>> {
+        return try {
+            val tournaments = firestore.collection("tournaments").whereEqualTo("clubId", clubId).get().await().toObjects(Tournament::class.java)
+            Result.Success(tournaments)
         } catch (e: Exception) {
             Result.Error(e)
         }
