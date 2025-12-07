@@ -195,8 +195,9 @@ fun CreateClubDialog(onDismiss: () -> Unit, onCreateClub: (String) -> Unit) {
         text = {
             TextField(
                 value = clubName,
-                onValueChange = { clubName = it },
-                label = { Text("Club Name") }
+                onValueChange = { if (it.length <= 10) clubName = it },
+                label = { Text("Club Name (Max 10 characters)") },
+                singleLine = true
             )
         },
         confirmButton = {
