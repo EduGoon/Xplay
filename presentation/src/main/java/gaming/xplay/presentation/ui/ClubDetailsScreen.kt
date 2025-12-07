@@ -29,14 +29,17 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Divider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -58,11 +61,13 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImagePainter
 import coil.compose.SubcomposeAsyncImage
 import coil.compose.SubcomposeAsyncImageContent
+import gaming.xplay.data.model.ClubPost
 import gaming.xplay.data.model.RankingType
 import gaming.xplay.presentation.model.PlayerSearchResult
 import gaming.xplay.presentation.ui.State.UiState
 import gaming.xplay.presentation.viewmodel.AuthViewModel
 import gaming.xplay.presentation.viewmodel.ClubDetailsViewModel
+import gaming.xplay.presentation.viewmodel.CreatePostState
 import gaming.xplay.presentation.viewmodel.CreateTournamentState
 import gaming.xplay.presentation.viewmodel.JoinClubActionState
 import kotlinx.coroutines.flow.collectLatest
@@ -81,11 +86,14 @@ fun ClubDetailsScreen(
     val membersState by clubDetailsViewModel.members.collectAsState()
     val rankingsState by clubDetailsViewModel.rankings.collectAsState()
     val tournamentsState by clubDetailsViewModel.tournaments.collectAsState()
+    val clubPostsState by clubDetailsViewModel.clubPosts.collectAsState()
+    val createPostState by clubDetailsViewModel.createPostState.collectAsState()
     val createTournamentState by clubDetailsViewModel.createTournamentState.collectAsState()
     val currentUser by authViewModel.currentUser.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     var showCreateTournamentDialog by remember { mutableStateOf(false) }
     var selectedSection by remember { mutableStateOf<ClubSection?>(null) }
+    var postText by remember { mutableStateOf("") } // Hoisted state
 
     LaunchedEffect(Unit) {
         clubDetailsViewModel.joinClubActionState.collectLatest { state ->
@@ -118,9 +126,37 @@ fun ClubDetailsScreen(
         }
     }
 
+    LaunchedEffect(createPostState) {
+        when (val state = createPostState) {
+            is CreatePostState.Success -> {
+                postText = "" // Clear text field on success
+                snackbarHostState.showSnackbar("Post created successfully!")
+            }
+
+            is CreatePostState.Error -> {
+                snackbarHostState.showSnackbar(state.message)
+            }
+
+            else -> {}
+        }
+    }
+
 
     Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) }
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        bottomBar = {
+            if (selectedSection == null && clubState is UiState.Success && (clubState as UiState.Success).data.memberIds.contains(currentUser?.uid)) {
+                Surface(shadowElevation = 8.dp) {
+                    CreatePostInput(text = postText, onTextChange = { postText = it }) {
+                        if (postText.isNotBlank()) {
+                            currentUser?.let { user ->
+                                clubDetailsViewModel.createClubPost(postText, user.uid, user.name)
+                            }
+                        }
+                    }
+                }
+            }
+        }
     ) { paddingValues ->
         when (val state = clubState) {
             is UiState.Loading -> {
@@ -137,6 +173,7 @@ fun ClubDetailsScreen(
 
             is UiState.Success -> {
                 val club = state.data
+                val isMember = club.memberIds.contains(currentUser?.uid)
 
                 if (showCreateTournamentDialog) {
                     CreateTournamentDialog(
@@ -254,16 +291,44 @@ fun ClubDetailsScreen(
                         }
                     }
 
+                    // Main content area
                     if (selectedSection == null) {
-                        item {
-                            EmptyState(
-                                icon = Icons.Outlined.Info,
-                                text = "Select a section above to see details"
-                            )
+                        // Show posts when no section is selected
+                        when (val postsState = clubPostsState) {
+                            is UiState.Loading -> {
+                                item {
+                                    Box(modifier = Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center){
+                                        CircularProgressIndicator()
+                                    }
+                                }
+                            }
+                            is UiState.Error -> {
+                                item {
+                                    Text(
+                                        text = postsState.message,
+                                        color = MaterialTheme.colorScheme.error,
+                                        modifier = Modifier.padding(16.dp)
+                                    )
+                                }
+                            }
+                            is UiState.Success -> {
+                                if (postsState.data.isEmpty()) {
+                                    item {
+                                        EmptyState(
+                                            icon = Icons.Outlined.Info,
+                                            text = "No posts for this club"
+                                        )
+                                    }
+                                } else {
+                                    items(postsState.data) { post ->
+                                        ClubPostItem(post)
+                                        Divider(thickness = 0.5.dp)
+                                    }
+                                }
+                            }
                         }
-                    }
-
-                    if (selectedSection == ClubSection.Members) {
+                    } else if (selectedSection == ClubSection.Members) {
+                        // Show members
                         if ((membersState as? UiState.Success)?.data?.isEmpty() == true) {
                             item {
                                 EmptyState(
@@ -319,7 +384,6 @@ fun ClubDetailsScreen(
                         // Join Button
                         item {
                             Spacer(modifier = Modifier.height(16.dp))
-                            val isMember = club.memberIds.contains(currentUser?.uid)
                             val isPending = club.pendingMemberIds.contains(currentUser?.uid)
                             Button(
                                 onClick = {
@@ -343,9 +407,8 @@ fun ClubDetailsScreen(
                                 }
                             }
                         }
-                    }
-
-                    if (selectedSection == ClubSection.Tournaments) {
+                    } else if (selectedSection == ClubSection.Tournaments) {
+                        // Show tournaments
                         item {
                             Row(
                                 modifier = Modifier
@@ -429,6 +492,41 @@ fun ClubDetailsScreen(
                     }
                 }
             }
+        }
+    }
+}
+
+
+@Composable
+fun ClubPostItem(post: ClubPost) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp)
+    ) {
+        post.authorName?.let { Text(it, fontWeight = FontWeight.Bold) }
+        Text(post.text)
+        post.timestamp?.let { Text(it.toString(), style = MaterialTheme.typography.bodySmall) }
+    }
+}
+
+@Composable
+fun CreatePostInput(text: String, onTextChange: (String) -> Unit, onPost: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        TextField(
+            value = text,
+            onValueChange = { if (it.length <= 150) onTextChange(it) },
+            label = { Text("Write a post") },
+            modifier = Modifier.weight(1f)
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Button(onClick = onPost, enabled = text.isNotBlank()) {
+            Text("Post")
         }
     }
 }

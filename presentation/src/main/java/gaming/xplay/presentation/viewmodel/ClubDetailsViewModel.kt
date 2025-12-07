@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import gaming.xplay.data.model.Club
+import gaming.xplay.data.model.ClubPost
 import gaming.xplay.data.model.CreateTournamentRequest
 import gaming.xplay.data.model.Player
 import gaming.xplay.data.model.RankingType
@@ -35,6 +36,12 @@ sealed class CreateTournamentState {
     data class Error(val message: String) : CreateTournamentState()
 }
 
+sealed class CreatePostState {
+    object Idle : CreatePostState()
+    object Success : CreatePostState()
+    data class Error(val message: String) : CreatePostState()
+}
+
 @HiltViewModel
 class ClubDetailsViewModel @Inject constructor(
     private val clubRepository: ClubRepository,
@@ -47,6 +54,9 @@ class ClubDetailsViewModel @Inject constructor(
 
     private val _club = MutableStateFlow<UiState<Club>>(UiState.Loading)
     val club: StateFlow<UiState<Club>> = _club
+
+    private val _clubPosts = MutableStateFlow<UiState<List<ClubPost>>>(UiState.Loading)
+    val clubPosts: StateFlow<UiState<List<ClubPost>>> = _clubPosts
 
     private val _members = MutableStateFlow<UiState<List<Player>>>(UiState.Loading)
     val members: StateFlow<UiState<List<Player>>> = _members
@@ -63,6 +73,9 @@ class ClubDetailsViewModel @Inject constructor(
     private val _createTournamentState = MutableStateFlow<CreateTournamentState>(CreateTournamentState.Idle)
     val createTournamentState: StateFlow<CreateTournamentState> = _createTournamentState
 
+    private val _createPostState = MutableStateFlow<CreatePostState>(CreatePostState.Idle)
+    val createPostState: StateFlow<CreatePostState> = _createPostState
+
     init {
         fetchClubDetails()
     }
@@ -76,11 +89,35 @@ class ClubDetailsViewModel @Inject constructor(
                         _club.value = UiState.Success(clubData)
                         fetchClubMembers(clubData.memberIds)
                         fetchTournaments(clubId)
+                        fetchClubPosts(clubId)
                     } else {
                         _club.value = UiState.Error("Club not found")
                     }
                 }
                 is Result.Error -> _club.value = UiState.Error(result.exception.message ?: "An error occurred")
+            }
+        }
+    }
+
+    private fun fetchClubPosts(clubId: String) {
+        viewModelScope.launch {
+            _clubPosts.value = UiState.Loading
+            when (val result = clubRepository.getClubPosts(clubId)) {
+                is Result.Success -> _clubPosts.value = UiState.Success(result.data)
+                is Result.Error -> _clubPosts.value = UiState.Error(result.exception.message ?: "An error occurred")
+            }
+        }
+    }
+
+    fun createClubPost(text: String, authorId: String, authorName: String?) {
+        viewModelScope.launch {
+            _createPostState.value = CreatePostState.Idle
+            when (val result = clubRepository.createClubPost(clubId, authorId, authorName, text)) {
+                is Result.Success -> {
+                    _createPostState.value = CreatePostState.Success
+                    fetchClubPosts(clubId)
+                }
+                is Result.Error -> _createPostState.value = CreatePostState.Error("Failed to create post")
             }
         }
     }

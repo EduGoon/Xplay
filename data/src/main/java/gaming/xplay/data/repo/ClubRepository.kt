@@ -2,7 +2,9 @@ package gaming.xplay.data.repo
 
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Query
 import gaming.xplay.data.model.Club
+import gaming.xplay.data.model.ClubPost
 import gaming.xplay.data.model.CreateClubRequest
 import gaming.xplay.data.model.CreateTournamentRequest
 import gaming.xplay.data.model.JoinClubRequest
@@ -173,6 +175,36 @@ class ClubRepository @Inject constructor(
             }
             val members = firestore.collection("players").whereIn("uid", memberIds).get().await().toObjects(Player::class.java)
             Result.Success(members)
+        } catch (e: Exception) {
+            Result.Error(e)
+        }
+    }
+
+    suspend fun createClubPost(clubId: String, authorId: String, authorName: String?, text: String): Result<Unit> {
+        return try {
+            val newPostRef = firestore.collection("clubs").document(clubId).collection("posts").document()
+            val post = ClubPost(
+                postId = newPostRef.id,
+                clubId = clubId,
+                authorId = authorId,
+                authorName = authorName,
+                text = text
+            )
+            newPostRef.set(post).await()
+            Result.Success(Unit)
+        } catch (e: Exception) {
+            Result.Error(e)
+        }
+    }
+
+    suspend fun getClubPosts(clubId: String): Result<List<ClubPost>> {
+        return try {
+            val posts = firestore.collection("clubs").document(clubId).collection("posts")
+                .orderBy("timestamp", Query.Direction.DESCENDING)
+                .get()
+                .await()
+                .toObjects(ClubPost::class.java)
+            Result.Success(posts)
         } catch (e: Exception) {
             Result.Error(e)
         }
