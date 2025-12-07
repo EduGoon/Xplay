@@ -1,5 +1,6 @@
 package gaming.xplay.data.network
 
+import gaming.xplay.data.model.AdminSubmitMatchResultRequest
 import gaming.xplay.data.model.NotificationRequest
 import gaming.xplay.data.model.Player
 import gaming.xplay.data.model.SubmitMatchResultRequest
@@ -12,6 +13,10 @@ interface ApiService {
     @Headers("Content-Type: application/json")
     @POST("submit-match-result")
     suspend fun submitMatchResult(@Body request: SubmitMatchResultRequest)
+
+    @Headers("Content-Type: application/json")
+    @POST("admin/submitMatchResult")
+    suspend fun adminSubmitMatchResult(@Body request: AdminSubmitMatchResultRequest)
 
     @Headers("Content-Type: application/json")
     @POST("sign-in")

@@ -1,6 +1,7 @@
 package gaming.xplay.data.repo
 
 import com.google.firebase.firestore.FirebaseFirestore
+import gaming.xplay.data.model.Challenge
 import gaming.xplay.data.model.Fixture
 import gaming.xplay.data.model.Player
 import gaming.xplay.data.model.Result
@@ -21,11 +22,24 @@ class TournamentRepository @Inject constructor(
             for (i in 0 until members.size - 1) {
                 for (j in i + 1 until members.size) {
                     val fixtureRef = firestore.collection("fixtures").document()
+
+                    var challengeId: String? = null
+                    if (tournament.rankingType == gaming.xplay.data.model.RankingType.GLOBAL) {
+                        val challenge = Challenge(
+                            player1Id = members[i].uid,
+                            player2Id = members[j].uid,
+                            gameId = "FIFA", // Assuming a default game for now
+                            status = "accepted"
+                        )
+                        challengeId = gameRepository.createChallenge(challenge).let { (it as Result.Success).data }
+                    }
+
                     val fixture = Fixture(
                         fixtureId = fixtureRef.id,
                         tournamentId = tournament.tournamentId,
                         player1Id = members[i].uid,
-                        player2Id = members[j].uid
+                        player2Id = members[j].uid,
+                        challengeId = challengeId
                     )
                     batch.set(fixtureRef, fixture)
                 }
@@ -63,22 +77,20 @@ class TournamentRepository @Inject constructor(
     suspend fun submitTournamentMatchResult(
         tournament: Tournament,
         fixture: Fixture,
-        winnerId: String
+        winnerId: String?
     ): Result<Unit> {
         return try {
             if (tournament.rankingType == gaming.xplay.data.model.RankingType.GLOBAL) {
-                val challenge = gaming.xplay.data.model.Challenge(
-                    player1Id = fixture.player1Id,
-                    player2Id = fixture.player2Id,
-                    gameId = "FIFA",
-                )
-                val challengeId = gameRepository.createChallenge(challenge).let { (it as Result.Success).data }
-                gameRepository.submitMatchResult(challengeId, winnerId)
+                if (winnerId != null) {
+                    val loserId = if (winnerId == fixture.player1Id) fixture.player2Id else fixture.player1Id
+                    fixture.challengeId?.let {
+                        gameRepository.adminSubmitMatchResult(it, winnerId, loserId)
+                    }
+                }
             } else {
                 val result = TournamentMatchResult(tournament.tournamentId, fixture.fixtureId, winnerId)
                 firestore.collection("tournament_results").add(result).await()
-                val loserId = if (winnerId == fixture.player1Id) fixture.player2Id else fixture.player1Id
-                updateTournamentRankings(tournament.tournamentId, winnerId, loserId)
+                updateTournamentRankings(tournament.tournamentId, fixture.player1Id, fixture.player2Id, winnerId)
             }
 
             firestore.collection("fixtures").document(fixture.fixtureId)
@@ -100,16 +112,28 @@ class TournamentRepository @Inject constructor(
         }
     }
 
-    private suspend fun updateTournamentRankings(tournamentId: String, winnerId: String, loserId: String) {
-        val winnerRankingRef = firestore.collection("tournament_rankings").document("${tournamentId}_$winnerId")
-        val loserRankingRef = firestore.collection("tournament_rankings").document("${tournamentId}_$loserId")
+    private suspend fun updateTournamentRankings(tournamentId: String, player1Id: String, player2Id: String, winnerId: String?) {
+        val player1RankingRef = firestore.collection("tournament_rankings").document("${tournamentId}_$player1Id")
+        val player2RankingRef = firestore.collection("tournament_rankings").document("${tournamentId}_$player2Id")
 
         firestore.runTransaction {
-            val winnerRanking = it.get(winnerRankingRef).toObject(TournamentRanking::class.java) ?: TournamentRanking(tournamentId, winnerId)
-            val loserRanking = it.get(loserRankingRef).toObject(TournamentRanking::class.java) ?: TournamentRanking(tournamentId, loserId)
+            val player1Ranking = it.get(player1RankingRef).toObject(TournamentRanking::class.java) ?: TournamentRanking(tournamentId, player1Id)
+            val player2Ranking = it.get(player2RankingRef).toObject(TournamentRanking::class.java) ?: TournamentRanking(tournamentId, player2Id)
 
-            it.set(winnerRankingRef, winnerRanking.copy(wins = winnerRanking.wins + 1))
-            it.set(loserRankingRef, loserRanking.copy(losses = loserRanking.losses + 1))
+            when (winnerId) {
+                player1Id -> {
+                    it.set(player1RankingRef, player1Ranking.copy(points = player1Ranking.points + 3, wins = player1Ranking.wins + 1))
+                    it.set(player2RankingRef, player2Ranking.copy(losses = player2Ranking.losses + 1))
+                }
+                player2Id -> {
+                    it.set(player2RankingRef, player2Ranking.copy(points = player2Ranking.points + 3, wins = player2Ranking.wins + 1))
+                    it.set(player1RankingRef, player1Ranking.copy(losses = player1Ranking.losses + 1))
+                }
+                else -> { // Draw
+                    it.set(player1RankingRef, player1Ranking.copy(points = player1Ranking.points + 1, draws = player1Ranking.draws + 1))
+                    it.set(player2RankingRef, player2Ranking.copy(points = player2Ranking.points + 1, draws = player2Ranking.draws + 1))
+                }
+            }
         }.await()
     }
 
@@ -117,7 +141,7 @@ class TournamentRepository @Inject constructor(
         return try {
             val rankings = firestore.collection("tournament_rankings")
                 .whereEqualTo("tournamentId", tournamentId)
-                .orderBy("wins", com.google.firebase.firestore.Query.Direction.DESCENDING)
+                .orderBy("points", com.google.firebase.firestore.Query.Direction.DESCENDING)
                 .get()
                 .await()
                 .toObjects(TournamentRanking::class.java)

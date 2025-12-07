@@ -3,5 +3,5 @@ package gaming.xplay.data.model
 data class TournamentMatchResult(
     val tournamentId: String,
     val fixtureId: String,
-    val winnerId: String
+    val winnerId: String? // Null for a draw
 )

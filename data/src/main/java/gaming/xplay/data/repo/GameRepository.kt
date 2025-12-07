@@ -4,6 +4,7 @@ import android.util.Log
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
+import gaming.xplay.data.model.AdminSubmitMatchResultRequest
 import gaming.xplay.data.model.Challenge
 import gaming.xplay.data.model.Match
 import gaming.xplay.data.model.Result
@@ -105,6 +106,16 @@ class GameRepository @Inject constructor(
         return try {
             val request = SubmitMatchResultRequest(challengeId, result)
             apiService.submitMatchResult(request)
+            Result.Success(Unit)
+        } catch (e: Exception) {
+            Result.Error(e)
+        }
+    }
+
+    suspend fun adminSubmitMatchResult(challengeId: String, winnerId: String, loserId: String): Result<Unit> {
+        return try {
+            val request = AdminSubmitMatchResultRequest(challengeId, winnerId, loserId)
+            apiService.adminSubmitMatchResult(request)
             Result.Success(Unit)
         } catch (e: Exception) {
             Result.Error(e)

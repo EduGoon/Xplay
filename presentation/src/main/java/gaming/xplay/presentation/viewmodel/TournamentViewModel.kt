@@ -190,7 +190,7 @@ class TournamentViewModel @Inject constructor(
         }
     }
 
-    fun submitTournamentMatchResult(fixture: Fixture, winnerId: String) {
+    fun submitTournamentMatchResult(fixture: Fixture, winnerId: String?) {
         viewModelScope.launch {
             val tournamentData = (_tournament.value as? UiState.Success)?.data
             if (tournamentData != null) {
