@@ -2,6 +2,7 @@ package gaming.xplay.presentation.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,6 +25,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -50,9 +52,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavController
 import coil.compose.AsyncImagePainter
 import coil.compose.SubcomposeAsyncImage
 import coil.compose.SubcomposeAsyncImageContent
+import gaming.xplay.data.model.RankingType
 import gaming.xplay.presentation.model.PlayerSearchResult
 import gaming.xplay.presentation.ui.State.UiState
 import gaming.xplay.presentation.viewmodel.AuthViewModel
@@ -67,6 +71,7 @@ private enum class ClubSection {
 
 @Composable
 fun ClubDetailsScreen(
+    navController: NavController,
     clubDetailsViewModel: ClubDetailsViewModel = hiltViewModel(),
     authViewModel: AuthViewModel = hiltViewModel()
 ) {
@@ -133,9 +138,9 @@ fun ClubDetailsScreen(
 
                 if (showCreateTournamentDialog) {
                     CreateTournamentDialog(
-                        onConfirm = { tournamentName ->
+                        onConfirm = { tournamentName, rankingType ->
                             currentUser?.uid?.let { adminId ->
-                                clubDetailsViewModel.createTournament(tournamentName, adminId)
+                                clubDetailsViewModel.createTournament(tournamentName, adminId, rankingType)
                             }
                         },
                         onDismiss = { showCreateTournamentDialog = false }
@@ -374,7 +379,8 @@ fun ClubDetailsScreen(
                                         Card(
                                             modifier = Modifier
                                                 .fillMaxWidth()
-                                                .padding(horizontal = 16.dp, vertical = 4.dp),
+                                                .padding(horizontal = 16.dp, vertical = 4.dp)
+                                                .clickable { navController.navigate("tournamentscreen/${tournament.tournamentId}") },
                                             shape = RoundedCornerShape(12.dp)
                                         ) {
                                             Row(
@@ -408,27 +414,41 @@ fun ClubDetailsScreen(
 
 @Composable
 fun CreateTournamentDialog(
-    onConfirm: (String) -> Unit,
+    onConfirm: (String, RankingType) -> Unit,
     onDismiss: () -> Unit
 ) {
     var tournamentName by remember { mutableStateOf("") }
+    var isRankedGlobally by remember { mutableStateOf(true) }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Create Tournament") },
         text = {
-            OutlinedTextField(
-                value = tournamentName,
-                onValueChange = { newName -> tournamentName = newName },
-                label = { Text("Tournament Name") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
+            Column {
+                OutlinedTextField(
+                    value = tournamentName,
+                    onValueChange = { newName -> tournamentName = newName },
+                    label = { Text("Tournament Name") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Checkbox(
+                        checked = isRankedGlobally,
+                        onCheckedChange = { isRankedGlobally = it })
+                    Text(text = "Ranked Globally")
+                }
+            }
         },
         confirmButton = {
             Button(
                 onClick = {
                     if (tournamentName.isNotBlank()) {
-                        onConfirm(tournamentName)
+                        val rankingType = if (isRankedGlobally) RankingType.GLOBAL else RankingType.LOCAL
+                        onConfirm(tournamentName, rankingType)
                     }
                 }
             ) {

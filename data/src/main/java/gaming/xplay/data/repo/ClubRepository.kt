@@ -6,6 +6,7 @@ import gaming.xplay.data.model.Club
 import gaming.xplay.data.model.CreateClubRequest
 import gaming.xplay.data.model.CreateTournamentRequest
 import gaming.xplay.data.model.JoinClubRequest
+import gaming.xplay.data.model.JoinTournamentRequest
 import gaming.xplay.data.model.Player
 import gaming.xplay.data.model.Result
 import gaming.xplay.data.model.Tournament
@@ -51,7 +52,8 @@ class ClubRepository @Inject constructor(
                 tournamentId = newTournamentRef.id,
                 clubId = request.clubId,
                 name = request.tournamentName,
-                adminId = request.adminId
+                adminId = request.adminId,
+                rankingType = request.rankingType
             )
 
             firestore.runBatch {
@@ -60,6 +62,25 @@ class ClubRepository @Inject constructor(
             }.await()
 
             Result.Success(newTournament)
+        } catch (e: Exception) {
+            Result.Error(e)
+        }
+    }
+
+    suspend fun getTournament(tournamentId: String): Result<Tournament?> {
+        return try {
+            val tournament = firestore.collection("tournaments").document(tournamentId).get().await().toObject(Tournament::class.java)
+            Result.Success(tournament)
+        } catch (e: Exception) {
+            Result.Error(e)
+        }
+    }
+
+    suspend fun joinTournament(request: JoinTournamentRequest): Result<Unit> {
+        return try {
+            firestore.collection("tournaments").document(request.tournamentId)
+                .update("members", FieldValue.arrayUnion(request.playerId)).await()
+            Result.Success(Unit)
         } catch (e: Exception) {
             Result.Error(e)
         }

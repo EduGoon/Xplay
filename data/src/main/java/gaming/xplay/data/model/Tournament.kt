@@ -10,5 +10,6 @@ data class Tournament(
     val members: List<String> = emptyList(),
     val startDate: Date? = null,
     val endDate: Date? = null,
-    val status: String = "upcoming"
+    val status: String = "upcoming",
+    val rankingType: RankingType = RankingType.GLOBAL
 )

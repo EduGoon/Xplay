@@ -7,6 +7,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import gaming.xplay.data.model.Club
 import gaming.xplay.data.model.CreateTournamentRequest
 import gaming.xplay.data.model.Player
+import gaming.xplay.data.model.RankingType
 import gaming.xplay.data.model.Result
 import gaming.xplay.data.model.Tournament
 import gaming.xplay.data.model.rankings
@@ -120,9 +121,9 @@ class ClubDetailsViewModel @Inject constructor(
         }
     }
 
-    fun createTournament(tournamentName: String, adminId: String) {
+    fun createTournament(tournamentName: String, adminId: String, rankingType: RankingType) {
         viewModelScope.launch {
-            val request = CreateTournamentRequest(clubId, adminId, tournamentName)
+            val request = CreateTournamentRequest(clubId, adminId, tournamentName, rankingType)
             when (val result = clubRepository.createTournament(request)) {
                 is Result.Success -> {
                     _createTournamentState.value = CreateTournamentState.Success

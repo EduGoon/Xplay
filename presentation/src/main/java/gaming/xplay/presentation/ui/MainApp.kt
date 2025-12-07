@@ -148,7 +148,8 @@ fun MainApp(authViewModel: AuthViewModel = hiltViewModel(), gameViewModel: GameV
             composable("leaderboard") { LeaderboardScreen(navController, authViewModel, gameViewModel) }
             composable("notifications") { NotificationsScreen() }
             composable("myprofile") { MyProfileScreen(authViewModel) }
-            composable("clubdetails/{clubId}", arguments = listOf(navArgument("clubId") { type = NavType.StringType })) { ClubDetailsScreen() }
+            composable("clubdetails/{clubId}", arguments = listOf(navArgument("clubId") { type = NavType.StringType })) { ClubDetailsScreen(navController) }
+            composable("tournamentscreen/{tournamentId}", arguments = listOf(navArgument("tournamentId") { type = NavType.StringType })) { TournamentScreen() }
             composable(
                 "profile/{playerId}/{XPpoints}/{wins}/{losses}",
                 arguments = listOf(
