@@ -14,7 +14,8 @@ import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
 class ClubRepository @Inject constructor(
-    private val firestore: FirebaseFirestore
+    private val firestore: FirebaseFirestore,
+    private val storageRepository: StorageRepository
 ) {
 
     suspend fun createClub(request: CreateClubRequest): Result<Club> {
@@ -22,12 +23,14 @@ class ClubRepository @Inject constructor(
             val newClubRef = firestore.collection("clubs").document()
             val playerRef = firestore.collection("players").document(request.adminId)
 
+            val imageUrl = request.imageUrl ?: "https://firebasestorage.googleapis.com/v0/b/xplay-e8751.appspot.com/o/club_images%2Fdefault_club_image.png?alt=media&token=e3a9c782-7d29-4f31-8e5f-1c5c4e7e6d3d"
+
             val newClub = Club(
                 clubId = newClubRef.id,
                 clubName = request.clubName,
                 adminId = request.adminId,
                 members = 1,
-                imageUrl = "https://firebasestorage.googleapis.com/v0/b/xplay-e8751.appspot.com/o/club_images%2Fdefault_club_image.png?alt=media&token=e3a9c782-7d29-4f31-8e5f-1c5c4e7e6d3d",
+                imageUrl = imageUrl,
                 memberIds = listOf(request.adminId)
             )
 

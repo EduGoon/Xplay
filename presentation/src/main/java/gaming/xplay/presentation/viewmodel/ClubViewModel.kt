@@ -1,5 +1,6 @@
 package gaming.xplay.presentation.viewmodel
 
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -7,6 +8,7 @@ import gaming.xplay.data.model.Club
 import gaming.xplay.data.model.CreateClubRequest
 import gaming.xplay.data.model.Result
 import gaming.xplay.data.repo.ClubRepository
+import gaming.xplay.data.repo.StorageRepository
 import gaming.xplay.presentation.ui.State.UiState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -15,7 +17,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class ClubViewModel @Inject constructor(
-    private val clubRepository: ClubRepository
+    private val clubRepository: ClubRepository,
+    private val storageRepository: StorageRepository
 ) : ViewModel() {
 
     private val _clubs = MutableStateFlow<UiState<List<Club>>>(UiState.Loading)
@@ -38,9 +41,20 @@ class ClubViewModel @Inject constructor(
         }
     }
 
-    fun createClub(clubName: String, adminId: String) {
+    fun createClub(clubName: String, adminId: String, imageUri: Uri?) {
         viewModelScope.launch {
-            val request = CreateClubRequest(clubName, adminId)
+            _createClubState.value = UiState.Loading
+            val imageUrl = imageUri?.let {
+                when (val result = storageRepository.uploadImage(it)) {
+                    is Result.Success -> result.data
+                    is Result.Error -> {
+                        _createClubState.value = UiState.Error("Failed to upload image")
+                        return@launch
+                    }
+                }
+            }
+
+            val request = CreateClubRequest(clubName, adminId, imageUrl)
             when (val result = clubRepository.createClub(request)) {
                 is Result.Success -> {
                     _createClubState.value = UiState.Success(result.data)

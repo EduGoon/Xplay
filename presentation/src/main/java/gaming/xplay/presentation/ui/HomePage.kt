@@ -1,5 +1,8 @@
 package gaming.xplay.presentation.ui
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -16,6 +19,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -48,6 +52,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -172,11 +177,12 @@ fun FifaClubsSection(clubViewModel: ClubViewModel, authViewModel: AuthViewModel,
     if (showCreateClubDialog) {
         CreateClubDialog(
             onDismiss = { showCreateClubDialog = false },
-            onCreateClub = {
+            onCreateClub = { clubName, imageUri ->
                 currentUser?.uid?.let { it1 ->
                     clubViewModel.createClub(
-                        it,
-                        it1
+                        clubName,
+                        it1,
+                        imageUri
                     )
                 }
                 showCreateClubDialog = false
@@ -186,22 +192,52 @@ fun FifaClubsSection(clubViewModel: ClubViewModel, authViewModel: AuthViewModel,
 }
 
 @Composable
-fun CreateClubDialog(onDismiss: () -> Unit, onCreateClub: (String) -> Unit) {
+fun CreateClubDialog(onDismiss: () -> Unit, onCreateClub: (String, Uri?) -> Unit) {
     var clubName by remember { mutableStateOf("") }
+    var imageUri by remember { mutableStateOf<Uri?>(null) }
+
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent(),
+        onResult = { uri: Uri? ->
+            imageUri = uri
+        }
+    )
 
     androidx.compose.material3.AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(text = "Create a new club") },
         text = {
-            TextField(
-                value = clubName,
-                onValueChange = { if (it.length <= 10) clubName = it },
-                label = { Text("Club Name (Max 10 characters)") },
-                singleLine = true
-            )
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                if (imageUri != null) {
+                    SubcomposeAsyncImage(
+                        model = imageUri,
+                        contentDescription = "Selected image",
+                        modifier = Modifier
+                            .size(100.dp)
+                            .clip(CircleShape),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "Add photo",
+                        modifier = Modifier
+                            .size(100.dp)
+                            .clickable { launcher.launch("image/*") },
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+                TextField(
+                    value = clubName,
+                    onValueChange = { if (it.length <= 10) clubName = it },
+                    label = { Text("Club Name (Max 10 characters)") },
+                    singleLine = true
+                )
+            }
         },
         confirmButton = {
-            Button(onClick = { onCreateClub(clubName) }) {
+            Button(onClick = { onCreateClub(clubName, imageUri) }) {
                 Text("Create")
             }
         },
