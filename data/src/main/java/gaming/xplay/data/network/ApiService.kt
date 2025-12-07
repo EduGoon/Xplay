@@ -15,7 +15,7 @@ interface ApiService {
     suspend fun submitMatchResult(@Body request: SubmitMatchResultRequest)
 
     @Headers("Content-Type: application/json")
-    @POST("admin/submitMatchResult")
+    @POST("admin/submit-match-result")
     suspend fun adminSubmitMatchResult(@Body request: AdminSubmitMatchResultRequest)
 
     @Headers("Content-Type: application/json")

@@ -20,7 +20,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.EmojiEvents
+import androidx.compose.material.icons.outlined.Groups
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -252,49 +254,68 @@ fun ClubDetailsScreen(
                         }
                     }
 
-                    if (selectedSection == ClubSection.Members) {
-                        items((membersState as? UiState.Success)?.data ?: emptyList()) { member ->
-                            val ranking = ((rankingsState as? UiState.Success)?.data ?: emptyList())
-                                .find { ranking -> ranking.playerid == member.uid }
-                            val playerSearchResult = PlayerSearchResult(member, ranking)
-                            val isAdmin = club.adminId == member.uid
-                            val isCurrentUser = currentUser?.uid == member.uid
+                    if (selectedSection == null) {
+                        item {
+                            EmptyState(
+                                icon = Icons.Outlined.Info,
+                                text = "Select a section above to see details"
+                            )
+                        }
+                    }
 
-                            Card(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp)
-                                    .clip(RoundedCornerShape(14.dp))
-                                    .background(MaterialTheme.colorScheme.surface)
-                                    .then(
-                                        if (isCurrentUser)
-                                            Modifier.border(
-                                                width = 2.dp,
-                                                color = MaterialTheme.colorScheme.primary,
-                                                shape = RoundedCornerShape(14.dp)
-                                            )
-                                        else Modifier
-                                    )
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween,
+                    if (selectedSection == ClubSection.Members) {
+                        if ((membersState as? UiState.Success)?.data?.isEmpty() == true) {
+                            item {
+                                EmptyState(
+                                    icon = Icons.Outlined.Groups,
+                                    text = "No members yet. Be the first to join!"
+                                )
+                            }
+                        } else {
+                            items((membersState as? UiState.Success)?.data ?: emptyList()) { member ->
+                                val ranking = ((rankingsState as? UiState.Success)?.data ?: emptyList())
+                                    .find { ranking -> ranking.playerid == member.uid }
+                                val playerSearchResult = PlayerSearchResult(member, ranking)
+                                val isAdmin = club.adminId == member.uid
+                                val isCurrentUser = currentUser?.uid == member.uid
+
+                                Card(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(12.dp)
+                                        .padding(horizontal = 16.dp)
+                                        .clip(RoundedCornerShape(14.dp))
+                                        .background(MaterialTheme.colorScheme.surface)
+                                        .then(
+                                            if (isCurrentUser)
+                                                Modifier.border(
+                                                    width = 2.dp,
+                                                    color = MaterialTheme.colorScheme.primary,
+                                                    shape = RoundedCornerShape(14.dp)
+                                                )
+                                            else Modifier
+                                        )
                                 ) {
-                                    PlayerRow(
-                                        result = playerSearchResult,
-                                        onClick = {}
-                                    )
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(12.dp)
+                                    ) {
+                                        PlayerRow(
+                                            result = playerSearchResult,
+                                            onClick = {}
+                                        )
 
-                                    if (isAdmin) {
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        AdminBadge()
+                                        if (isAdmin) {
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            AdminBadge()
+                                        }
                                     }
                                 }
                             }
                         }
+
                         // Join Button
                         item {
                             Spacer(modifier = Modifier.height(16.dp))
@@ -369,9 +390,9 @@ fun ClubDetailsScreen(
                             is UiState.Success -> {
                                 if (tournamentUiState.data.isEmpty()) {
                                     item {
-                                        Text(
-                                            text = "No tournaments yet.",
-                                            modifier = Modifier.padding(16.dp)
+                                        EmptyState(
+                                            icon = Icons.Outlined.EmojiEvents,
+                                            text = "No tournaments yet. Create one to get started!"
                                         )
                                     }
                                 } else {

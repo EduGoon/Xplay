@@ -13,6 +13,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.EmojiEvents
+import androidx.compose.material.icons.outlined.Groups
+import androidx.compose.material.icons.outlined.MilitaryTech
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -216,13 +220,20 @@ fun TournamentScreen(
                                         Text(text = membersUiState.message, color = MaterialTheme.colorScheme.error)
                                     }
                                     is UiState.Success -> {
-                                        LazyColumn {
-                                            items(membersUiState.data) { member ->
-                                                val ranking = (globalRankingsState as? UiState.Success)?.data?.find { it.playerid == member.uid }
-                                                TournamentPlayerRow(
-                                                    result = PlayerSearchResult(member, ranking),
-                                                    isCurrentUser = currentUser?.uid == member.uid
-                                                )
+                                        if (membersUiState.data.isEmpty()) {
+                                            EmptyState(
+                                                icon = Icons.Outlined.Groups,
+                                                text = "No participants have joined yet."
+                                            )
+                                        } else {
+                                            LazyColumn {
+                                                items(membersUiState.data) { member ->
+                                                    val ranking = (globalRankingsState as? UiState.Success)?.data?.find { it.playerid == member.uid }
+                                                    TournamentPlayerRow(
+                                                        result = PlayerSearchResult(member, ranking),
+                                                        isCurrentUser = currentUser?.uid == member.uid
+                                                    )
+                                                }
                                             }
                                         }
                                     }
@@ -237,30 +248,37 @@ fun TournamentScreen(
                                         Text(text = fixturesUiState.message, color = MaterialTheme.colorScheme.error)
                                     }
                                     is UiState.Success -> {
-                                        LazyColumn {
-                                            items(fixturesUiState.data) { fixture ->
-                                                val player1 = (membersState as? UiState.Success)?.data?.find { it.uid == fixture.player1Id }
-                                                val player2 = (membersState as? UiState.Success)?.data?.find { it.uid == fixture.player2Id }
-                                                Row(
-                                                    modifier = Modifier.fillMaxWidth(),
-                                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                                    verticalAlignment = Alignment.CenterVertically
-                                                ) {
-                                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                                        val p1isCurrent = player1?.uid == currentUser?.uid
-                                                        Text(text = if (p1isCurrent) "You" else player1?.name ?: "", color = if (p1isCurrent) MaterialTheme.colorScheme.primary else Color.Unspecified)
-                                                        Text(text = " vs ")
-                                                        val p2isCurrent = player2?.uid == currentUser?.uid
-                                                        Text(text = if (p2isCurrent) "You" else player2?.name ?: "", color = if (p2isCurrent) MaterialTheme.colorScheme.primary else Color.Unspecified)
-                                                    }
-
-                                                    if (fixture.status == "pending" && currentUser?.uid == tournament.adminId) {
-                                                        Button(onClick = { showSubmitResultDialog = fixture }) {
-                                                            Text(text = "Submit Result")
+                                        if (fixturesUiState.data.isEmpty()) {
+                                            EmptyState(
+                                                icon = Icons.Outlined.EmojiEvents,
+                                                text = "Fixtures have not been created yet."
+                                            )
+                                        } else {
+                                            LazyColumn {
+                                                items(fixturesUiState.data) { fixture ->
+                                                    val player1 = (membersState as? UiState.Success)?.data?.find { it.uid == fixture.player1Id }
+                                                    val player2 = (membersState as? UiState.Success)?.data?.find { it.uid == fixture.player2Id }
+                                                    Row(
+                                                        modifier = Modifier.fillMaxWidth(),
+                                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                                        verticalAlignment = Alignment.CenterVertically
+                                                    ) {
+                                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                                            val p1isCurrent = player1?.uid == currentUser?.uid
+                                                            Text(text = if (p1isCurrent) "You" else player1?.name ?: "", color = if (p1isCurrent) MaterialTheme.colorScheme.primary else Color.Unspecified)
+                                                            Text(text = " vs ")
+                                                            val p2isCurrent = player2?.uid == currentUser?.uid
+                                                            Text(text = if (p2isCurrent) "You" else player2?.name ?: "", color = if (p2isCurrent) MaterialTheme.colorScheme.primary else Color.Unspecified)
                                                         }
-                                                    } else if (fixture.status == "played") {
-                                                        val winner = (membersState as? UiState.Success)?.data?.find { it.uid == fixture.winnerId }?.name
-                                                        Text(text = "Winner: ${winner ?: "Draw"}")
+
+                                                        if (fixture.status == "pending" && currentUser?.uid == tournament.adminId) {
+                                                            Button(onClick = { showSubmitResultDialog = fixture }) {
+                                                                Text(text = "Submit Result")
+                                                            }
+                                                        } else if (fixture.status == "played") {
+                                                            val winner = (membersState as? UiState.Success)?.data?.find { it.uid == fixture.winnerId }?.name
+                                                            Text(text = "Winner: ${winner ?: "Draw"}")
+                                                        }
                                                     }
                                                 }
                                             }
@@ -277,14 +295,21 @@ fun TournamentScreen(
                                         Text(text = rankingsUiState.message, color = MaterialTheme.colorScheme.error)
                                     }
                                     is UiState.Success -> {
-                                        LazyColumn {
-                                            items(rankingsUiState.data) { ranking ->
-                                                val player = (membersState as? UiState.Success)?.data?.find { it.uid == ranking.playerId }
-                                                Row(modifier = Modifier.fillMaxWidth()) {
-                                                    val isCurrentUser = player?.uid == currentUser?.uid
-                                                    Text(text = if (isCurrentUser) "You" else player?.name ?: "", color = if (isCurrentUser) MaterialTheme.colorScheme.primary else Color.Unspecified)
-                                                    Spacer(modifier = Modifier.weight(1f))
-                                                    Text(text = "Pts: ${ranking.points}, W: ${ranking.wins}, D: ${ranking.draws}, L: ${ranking.losses}")
+                                        if (rankingsUiState.data.isEmpty()) {
+                                            EmptyState(
+                                                icon = Icons.Outlined.MilitaryTech,
+                                                text = "No rankings yet. Play some matches to see your rank!"
+                                            )
+                                        } else {
+                                            LazyColumn {
+                                                items(rankingsUiState.data) { ranking ->
+                                                    val player = (membersState as? UiState.Success)?.data?.find { it.uid == ranking.playerId }
+                                                    Row(modifier = Modifier.fillMaxWidth()) {
+                                                        val isCurrentUser = player?.uid == currentUser?.uid
+                                                        Text(text = if (isCurrentUser) "You" else player?.name ?: "", color = if (isCurrentUser) MaterialTheme.colorScheme.primary else Color.Unspecified)
+                                                        Spacer(modifier = Modifier.weight(1f))
+                                                        Text(text = "Pts: ${ranking.points}, W: ${ranking.wins}, D: ${ranking.draws}, L: ${ranking.losses}")
+                                                    }
                                                 }
                                             }
                                         }
