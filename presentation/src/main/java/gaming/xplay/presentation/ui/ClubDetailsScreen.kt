@@ -1,5 +1,6 @@
 package gaming.xplay.presentation.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -15,9 +16,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.EmojiEvents
@@ -27,10 +30,10 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Divider
-import androidx.compose.material3.Icon
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -58,10 +61,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import coil.compose.AsyncImage
 import coil.compose.AsyncImagePainter
 import coil.compose.SubcomposeAsyncImage
 import coil.compose.SubcomposeAsyncImageContent
 import gaming.xplay.data.model.ClubPost
+import gaming.xplay.data.model.Player
 import gaming.xplay.data.model.RankingType
 import gaming.xplay.presentation.model.PlayerSearchResult
 import gaming.xplay.presentation.ui.State.UiState
@@ -70,6 +75,9 @@ import gaming.xplay.presentation.viewmodel.ClubDetailsViewModel
 import gaming.xplay.presentation.viewmodel.CreatePostState
 import gaming.xplay.presentation.viewmodel.CreateTournamentState
 import gaming.xplay.presentation.viewmodel.JoinClubActionState
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import kotlinx.coroutines.flow.collectLatest
 
 private enum class ClubSection {
@@ -131,10 +139,12 @@ fun ClubDetailsScreen(
             is CreatePostState.Success -> {
                 postText = "" // Clear text field on success
                 snackbarHostState.showSnackbar("Post created successfully!")
+                clubDetailsViewModel.resetCreatePostState()
             }
 
             is CreatePostState.Error -> {
                 snackbarHostState.showSnackbar(state.message)
+                clubDetailsViewModel.resetCreatePostState()
             }
 
             else -> {}
@@ -147,7 +157,12 @@ fun ClubDetailsScreen(
         bottomBar = {
             if (selectedSection == null && clubState is UiState.Success && (clubState as UiState.Success).data.memberIds.contains(currentUser?.uid)) {
                 Surface(shadowElevation = 8.dp) {
-                    CreatePostInput(text = postText, onTextChange = { postText = it }) {
+                    val isPosting = createPostState is CreatePostState.Loading
+                    CreatePostInput(
+                        text = postText,
+                        onTextChange = { postText = it },
+                        isLoading = isPosting
+                    ) {
                         if (postText.isNotBlank()) {
                             currentUser?.let { user ->
                                 clubDetailsViewModel.createClubPost(postText, user.uid, user.name)
@@ -292,197 +307,201 @@ fun ClubDetailsScreen(
                     }
 
                     // Main content area
-                    if (selectedSection == null) {
-                        // Show posts when no section is selected
-                        when (val postsState = clubPostsState) {
-                            is UiState.Loading -> {
-                                item {
-                                    Box(modifier = Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center){
-                                        CircularProgressIndicator()
-                                    }
-                                }
-                            }
-                            is UiState.Error -> {
-                                item {
-                                    Text(
-                                        text = postsState.message,
-                                        color = MaterialTheme.colorScheme.error,
-                                        modifier = Modifier.padding(16.dp)
-                                    )
-                                }
-                            }
-                            is UiState.Success -> {
-                                if (postsState.data.isEmpty()) {
+                    when (selectedSection) {
+                        null -> {
+                            // Show posts when no section is selected
+                            when (val postsState = clubPostsState) {
+                                is UiState.Loading -> {
                                     item {
-                                        EmptyState(
-                                            icon = Icons.Outlined.Info,
-                                            text = "No posts for this club"
-                                        )
-                                    }
-                                } else {
-                                    items(postsState.data) { post ->
-                                        ClubPostItem(post)
-                                        Divider(thickness = 0.5.dp)
+                                        Box(modifier = Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center){
+                                            CircularProgressIndicator()
+                                        }
                                     }
                                 }
-                            }
-                        }
-                    } else if (selectedSection == ClubSection.Members) {
-                        // Show members
-                        if ((membersState as? UiState.Success)?.data?.isEmpty() == true) {
-                            item {
-                                EmptyState(
-                                    icon = Icons.Outlined.Groups,
-                                    text = "No members yet. Be the first to join!"
-                                )
-                            }
-                        } else {
-                            items((membersState as? UiState.Success)?.data ?: emptyList()) { member ->
-                                val ranking = ((rankingsState as? UiState.Success)?.data ?: emptyList())
-                                    .find { ranking -> ranking.playerid == member.uid }
-                                val playerSearchResult = PlayerSearchResult(member, ranking)
-                                val isAdmin = club.adminId == member.uid
-                                val isCurrentUser = currentUser?.uid == member.uid
-
-                                Card(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 16.dp)
-                                        .clip(RoundedCornerShape(14.dp))
-                                        .background(MaterialTheme.colorScheme.surface)
-                                        .then(
-                                            if (isCurrentUser)
-                                                Modifier.border(
-                                                    width = 2.dp,
-                                                    color = MaterialTheme.colorScheme.primary,
-                                                    shape = RoundedCornerShape(14.dp)
-                                                )
-                                            else Modifier
+                                is UiState.Error -> {
+                                    item {
+                                        Text(
+                                            text = postsState.message,
+                                            color = MaterialTheme.colorScheme.error,
+                                            modifier = Modifier.padding(16.dp)
                                         )
-                                ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(12.dp)
-                                    ) {
-                                        PlayerRow(
-                                            result = playerSearchResult,
-                                            onClick = {}
-                                        )
-
-                                        if (isAdmin) {
-                                            Spacer(modifier = Modifier.width(8.dp))
-                                            AdminBadge()
+                                    }
+                                }
+                                is UiState.Success -> {
+                                    if (postsState.data.isEmpty()) {
+                                        item {
+                                            EmptyState(
+                                                icon = Icons.Outlined.Info,
+                                                text = "No posts for this club"
+                                            )
+                                        }
+                                    } else {
+                                        items(postsState.data) { post ->
+                                            ClubPostItem(post, authViewModel)
+                                            HorizontalDivider(thickness = 0.5.dp)
                                         }
                                     }
                                 }
                             }
                         }
-
-                        // Join Button
-                        item {
-                            Spacer(modifier = Modifier.height(16.dp))
-                            val isPending = club.pendingMemberIds.contains(currentUser?.uid)
-                            Button(
-                                onClick = {
-                                    currentUser?.uid?.let { userId ->
-                                        clubDetailsViewModel.joinClub(
-                                            userId,
-                                            club,
-                                            currentUser?.name ?: "A player"
-                                        )
-                                    }
-                                },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp),
-                                enabled = currentUser != null && club.adminId != currentUser?.uid && !isMember && !isPending
-                            ) {
-                                when {
-                                    isMember -> Text("You are a member")
-                                    isPending -> Text("Request Sent")
-                                    else -> Text("Join Club")
-                                }
-                            }
-                        }
-                    } else if (selectedSection == ClubSection.Tournaments) {
-                        // Show tournaments
-                        item {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(start = 16.dp, end = 16.dp, top = 24.dp, bottom = 8.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = "Tournaments",
-                                    style = MaterialTheme.typography.headlineSmall
-                                )
-                                if (club.adminId == currentUser?.uid) {
-                                    Button(
-                                        onClick = { showCreateTournamentDialog = true },
-                                        shape = RoundedCornerShape(50),
-                                    ) {
-                                        Text("Create")
-                                    }
-                                }
-                            }
-                        }
-
-                        // Tournaments List
-                        when (val tournamentUiState = tournamentsState) {
-                            is UiState.Loading -> {
+                        ClubSection.Members -> {
+                            // Show members
+                            if ((membersState as? UiState.Success)?.data?.isEmpty() == true) {
                                 item {
-                                    CircularProgressIndicator(modifier = Modifier.padding(16.dp))
-                                }
-                            }
-
-                            is UiState.Error -> {
-                                item {
-                                    Text(
-                                        text = tournamentUiState.message,
-                                        color = MaterialTheme.colorScheme.error,
-                                        modifier = Modifier.padding(16.dp)
+                                    EmptyState(
+                                        icon = Icons.Outlined.Groups,
+                                        text = "No members yet. Be the first to join!"
                                     )
                                 }
-                            }
+                            } else {
+                                items((membersState as? UiState.Success)?.data ?: emptyList()) { member ->
+                                    val ranking = ((rankingsState as? UiState.Success)?.data ?: emptyList())
+                                        .find { ranking -> ranking.playerid == member.uid }
+                                    val playerSearchResult = PlayerSearchResult(member, ranking)
+                                    val isAdmin = club.adminId == member.uid
+                                    val isCurrentUser = currentUser?.uid == member.uid
 
-                            is UiState.Success -> {
-                                if (tournamentUiState.data.isEmpty()) {
-                                    item {
-                                        EmptyState(
-                                            icon = Icons.Outlined.EmojiEvents,
-                                            text = "No tournaments yet. Create one to get started!"
+                                    Card(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 16.dp)
+                                            .then(
+                                                if (isCurrentUser) Modifier.border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(14.dp))
+                                                else Modifier
+                                            ),
+                                        shape = RoundedCornerShape(14.dp),
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = MaterialTheme.colorScheme.surface
                                         )
-                                    }
-                                } else {
-                                    items(tournamentUiState.data) { tournament ->
-                                        Card(
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.SpaceBetween,
                                             modifier = Modifier
                                                 .fillMaxWidth()
-                                                .padding(horizontal = 16.dp, vertical = 4.dp)
-                                                .clickable { navController.navigate("tournamentscreen/${tournament.tournamentId}") },
-                                            shape = RoundedCornerShape(12.dp)
+                                                .padding(12.dp)
                                         ) {
-                                            Row(
+                                            PlayerRow(
+                                                result = playerSearchResult,
+                                                onClick = {}
+                                            )
+
+                                            if (isAdmin) {
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                AdminBadge()
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Join Button
+                            item {
+                                Spacer(modifier = Modifier.height(16.dp))
+                                val isPending = club.pendingMemberIds.contains(currentUser?.uid)
+                                Button(
+                                    onClick = {
+                                        currentUser?.uid?.let { userId ->
+                                            clubDetailsViewModel.joinClub(
+                                                userId,
+                                                club,
+                                                currentUser?.name ?: "A player"
+                                            )
+                                        }
+                                    },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp),
+                                    enabled = currentUser != null && club.adminId != currentUser?.uid && !isMember && !isPending
+                                ) {
+                                    when {
+                                        isMember -> Text("You are a member")
+                                        isPending -> Text("Request Sent")
+                                        else -> Text("Join Club")
+                                    }
+                                }
+                            }
+                        }
+                        ClubSection.Tournaments -> {
+                            // Show tournaments
+                            item {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(start = 16.dp, end = 16.dp, top = 24.dp, bottom = 8.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "Tournaments",
+                                        style = MaterialTheme.typography.headlineSmall
+                                    )
+                                    if (club.adminId == currentUser?.uid) {
+                                        Button(
+                                            onClick = { showCreateTournamentDialog = true },
+                                            shape = RoundedCornerShape(50),
+                                        ) {
+                                            Text("Create")
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Tournaments List
+                            when (val tournamentUiState = tournamentsState) {
+                                is UiState.Loading -> {
+                                    item {
+                                        CircularProgressIndicator(modifier = Modifier.padding(16.dp))
+                                    }
+                                }
+
+                                is UiState.Error -> {
+                                    item {
+                                        Text(
+                                            text = tournamentUiState.message,
+                                            color = MaterialTheme.colorScheme.error,
+                                            modifier = Modifier.padding(16.dp)
+                                        )
+                                    }
+                                }
+
+                                is UiState.Success -> {
+                                    if (tournamentUiState.data.isEmpty()) {
+                                        item {
+                                            EmptyState(
+                                                icon = Icons.Outlined.EmojiEvents,
+                                                text = "No tournaments yet. Create one to get started!"
+                                            )
+                                        }
+                                    } else {
+                                        items(tournamentUiState.data) { tournament ->
+                                            Card(
                                                 modifier = Modifier
                                                     .fillMaxWidth()
-                                                    .padding(16.dp),
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.SpaceBetween
+                                                    .padding(horizontal = 16.dp, vertical = 4.dp)
+                                                    .clickable { navController.navigate("tournamentscreen/${tournament.tournamentId}") },
+                                                shape = RoundedCornerShape(12.dp),
+                                                colors = CardDefaults.cardColors(
+                                                    containerColor = MaterialTheme.colorScheme.surface
+                                                )
                                             ) {
-                                                Text(
-                                                    text = tournament.name,
-                                                    style = MaterialTheme.typography.titleMedium
-                                                )
-                                                Text(
-                                                    text = tournament.status,
-                                                    style = MaterialTheme.typography.bodySmall,
-                                                    color = MaterialTheme.colorScheme.primary
-                                                )
+                                                Row(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(16.dp),
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.SpaceBetween
+                                                ) {
+                                                    Text(
+                                                        text = tournament.name,
+                                                        style = MaterialTheme.typography.titleMedium
+                                                    )
+                                                    Text(
+                                                        text = tournament.status,
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        color = MaterialTheme.colorScheme.primary
+                                                    )
+                                                }
                                             }
                                         }
                                     }
@@ -496,22 +515,63 @@ fun ClubDetailsScreen(
     }
 }
 
-
 @Composable
-fun ClubPostItem(post: ClubPost) {
-    Column(
+fun ClubPostItem(post: ClubPost, authViewModel: AuthViewModel) {
+    var author by remember { mutableStateOf<Player?>(null) }
+
+    LaunchedEffect(post.authorId) {
+        author = authViewModel.getPlayerProfile(post.authorId)
+    }
+
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(16.dp)
+            .padding(16.dp),
+        verticalAlignment = Alignment.Top
     ) {
-        post.authorName?.let { Text(it, fontWeight = FontWeight.Bold) }
-        Text(post.text)
-        post.timestamp?.let { Text(it.toString(), style = MaterialTheme.typography.bodySmall) }
+        AsyncImage(
+            model = author?.profilePictureUrl ?: "",
+            contentDescription = "Author Avatar",
+            modifier = Modifier
+                .size(40.dp)
+                .clip(CircleShape)
+                .border(1.dp, MaterialTheme.colorScheme.onSurface, CircleShape),
+            contentScale = ContentScale.Crop
+        )
+
+        Spacer(modifier = Modifier.width(12.dp))
+
+        Column {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = post.authorName ?: "Unknown",
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.bodyLarge
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                post.timestamp?.let {
+                    Text(
+                        text = getFormattedDateTime(it.time / 1000),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(post.text, style = MaterialTheme.typography.bodyMedium)
+        }
     }
 }
 
+fun getFormattedDateTime(epochSeconds: Long): String {
+    val date = Date(epochSeconds * 1000)
+    val dayFormat = SimpleDateFormat("EEE, d MMM yyyy", Locale.getDefault())
+    val timeFormat = SimpleDateFormat("h:mm a", Locale.getDefault())
+    return "${dayFormat.format(date)} • ${timeFormat.format(date)}"
+}
+
 @Composable
-fun CreatePostInput(text: String, onTextChange: (String) -> Unit, onPost: () -> Unit) {
+fun CreatePostInput(text: String, onTextChange: (String) -> Unit, isLoading: Boolean, onPost: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -522,11 +582,19 @@ fun CreatePostInput(text: String, onTextChange: (String) -> Unit, onPost: () -> 
             value = text,
             onValueChange = { if (it.length <= 150) onTextChange(it) },
             label = { Text("Write a post") },
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.weight(1f),
+            enabled = !isLoading
         )
         Spacer(modifier = Modifier.width(8.dp))
-        Button(onClick = onPost, enabled = text.isNotBlank()) {
-            Text("Post")
+        Button(onClick = onPost, enabled = text.isNotBlank() && !isLoading) {
+            if (isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp),
+                    color = MaterialTheme.colorScheme.onPrimary
+                )
+            } else {
+                Text("Post")
+            }
         }
     }
 }
@@ -567,7 +635,7 @@ fun CreateTournamentDialog(
                 onClick = {
                     if (tournamentName.isNotBlank()) {
                         val rankingType = if (isRankedGlobally) RankingType.GLOBAL else RankingType.LOCAL
-                        onConfirm(tournamentName, rankingType)
+                        onConfirm( tournamentName, rankingType)
                     }
                 }
             ) {

@@ -38,6 +38,7 @@ sealed class CreateTournamentState {
 
 sealed class CreatePostState {
     object Idle : CreatePostState()
+    object Loading : CreatePostState()
     object Success : CreatePostState()
     data class Error(val message: String) : CreatePostState()
 }
@@ -111,7 +112,7 @@ class ClubDetailsViewModel @Inject constructor(
 
     fun createClubPost(text: String, authorId: String, authorName: String?) {
         viewModelScope.launch {
-            _createPostState.value = CreatePostState.Idle
+            _createPostState.value = CreatePostState.Loading
             when (val result = clubRepository.createClubPost(clubId, authorId, authorName, text)) {
                 is Result.Success -> {
                     _createPostState.value = CreatePostState.Success
@@ -120,6 +121,10 @@ class ClubDetailsViewModel @Inject constructor(
                 is Result.Error -> _createPostState.value = CreatePostState.Error("Failed to create post")
             }
         }
+    }
+
+    fun resetCreatePostState() {
+        _createPostState.value = CreatePostState.Idle
     }
 
     private fun fetchClubMembers(memberIds: List<String>) {
