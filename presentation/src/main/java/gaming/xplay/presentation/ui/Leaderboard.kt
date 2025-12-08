@@ -160,9 +160,10 @@ fun SearchResultsList(
                     onClick = {
                         val player = result.player
                         val ranking = result.ranking
-                        if (ranking != null) {
-                            navController.navigate("profile/${player.uid}/${ranking.XPpoints}/${ranking.wins}/${ranking.losses}")
-                        }
+                        val xp = ranking?.XPpoints ?: 0
+                        val wins = ranking?.wins ?: 0
+                        val losses = ranking?.losses ?: 0
+                        navController.navigate("profile/${player.uid}/$xp/$wins/$losses")
                     }
                 )
                 HorizontalDivider(
@@ -198,7 +199,7 @@ fun PlayerRow(
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = player.name ?: "Player...",
+                    text = player.name ?: "Loading...",
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.Medium,
                     maxLines = 1,
@@ -206,14 +207,14 @@ fun PlayerRow(
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
-                    text = "XP: ${ranking?.XPpoints ?: 0}",
+                    text = "XP: ${ranking?.XPpoints ?: "N/A"}",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
         Text(
-            text = "${ranking?.wins ?: 0} Wins • ${ranking?.losses ?: 0} Losses",
+            text = "${ranking?.wins ?: "N/A"} Wins • ${ranking?.losses ?: "N/A"} Losses",
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -362,7 +363,7 @@ fun RankingRow(
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = player?.name ?: "Player...",
+                    text = player?.name ?: "Loading...",
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.Medium,
                     maxLines = 1,
