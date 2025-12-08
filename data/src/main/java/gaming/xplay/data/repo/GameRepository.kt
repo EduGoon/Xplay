@@ -49,54 +49,23 @@ class GameRepository @Inject constructor(
         }
     }
 
-    suspend fun getIncomingChallenges(playerId: String): Result<List<Challenge>> {
+    suspend fun getAllChallenges(playerId: String): Result<List<Challenge>> {
         return try {
-            val challenges = db.collection("challenges")
-                .whereEqualTo("player2Id", playerId)
-                .whereEqualTo("status", "pending")
-                .orderBy("createdAt", Query.Direction.DESCENDING)
-                .get()
-                .await()
-                .toObjects(Challenge::class.java)
-            Result.Success(challenges)
-        } catch (e: Exception) {
-            Result.Error(e)
-        }
-    }
-
-    suspend fun getOutgoingChallenges(playerId: String): Result<List<Challenge>> {
-        return try {
-            val challenges = db.collection("challenges")
+            val player1Challenges = db.collection("challenges")
                 .whereEqualTo("player1Id", playerId)
                 .orderBy("createdAt", Query.Direction.DESCENDING)
                 .get()
                 .await()
                 .toObjects(Challenge::class.java)
-            Result.Success(challenges)
-        } catch (e: Exception) {
-            Result.Error(e)
-        }
-    }
 
-    suspend fun getAcceptedChallenges(playerId: String): Result<List<Challenge>> {
-        return try {
-            val player1Accepted = db.collection("challenges")
-                .whereEqualTo("player1Id", playerId)
-                .whereEqualTo("status", "accepted")
-                .orderBy("acceptedAt", Query.Direction.DESCENDING)
-                .get()
-                .await()
-                .toObjects(Challenge::class.java)
-
-            val player2Accepted = db.collection("challenges")
+            val player2Challenges = db.collection("challenges")
                 .whereEqualTo("player2Id", playerId)
-                .whereEqualTo("status", "accepted")
-                .orderBy("acceptedAt", Query.Direction.DESCENDING)
+                .orderBy("createdAt", Query.Direction.DESCENDING)
                 .get()
                 .await()
                 .toObjects(Challenge::class.java)
 
-            Result.Success((player1Accepted + player2Accepted).sortedByDescending { it.acceptedAt })
+            Result.Success((player1Challenges + player2Challenges).sortedByDescending { it.createdAt })
         } catch (e: Exception) {
             Result.Error(e)
         }

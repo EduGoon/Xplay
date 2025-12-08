@@ -1,5 +1,6 @@
 package gaming.xplay.data.repo
 
+import android.util.Log
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
@@ -113,20 +114,16 @@ class ClubRepository @Inject constructor(
     suspend fun approveJoinRequest(request: JoinClubRequest): Result<Unit> {
         return try {
             val clubRef = firestore.collection("clubs").document(request.clubId)
-            val playerRef = firestore.collection("players").document(request.playerId)
-
-            firestore.runTransaction {
-                val clubSnapshot = it.get(clubRef)
-                val club = clubSnapshot.toObject(Club::class.java)!!
-
-                it.update(clubRef, "members", club.members + 1)
-                it.update(clubRef, "memberIds", FieldValue.arrayUnion(request.playerId))
-                it.update(clubRef, "pendingMemberIds", FieldValue.arrayRemove(request.playerId))
-                it.update(playerRef, "clubs", FieldValue.arrayUnion(request.clubId))
+            firestore.runBatch { batch ->
+                // Atomically move the player from pending to member, and increment member count
+                batch.update(clubRef, "pendingMemberIds", FieldValue.arrayRemove(request.playerId))
+                batch.update(clubRef, "memberIds", FieldValue.arrayUnion(request.playerId))
+                batch.update(clubRef, "members", FieldValue.increment(1))
             }.await()
             Result.Success(Unit)
         } catch (e: Exception) {
-            Result.Error(e)
+            Log.e("ClubRepository", "Error approving join request", e)
+            Result.Error(Exception("Error approving join request. Please try again.", e))
         }
     }
 

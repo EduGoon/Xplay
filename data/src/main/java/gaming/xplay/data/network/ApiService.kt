@@ -1,6 +1,7 @@
 package gaming.xplay.data.network
 
 import gaming.xplay.data.model.AdminSubmitMatchResultRequest
+import gaming.xplay.data.model.JoinClubRequest
 import gaming.xplay.data.model.NotificationRequest
 import gaming.xplay.data.model.Player
 import gaming.xplay.data.model.SubmitMatchResultRequest
@@ -25,4 +26,8 @@ interface ApiService {
     @Headers("Content-Type: application/json")
     @POST("send-notification")
     suspend fun sendNotification(@Body request: NotificationRequest)
+
+    @Headers("Content-Type: application/json")
+    @POST("approve-join-club-request")
+    suspend fun approveJoinRequest(@Body request: JoinClubRequest)
 }

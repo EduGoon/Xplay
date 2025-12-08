@@ -65,10 +65,6 @@ fun ChallengesScreen(
     val tabs = listOf("Outgoing", "Incoming", "Active")
     val snackbarHostState = remember { SnackbarHostState() }
 
-    LaunchedEffect(Unit) {
-        gameViewModel.fetchChallengesForCurrentUser()
-    }
-
     val currentUserId = authViewModel.checkCurrentUserUid()
 
     Scaffold(
@@ -105,14 +101,14 @@ fun ChallengesScreen(
                     }
                 }
                 1 -> {
-                val incomingState by gameViewModel.incomingChallenges.collectAsState()
-                ChallengeList(uiState = incomingState) { challenge ->
-                    IncomingChallengeCard(challenge, gameViewModel, challengeDetailsViewModel)
+                    val incomingState by gameViewModel.incomingChallenges.collectAsState()
+                    ChallengeList(uiState = incomingState) { challenge ->
+                        IncomingChallengeCard(challenge, gameViewModel, challengeDetailsViewModel)
+                    }
                 }
-            }
                 2 -> {
-                    val acceptedState by gameViewModel.acceptedChallenges.collectAsState()
-                    ChallengeList(uiState = acceptedState) { challenge ->
+                    val activeState by gameViewModel.activeChallenges.collectAsState()
+                    ChallengeList(uiState = activeState) { challenge ->
                         if (currentUserId != null) {
                             ActiveChallengeCard(challenge, currentUserId, gameViewModel, challengeDetailsViewModel)
                         }
@@ -218,21 +214,23 @@ fun IncomingChallengeCard(
     val player1Name = playerProfiles[challenge.player1Id]?.name
 
     ChallengeCard(challenge, player1Name, "You", challenge.createdAt, "Received on:") {
-        Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
-            IconButton(
-                onClick = { viewModel.acceptChallenge(challenge) },
-                colors = IconButtonDefaults.iconButtonColors(containerColor = Color(0x1A00C853)),
-                modifier = Modifier.size(40.dp)
-            ) {
-                Icon(Icons.Default.Check, contentDescription = "Accept Challenge", tint = Color.Green)
-            }
-            Spacer(modifier = Modifier.padding(start = 16.dp))
-            IconButton(
-                onClick = { viewModel.rejectChallenge(challenge) },
-                colors = IconButtonDefaults.iconButtonColors(containerColor = Color(0x1AFF0000)),
-                modifier = Modifier.size(40.dp)
-            ) {
-                Icon(Icons.Default.Close, contentDescription = "Reject Challenge", tint = Color.Red)
+        if (challenge.status == "pending") {
+            Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
+                IconButton(
+                    onClick = { viewModel.acceptChallenge(challenge) },
+                    colors = IconButtonDefaults.iconButtonColors(containerColor = Color(0x1A00C853)),
+                    modifier = Modifier.size(40.dp)
+                ) {
+                    Icon(Icons.Default.Check, contentDescription = "Accept Challenge", tint = Color.Green)
+                }
+                Spacer(modifier = Modifier.padding(start = 16.dp))
+                IconButton(
+                    onClick = { viewModel.rejectChallenge(challenge) },
+                    colors = IconButtonDefaults.iconButtonColors(containerColor = Color(0x1AFF0000)),
+                    modifier = Modifier.size(40.dp)
+                ) {
+                    Icon(Icons.Default.Close, contentDescription = "Reject Challenge", tint = Color.Red)
+                }
             }
         }
     }

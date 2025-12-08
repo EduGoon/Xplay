@@ -1,6 +1,7 @@
 package gaming.xplay.presentation.ui
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -8,25 +9,33 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import gaming.xplay.presentation.ui.State.UiState
 import gaming.xplay.presentation.viewmodel.NotificationViewModel
+import kotlinx.coroutines.launch
 
 @Composable
 fun NotificationsScreen(
@@ -34,66 +43,126 @@ fun NotificationsScreen(
 ) {
     val adminClubsState by notificationViewModel.adminClubs.collectAsState()
     val pendingMembersState by notificationViewModel.pendingMembers.collectAsState()
+    val joinRequestState by notificationViewModel.joinRequestState.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
-    LaunchedEffect(Unit) {
-        notificationViewModel.fetchAdminClubs()
-    }
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-    ) {
-        Text(
-            text = "Join Club Requests",
-            style = MaterialTheme.typography.headlineMedium
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-
-        when (val clubsState = adminClubsState) {
-            is UiState.Loading -> {
-                CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
+    LaunchedEffect(joinRequestState) {
+        when (val state = joinRequestState) {
+            is UiState.Success -> {
+                scope.launch {
+                    snackbarHostState.showSnackbar("Operation successful")
+                }
             }
             is UiState.Error -> {
-                Text(
-                    text = clubsState.message,
-                    color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.align(Alignment.CenterHorizontally)
-                )
+                scope.launch {
+                    snackbarHostState.showSnackbar(state.message)
+                }
             }
-            is UiState.Success -> {
-                val clubs = clubsState.data
-                if (clubs.isEmpty() || (pendingMembersState as? UiState.Success)?.data?.isEmpty() == true) {
-                    EmptyState(
-                        icon = Icons.Outlined.Notifications,
-                        text = "No new join requests"
-                    )
-                } else {
-                    LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        items(clubs) { club ->
-                            (pendingMembersState as? UiState.Success)?.data?.get(club.clubId)?.forEach { member ->
-                                Card(
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(16.dp),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Text(text = "${member.name} wants to join ${club.clubName}")
-                                        Row {
-                                            Button(onClick = { notificationViewModel.approveJoinRequest(club.clubId, member.uid, club.clubName) }) {
-                                                Text(text = "Accept")
-                                            }
-                                            Spacer(modifier = Modifier.height(8.dp))
-                                            Button(onClick = { notificationViewModel.declineJoinRequest(club.clubId, member.uid, club.clubName) }) {
-                                                Text(text = "Decline")
+            else -> {}
+        }
+    }
+
+    Scaffold(
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
+    ) { paddingValues ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .padding(16.dp)
+        ) {
+            Text(
+                text = "Join Club Requests",
+                style = MaterialTheme.typography.headlineMedium
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+
+            when {
+                adminClubsState is UiState.Loading || pendingMembersState is UiState.Loading -> {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
+                    }
+                }
+                adminClubsState is UiState.Error -> {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text(
+                            text = (adminClubsState as UiState.Error).message,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                }
+                pendingMembersState is UiState.Error -> {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text(
+                            text = (pendingMembersState as UiState.Error).message,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                }
+                adminClubsState is UiState.Success && pendingMembersState is UiState.Success -> {
+                    val clubs = (adminClubsState as UiState.Success).data
+                    val pendingMembers = (pendingMembersState as UiState.Success).data
+
+                    if (clubs.isEmpty() || pendingMembers.values.all { it.isEmpty() }) {
+                        EmptyState(
+                            icon = Icons.Outlined.Notifications,
+                            text = "No new join requests"
+                        )
+                    } else {
+                        Box(modifier = Modifier.fillMaxSize()) {
+                            LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                items(clubs) { club ->
+                                    pendingMembers[club.clubId]?.forEach { member ->
+                                        Card(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                                        ) {
+                                            Column(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(16.dp)
+                                            ) {
+                                                Text(text = "${member.name} wants to join ${club.clubName}")
+                                                Spacer(modifier = Modifier.height(16.dp))
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.End
+                                                ) {
+                                                    val isLoading = joinRequestState is UiState.Loading
+                                                    Button(
+                                                        onClick = {
+                                                            notificationViewModel.declineJoinRequest(
+                                                                club.clubId,
+                                                                member.uid,
+                                                                club.clubName
+                                                            )
+                                                        },
+                                                        enabled = !isLoading
+                                                    ) {
+                                                        Text(text = "Decline")
+                                                    }
+                                                    Spacer(modifier = Modifier.width(8.dp))
+                                                    Button(
+                                                        onClick = {
+                                                            notificationViewModel.approveJoinRequest(
+                                                                club.clubId,
+                                                                member.uid,
+                                                                club.clubName
+                                                            )
+                                                        },
+                                                        enabled = !isLoading
+                                                    ) {
+                                                        Text(text = "Accept")
+                                                    }
+                                                }
                                             }
                                         }
                                     }
                                 }
+                            }
+                            if (joinRequestState is UiState.Loading) {
+                                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
                             }
                         }
                     }

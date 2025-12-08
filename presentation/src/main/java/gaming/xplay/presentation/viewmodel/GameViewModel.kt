@@ -5,7 +5,7 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import gaming.xplay.data.model.Challenge
 import gaming.xplay.data.model.Match
-import gaming.xplay.data.model.NotificationRequest
+import gaming.xplay.data.model.Player
 import gaming.xplay.data.model.Result
 import gaming.xplay.data.model.rankings
 import gaming.xplay.data.repo.AuthRepository
@@ -13,8 +13,11 @@ import gaming.xplay.data.repo.GameRepository
 import gaming.xplay.data.repo.NotificationRepository
 import gaming.xplay.presentation.ui.State.UiState
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -31,14 +34,58 @@ class GameViewModel @Inject constructor(
     private val authRepository: AuthRepository
 ) : ViewModel() {
 
-    private val _incomingChallenges = MutableStateFlow<UiState<List<Challenge>>>(UiState.Loading)
-    val incomingChallenges: StateFlow<UiState<List<Challenge>>> = _incomingChallenges.asStateFlow()
+    private val _allChallenges = MutableStateFlow<UiState<List<Challenge>>>(UiState.Loading)
+    private val _currentUser = MutableStateFlow<Result<Player?>>(Result.Error(Exception("Not logged in")))
 
-    private val _outgoingChallenges = MutableStateFlow<UiState<List<Challenge>>>(UiState.Loading)
-    val outgoingChallenges: StateFlow<UiState<List<Challenge>>> = _outgoingChallenges.asStateFlow()
+    val incomingChallenges: StateFlow<UiState<List<Challenge>>> = combine(
+        _allChallenges,
+        _currentUser
+    ) { allChallenges, currentUserResult ->
+        when {
+            allChallenges is UiState.Success && currentUserResult is Result.Success -> {
+                val currentUserId = currentUserResult.data?.uid
+                if (currentUserId != null) {
+                    UiState.Success(allChallenges.data.filter { it.player2Id == currentUserId })
+                } else {
+                    UiState.Error("User not logged in")
+                }
+            }
+            allChallenges is UiState.Error -> allChallenges
+            else -> UiState.Loading
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), UiState.Loading)
 
-    private val _acceptedChallenges = MutableStateFlow<UiState<List<Challenge>>>(UiState.Loading)
-    val acceptedChallenges: StateFlow<UiState<List<Challenge>>> = _acceptedChallenges.asStateFlow()
+    val outgoingChallenges: StateFlow<UiState<List<Challenge>>> = combine(
+        _allChallenges,
+        _currentUser
+    ) { allChallenges, currentUserResult ->
+        when {
+            allChallenges is UiState.Success && currentUserResult is Result.Success -> {
+                val currentUserId = currentUserResult.data?.uid
+                if (currentUserId != null) {
+                    UiState.Success(allChallenges.data.filter { it.player1Id == currentUserId })
+                } else {
+                    UiState.Error("User not logged in")
+                }
+            }
+            allChallenges is UiState.Error -> allChallenges
+            else -> UiState.Loading
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), UiState.Loading)
+
+    val activeChallenges: StateFlow<UiState<List<Challenge>>> = _allChallenges.combine(
+        _currentUser
+    ) { allChallenges, _ ->
+        when (allChallenges) {
+            is UiState.Success -> {
+                UiState.Success(allChallenges.data.filter {
+                    it.status == "accepted" || it.status == "waiting verification"
+                })
+            }
+            is UiState.Error -> allChallenges
+            is UiState.Loading -> UiState.Loading
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), UiState.Loading)
 
     private val _matchHistory = MutableStateFlow<UiState<List<Match>>>(UiState.Loading)
     val matchHistory: StateFlow<UiState<List<Match>>> = _matchHistory.asStateFlow()
@@ -51,6 +98,10 @@ class GameViewModel @Inject constructor(
 
     private val _challengeCreationState = MutableStateFlow<ChallengeCreationState>(ChallengeCreationState.Idle)
     val challengeCreationState: StateFlow<ChallengeCreationState> = _challengeCreationState.asStateFlow()
+
+    init {
+        fetchChallengesForCurrentUser()
+    }
 
     fun onChallengeCreationStatusConsumed() {
         _challengeCreationState.value = ChallengeCreationState.Idle
@@ -66,17 +117,7 @@ class GameViewModel @Inject constructor(
                         when (gameRepository.createChallenge(challenge)) {
                             is Result.Success -> {
                                 _challengeCreationState.value = ChallengeCreationState.Success
-
-                                /*
-                                notificationRepository.sendNotification(
-                                    NotificationRequest(
-                                        targetUserId = player2Id,
-                                        title = "New Challenge!",
-                                        body = "You have a new match challenge from ${currentUser.name ?: "a player"}"
-                                    )
-                                )
-*/
-                                fetchOutgoingChallenges(currentUser.uid)
+                                fetchChallengesForCurrentUser()
                             }
                             is Result.Error -> _challengeCreationState.value = ChallengeCreationState.Error("Failed to create challenge.")
                         }
@@ -92,7 +133,9 @@ class GameViewModel @Inject constructor(
     fun acceptChallenge(challenge: Challenge) {
         viewModelScope.launch {
             when (gameRepository.updateChallengeStatus(challenge.challengeId, "accepted")) {
-                is Result.Success -> { /* Handle success if needed, e.g., refresh lists */ }
+                is Result.Success -> {
+                    fetchChallengesForCurrentUser()
+                }
                 is Result.Error -> _errorState.value = "Failed to accept challenge."
             }
         }
@@ -101,62 +144,33 @@ class GameViewModel @Inject constructor(
     fun rejectChallenge(challenge: Challenge) {
         viewModelScope.launch {
             when (gameRepository.updateChallengeStatus(challenge.challengeId, "rejected")) {
-                is Result.Success -> { /* Handle success if needed, e.g., refresh lists */ }
+                is Result.Success -> {
+                    fetchChallengesForCurrentUser()
+                }
                 is Result.Error -> _errorState.value = "Failed to reject challenge."
             }
         }
     }
 
-    fun fetchChallengesForCurrentUser() {
+    private fun fetchChallengesForCurrentUser() {
         viewModelScope.launch {
-            when (val currentUserResult = authRepository.fetchCurrentUserProfile()) {
+            _currentUser.value = authRepository.fetchCurrentUserProfile()
+            when (val currentUserResult = _currentUser.value) {
                 is Result.Success -> {
                     val currentUser = currentUserResult.data
                     if (currentUser != null) {
-                        fetchIncomingChallenges(currentUser.uid)
-                        fetchOutgoingChallenges(currentUser.uid)
-                        fetchAcceptedChallenges(currentUser.uid)
+                        _allChallenges.value = UiState.Loading
+                        when (val result = gameRepository.getAllChallenges(currentUser.uid)) {
+                            is Result.Success -> _allChallenges.value = UiState.Success(result.data)
+                            is Result.Error -> _allChallenges.value = UiState.Error(result.exception.message ?: "An error occurred")
+                        }
                     } else {
-                        _incomingChallenges.value = UiState.Error("User not logged in")
-                        _outgoingChallenges.value = UiState.Error("User not logged in")
-                        _acceptedChallenges.value = UiState.Error("User not logged in")
+                        _allChallenges.value = UiState.Error("User not logged in")
                     }
                 }
                 is Result.Error -> {
-                    _incomingChallenges.value = UiState.Error("Failed to fetch user")
-                    _outgoingChallenges.value = UiState.Error("Failed to fetch user")
-                    _acceptedChallenges.value = UiState.Error("Failed to fetch user")
+                    _allChallenges.value = UiState.Error("Failed to fetch user")
                 }
-            }
-        }
-    }
-
-    private fun fetchIncomingChallenges(playerId: String) {
-        viewModelScope.launch {
-            _incomingChallenges.value = UiState.Loading
-            when (val result = gameRepository.getIncomingChallenges(playerId)) {
-                is Result.Success -> _incomingChallenges.value = UiState.Success(result.data)
-                is Result.Error -> _incomingChallenges.value = UiState.Error(result.exception.message ?: "An error occurred")
-            }
-        }
-    }
-
-    private fun fetchOutgoingChallenges(playerId: String) {
-        viewModelScope.launch {
-            _outgoingChallenges.value = UiState.Loading
-            when (val result = gameRepository.getOutgoingChallenges(playerId)) {
-                is Result.Success -> _outgoingChallenges.value = UiState.Success(result.data)
-                is Result.Error -> _outgoingChallenges.value = UiState.Error(result.exception.message ?: "An error occurred")
-            }
-        }
-    }
-
-    private fun fetchAcceptedChallenges(playerId: String) {
-        viewModelScope.launch {
-            _acceptedChallenges.value = UiState.Loading
-            when (val result = gameRepository.getAcceptedChallenges(playerId)) {
-                is Result.Success -> _acceptedChallenges.value = UiState.Success(result.data)
-                is Result.Error -> _acceptedChallenges.value = UiState.Error(result.exception.message ?: "An error occurred")
             }
         }
     }
