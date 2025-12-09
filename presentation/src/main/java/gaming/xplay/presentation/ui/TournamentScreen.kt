@@ -1,5 +1,6 @@
 package gaming.xplay.presentation.ui
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,21 +10,34 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.EmojiEvents
 import androidx.compose.material.icons.outlined.Groups
+import androidx.compose.material.icons.outlined.Leaderboard
 import androidx.compose.material.icons.outlined.MilitaryTech
+import androidx.compose.material.icons.outlined.PersonAdd
+import androidx.compose.material.icons.outlined.PlayArrow
+import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Divider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
@@ -44,8 +58,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import gaming.xplay.data.model.Fixture
+import gaming.xplay.data.model.Player
 import gaming.xplay.data.model.RankingType
 import gaming.xplay.data.model.Tournament
+import gaming.xplay.data.model.TournamentRanking
+import gaming.xplay.data.model.rankings
 import gaming.xplay.presentation.model.PlayerSearchResult
 import gaming.xplay.presentation.ui.State.UiState
 import gaming.xplay.presentation.viewmodel.AuthViewModel
@@ -54,6 +71,7 @@ import gaming.xplay.presentation.viewmodel.StartTournamentActionState
 import gaming.xplay.presentation.viewmodel.SubmitMatchResultActionState
 import gaming.xplay.presentation.viewmodel.TournamentViewModel
 import kotlinx.coroutines.flow.collectLatest
+import kotlin.collections.find
 
 private enum class TournamentSection {
     Participants, Fixtures, Rankings
@@ -69,87 +87,63 @@ fun TournamentScreen(
     val fixturesState by tournamentViewModel.fixtures.collectAsState()
     val tournamentRankingsState by tournamentViewModel.tournamentRankings.collectAsState()
     val globalRankingsState by tournamentViewModel.globalRankings.collectAsState()
-    val joinTournamentState by tournamentViewModel.joinTournamentActionState.collectAsState(initial = JoinTournamentActionState.Idle)
-    val startTournamentState by tournamentViewModel.startTournamentActionState.collectAsState(initial = StartTournamentActionState.Idle)
-    val submitMatchResultState by tournamentViewModel.submitMatchResultActionState.collectAsState(initial = SubmitMatchResultActionState.Idle)
+
     val currentUser by authViewModel.currentUser.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
-    var showSubmitResultDialog by remember { mutableStateOf<Fixture?>(null) }
+
     var selectedSection by remember { mutableStateOf(TournamentSection.Participants) }
+    var showSubmitResultDialog by remember { mutableStateOf<Fixture?>(null) }
 
+    // --- Action feedback ---
     LaunchedEffect(Unit) {
-        tournamentViewModel.joinTournamentActionState.collectLatest { state ->
-            when (state) {
-                is JoinTournamentActionState.Success -> {
-                    snackbarHostState.showSnackbar("Joined tournament successfully!")
-                }
-
-                is JoinTournamentActionState.Error -> {
-                    snackbarHostState.showSnackbar(state.message)
-                }
-
-                else -> {}
+        tournamentViewModel.joinTournamentActionState.collectLatest {
+            when (it) {
+                is JoinTournamentActionState.Success ->
+                    snackbarHostState.showSnackbar("Joined tournament")
+                is JoinTournamentActionState.Error ->
+                    snackbarHostState.showSnackbar(it.message)
+                else -> Unit
             }
         }
     }
 
     LaunchedEffect(Unit) {
-        tournamentViewModel.startTournamentActionState.collectLatest { state ->
-            when (state) {
-                is StartTournamentActionState.Success -> {
-                    snackbarHostState.showSnackbar("Tournament started successfully!")
-                }
-
-                is StartTournamentActionState.Error -> {
-                    snackbarHostState.showSnackbar(state.message)
-                }
-
-                else -> {}
+        tournamentViewModel.startTournamentActionState.collectLatest {
+            when (it) {
+                is StartTournamentActionState.Success ->
+                    snackbarHostState.showSnackbar("Tournament started")
+                is StartTournamentActionState.Error ->
+                    snackbarHostState.showSnackbar(it.message)
+                else -> Unit
             }
         }
     }
 
     LaunchedEffect(Unit) {
-        tournamentViewModel.submitMatchResultActionState.collectLatest { state ->
-            when (state) {
+        tournamentViewModel.submitMatchResultActionState.collectLatest {
+            when (it) {
                 is SubmitMatchResultActionState.Success -> {
-                    snackbarHostState.showSnackbar("Match result submitted successfully!")
+                    snackbarHostState.showSnackbar("Result submitted")
                     showSubmitResultDialog = null
                 }
-
-                is SubmitMatchResultActionState.Error -> {
-                    snackbarHostState.showSnackbar(state.message)
-                }
-
-                else -> {}
+                is SubmitMatchResultActionState.Error ->
+                    snackbarHostState.showSnackbar(it.message)
+                else -> Unit
             }
         }
     }
 
-    if (showSubmitResultDialog != null && tournamentState is UiState.Success) {
-        SubmitResultDialog(
-            fixture = showSubmitResultDialog!!,
-            tournament = (tournamentState as UiState.Success<Tournament>).data,
-            members = (membersState as? UiState.Success)?.data ?: emptyList(),
-            onConfirm = { fixture, winnerId ->
-                tournamentViewModel.submitTournamentMatchResult(fixture, winnerId)
-            },
-            onDismiss = { showSubmitResultDialog = null }
-        )
-    }
-
-    Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) }
-    ) {
+    Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }) { padding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(it)
+                .padding(padding)
         ) {
             when (val state = tournamentState) {
                 is UiState.Loading -> {
                     CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
                 }
+
                 is UiState.Error -> {
                     Text(
                         text = state.message,
@@ -157,166 +151,33 @@ fun TournamentScreen(
                         modifier = Modifier.align(Alignment.Center)
                     )
                 }
+
                 is UiState.Success -> {
                     val tournament = state.data
-                    Column(
-                        modifier = Modifier.padding(16.dp)
-                    ) {
-                        Text(text = tournament.name ?: "", style = MaterialTheme.typography.headlineMedium)
-                        Text(text = "Status: ${tournament.status}", style = MaterialTheme.typography.titleMedium)
-                        Text(text = "Ranking: ${tournament.rankingType}", style = MaterialTheme.typography.titleMedium)
+                    TournamentContent(
+                        tournament = tournament,
+                        membersState = membersState,
+                        fixturesState = fixturesState,
+                        rankingsState = tournamentRankingsState,
+                        globalRankingsState = globalRankingsState,
+                        currentUserId = currentUser?.uid,
+                        selectedSection = selectedSection,
+                        onSectionChange = { selectedSection = it },
+                        onStartTournament = tournamentViewModel::startTournament,
+                        onJoinTournament = {
+                            currentUser?.uid?.let { tournamentViewModel.joinTournament(it) }
+                        },
+                        onSubmitResult = { showSubmitResultDialog = it }
+                    )
 
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        if (tournament.adminId == currentUser?.uid && tournament.status == "upcoming") {
-                            Button(
-                                onClick = { tournamentViewModel.startTournament() },
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text("Start Tournament")
-                            }
-                        }
-
-                        val isMember = tournament.members.contains(currentUser?.uid)
-                        Button(
-                            onClick = {
-                                currentUser?.uid?.let { userId ->
-                                    tournamentViewModel.joinTournament(userId)
-                                }
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                            enabled = currentUser != null && !isMember && tournament.status == "upcoming"
-                        ) {
-                            Text(if (isMember) "You are a member" else "Join Tournament")
-                        }
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        val sections = mutableListOf(TournamentSection.Participants)
-                        if (tournament.status == "in-progress" || tournament.status == "completed") {
-                            sections.add(TournamentSection.Fixtures)
-                            if (tournament.rankingType == RankingType.LOCAL) {
-                                sections.add(TournamentSection.Rankings)
-                            }
-                        }
-
-                        TabRow(selectedTabIndex = sections.indexOf(selectedSection)) {
-                            sections.forEach { section ->
-                                Tab(
-                                    selected = selectedSection == section,
-                                    onClick = { selectedSection = section },
-                                    text = { Text(section.name) }
-                                )
-                            }
-                        }
-
-                        when (selectedSection) {
-                            TournamentSection.Participants -> {
-                                when (val membersUiState = membersState) {
-                                    is UiState.Loading -> {
-                                        CircularProgressIndicator()
-                                    }
-                                    is UiState.Error -> {
-                                        Text(text = membersUiState.message, color = MaterialTheme.colorScheme.error)
-                                    }
-                                    is UiState.Success -> {
-                                        if (membersUiState.data.isEmpty()) {
-                                            EmptyState(
-                                                icon = Icons.Outlined.Groups,
-                                                text = "No participants have joined yet."
-                                            )
-                                        } else {
-                                            LazyColumn {
-                                                items(membersUiState.data) { member ->
-                                                    val ranking = (globalRankingsState as? UiState.Success)?.data?.find { it.playerid == member.uid }
-                                                    TournamentPlayerRow(
-                                                        result = PlayerSearchResult(member, ranking),
-                                                        isCurrentUser = currentUser?.uid == member.uid
-                                                    )
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            TournamentSection.Fixtures -> {
-                                when (val fixturesUiState = fixturesState) {
-                                    is UiState.Loading -> {
-                                        CircularProgressIndicator()
-                                    }
-                                    is UiState.Error -> {
-                                        Text(text = fixturesUiState.message, color = MaterialTheme.colorScheme.error)
-                                    }
-                                    is UiState.Success -> {
-                                        if (fixturesUiState.data.isEmpty()) {
-                                            EmptyState(
-                                                icon = Icons.Outlined.EmojiEvents,
-                                                text = "Fixtures have not been created yet."
-                                            )
-                                        } else {
-                                            LazyColumn {
-                                                items(fixturesUiState.data) { fixture ->
-                                                    val player1 = (membersState as? UiState.Success)?.data?.find { it.uid == fixture.player1Id }
-                                                    val player2 = (membersState as? UiState.Success)?.data?.find { it.uid == fixture.player2Id }
-                                                    Row(
-                                                        modifier = Modifier.fillMaxWidth(),
-                                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                                        verticalAlignment = Alignment.CenterVertically
-                                                    ) {
-                                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                                            val p1isCurrent = player1?.uid == currentUser?.uid
-                                                            Text(text = if (p1isCurrent) "You" else player1?.name ?: "", color = if (p1isCurrent) MaterialTheme.colorScheme.primary else Color.Unspecified)
-                                                            Text(text = " vs ")
-                                                            val p2isCurrent = player2?.uid == currentUser?.uid
-                                                            Text(text = if (p2isCurrent) "You" else player2?.name ?: "", color = if (p2isCurrent) MaterialTheme.colorScheme.primary else Color.Unspecified)
-                                                        }
-
-                                                        if (fixture.status == "pending" && currentUser?.uid == tournament.adminId) {
-                                                            Button(onClick = { showSubmitResultDialog = fixture }) {
-                                                                Text(text = "Submit Result")
-                                                            }
-                                                        } else if (fixture.status == "played") {
-                                                            val winner = (membersState as? UiState.Success)?.data?.find { it.uid == fixture.winnerId }?.name
-                                                            Text(text = "Winner: ${winner ?: "Draw"}")
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            TournamentSection.Rankings -> {
-                                when (val rankingsUiState = tournamentRankingsState) {
-                                    is UiState.Loading -> {
-                                        CircularProgressIndicator()
-                                    }
-                                    is UiState.Error -> {
-                                        Text(text = rankingsUiState.message, color = MaterialTheme.colorScheme.error)
-                                    }
-                                    is UiState.Success -> {
-                                        if (rankingsUiState.data.isEmpty()) {
-                                            EmptyState(
-                                                icon = Icons.Outlined.MilitaryTech,
-                                                text = "No rankings yet. Play some matches to see your rank!"
-                                            )
-                                        } else {
-                                            LazyColumn {
-                                                items(rankingsUiState.data) { ranking ->
-                                                    val player = (membersState as? UiState.Success)?.data?.find { it.uid == ranking.playerId }
-                                                    Row(modifier = Modifier.fillMaxWidth()) {
-                                                        val isCurrentUser = player?.uid == currentUser?.uid
-                                                        Text(text = if (isCurrentUser) "You" else player?.name ?: "", color = if (isCurrentUser) MaterialTheme.colorScheme.primary else Color.Unspecified)
-                                                        Spacer(modifier = Modifier.weight(1f))
-                                                        Text(text = "Pts: ${ranking.points}, W: ${ranking.wins}, D: ${ranking.draws}, L: ${ranking.losses}")
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                    if (showSubmitResultDialog != null) {
+                        SubmitResultDialog(
+                            fixture = showSubmitResultDialog!!,
+                            tournament = tournament,
+                            members = (membersState as? UiState.Success)?.data ?: emptyList(),
+                            onConfirm = tournamentViewModel::submitTournamentMatchResult,
+                            onDismiss = { showSubmitResultDialog = null }
+                        )
                     }
                 }
             }
@@ -325,48 +186,369 @@ fun TournamentScreen(
 }
 
 @Composable
-private fun TournamentPlayerRow(
-    result: PlayerSearchResult,
-    isCurrentUser: Boolean
+private fun TournamentContent(
+    tournament: Tournament,
+    membersState: UiState<List<Player>>,
+    fixturesState: UiState<List<Fixture>>,
+    rankingsState: UiState<List<TournamentRanking>>,
+    globalRankingsState: UiState<List<rankings>>,
+    currentUserId: String?,
+    selectedSection: TournamentSection,
+    onSectionChange: (TournamentSection) -> Unit,
+    onStartTournament: () -> Unit,
+    onJoinTournament: () -> Unit,
+    onSubmitResult: (Fixture) -> Unit
 ) {
-    val player = result.player
-    val ranking = result.ranking
+    Column(modifier = Modifier.padding(16.dp)) {
 
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Row(
-            modifier = Modifier.weight(1f),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = if (isCurrentUser) "You" else player.name ?: "Player...",
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Medium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    color = if (isCurrentUser) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+        TournamentHeader(tournament)
+
+        Spacer(Modifier.height(16.dp))
+
+        TournamentActions(
+            isAdmin = tournament.adminId == currentUserId,
+            isMember = tournament.members.contains(currentUserId),
+            status = tournament.status,
+            onStart = onStartTournament,
+            onJoin = onJoinTournament
+        )
+
+        Spacer(Modifier.height(16.dp))
+
+        val sections = buildList {
+            add(TournamentSection.Participants)
+            if (tournament.status != "upcoming") {
+                add(TournamentSection.Fixtures)
+                if (tournament.rankingType == RankingType.LOCAL)
+                    add(TournamentSection.Rankings)
+            }
+        }
+
+        TournamentTabs(sections, selectedSection, onSectionChange)
+
+        Spacer(Modifier.height(8.dp))
+
+        when (selectedSection) {
+            TournamentSection.Participants ->
+                ParticipantsSection(membersState, globalRankingsState, currentUserId)
+
+            TournamentSection.Fixtures ->
+                FixturesSection(fixturesState, membersState, tournament, currentUserId, onSubmitResult)
+
+            TournamentSection.Rankings ->
+                RankingsSection(rankingsState, membersState, currentUserId)
+        }
+    }
+}
+
+@Composable
+private fun TournamentHeader(tournament: Tournament) {
+    Surface(shape = RoundedCornerShape(16.dp), tonalElevation = 2.dp) {
+        Column(Modifier.padding(16.dp)) {
+            Text(
+                tournament.name ?: "",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.SemiBold
+            )
+            Spacer(Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                AssistChip(
+                    onClick = {},
+                    label = { Text(tournament.status) },
+                    leadingIcon = {
+                        Icon(Icons.Outlined.Schedule, null)
+                    }
                 )
-                Text(
-                    text = "XP: ${ranking?.XPpoints ?: 0}",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                AssistChip(
+                    onClick = {},
+                    label = { Text(tournament.rankingType.name) },
+                    leadingIcon = {
+                        Icon(Icons.Outlined.Leaderboard, null)
+                    }
                 )
             }
         }
-        Text(
-            text = "${ranking?.wins ?: 0} Wins • ${ranking?.losses ?: 0} Losses",
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.End,
-            modifier = Modifier.widthIn(min = 100.dp)
-        )
+    }
+}
+
+@Composable
+private fun TournamentTabs(
+    sections: List<TournamentSection>,
+    selected: TournamentSection,
+    onSelected: (TournamentSection) -> Unit
+) {
+    TabRow(selectedTabIndex = sections.indexOf(selected)) {
+        sections.forEach {
+            Tab(
+                selected = it == selected,
+                onClick = { onSelected(it) },
+                text = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            when (it) {
+                                TournamentSection.Participants -> Icons.Outlined.Groups
+                                TournamentSection.Fixtures -> Icons.Outlined.EmojiEvents
+                                TournamentSection.Rankings -> Icons.Outlined.Leaderboard
+                            },
+                            null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text(it.name)
+                    }
+                }
+            )
+        }
+    }
+}
+
+@Composable
+private fun TournamentActions(
+    isAdmin: Boolean,
+    isMember: Boolean,
+    status: String,
+    onStart: () -> Unit,
+    onJoin: () -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+
+        if (isAdmin && status == "upcoming") {
+            Button(
+                onClick = onStart,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(Icons.Outlined.PlayArrow, null)
+                Spacer(Modifier.width(8.dp))
+                Text("Start Tournament")
+            }
+        }
+
+        Button(
+            onClick = onJoin,
+            enabled = !isMember && status == "upcoming",
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Icon(
+                if (isMember) Icons.Outlined.Check else Icons.Outlined.PersonAdd,
+                null
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(if (isMember) "Joined" else "Join Tournament")
+        }
+    }
+}
+
+@Composable
+private fun ParticipantsSection(
+    membersState: UiState<List<Player>>,
+    globalRankingsState: UiState<List<rankings>>,
+    currentUserId: String?
+) {
+    when (membersState) {
+        is UiState.Loading -> {
+            CircularProgressIndicator()
+        }
+
+        is UiState.Error -> {
+            Text(membersState.message, color = MaterialTheme.colorScheme.error)
+        }
+
+        is UiState.Success -> {
+            if (membersState.data.isEmpty()) {
+                EmptyState(
+                    icon = Icons.Outlined.Groups,
+                    text = "No participants yet"
+                )
+            } else {
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(membersState.data) { member ->
+                        val ranking =
+                            (globalRankingsState as? UiState.Success)
+                                ?.data
+                                ?.find { it.playerid == member.uid }
+
+                        PlayerCard(
+                            name = if (member.uid == currentUserId) "You" else member.name,
+                            xp = ranking?.XPpoints ?: 0,
+                            wins = ranking?.wins ?: 0,
+                            losses = ranking?.losses ?: 0,
+                            isCurrentUser = member.uid == currentUserId
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun FixturesSection(
+    fixturesState: UiState<List<Fixture>>,
+    membersState: UiState<List<Player>>,
+    tournament: Tournament,
+    currentUserId: String?,
+    onSubmitResult: (Fixture) -> Unit
+) {
+    when (fixturesState) {
+        is UiState.Loading -> CircularProgressIndicator()
+
+        is UiState.Error ->
+            Text(fixturesState.message, color = MaterialTheme.colorScheme.error)
+
+        is UiState.Success -> {
+            if (fixturesState.data.isEmpty()) {
+                EmptyState(
+                    icon = Icons.Outlined.EmojiEvents,
+                    text = "Fixtures not generated yet"
+                )
+            } else {
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(fixturesState.data) { fixture ->
+                        val members =
+                            (membersState as? UiState.Success)?.data ?: return@items
+
+                        val p1 = members.find { it.uid == fixture.player1Id }
+                        val p2 = members.find { it.uid == fixture.player2Id }
+
+                        FixtureCard(
+                            player1 = p1?.name ?: "",
+                            player2 = p2?.name ?: "",
+                            status = fixture.status,
+                            isAdmin = tournament.adminId == currentUserId,
+                            onSubmit = { onSubmitResult(fixture) },
+                            winner =
+                                members.find { it.uid == fixture.winnerId }?.name
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RankingsSection(
+    rankingsState: UiState<List<TournamentRanking>>,
+    membersState: UiState<List<Player>>,
+    currentUserId: String?
+) {
+    when (rankingsState) {
+        is UiState.Loading -> CircularProgressIndicator()
+
+        is UiState.Error ->
+            Text(rankingsState.message, color = MaterialTheme.colorScheme.error)
+
+        is UiState.Success -> {
+            if (rankingsState.data.isEmpty()) {
+                EmptyState(
+                    icon = Icons.Outlined.MilitaryTech,
+                    text = "No rankings yet"
+                )
+            } else {
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(rankingsState.data) { ranking ->
+                        val player =
+                            (membersState as? UiState.Success)
+                                ?.data
+                                ?.find { it.uid == ranking.playerId }
+
+                        PlayerRankCard(
+                            name = if (player?.uid == currentUserId) "You" else player?.name,
+                            points = ranking.points,
+                            wins = ranking.wins,
+                            draws = ranking.draws,
+                            losses = ranking.losses
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PlayerCard(
+    name: String?,
+    xp: Int,
+    wins: Int,
+    losses: Int,
+    isCurrentUser: Boolean
+) {
+    Surface(shape = RoundedCornerShape(12.dp), tonalElevation = 1.dp) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column {
+                Text(
+                    name ?: "Player",
+                    fontWeight = FontWeight.Medium,
+                    color = if (isCurrentUser)
+                        MaterialTheme.colorScheme.primary
+                    else
+                        MaterialTheme.colorScheme.onSurface
+                )
+                Text("XP: $xp", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Text("$wins W • $losses L")
+        }
+    }
+}
+
+@Composable
+private fun PlayerRankCard(
+    name: String?,
+    points: Int,
+    wins: Int,
+    draws: Int,
+    losses: Int
+) {
+    Surface(shape = RoundedCornerShape(12.dp), tonalElevation = 1.dp) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(name ?: "Player", fontWeight = FontWeight.Medium)
+            Text("Pts: $points  W:$wins D:$draws L:$losses")
+        }
+    }
+}
+
+@Composable
+private fun FixtureCard(
+    player1: String,
+    player2: String,
+    status: String,
+    isAdmin: Boolean,
+    onSubmit: () -> Unit,
+    winner: String?
+) {
+    Surface(shape = RoundedCornerShape(12.dp), tonalElevation = 1.dp) {
+        Column(Modifier.padding(16.dp)) {
+            Text("$player1 vs $player2", fontWeight = FontWeight.Medium)
+
+            Spacer(Modifier.height(8.dp))
+
+            when {
+                status == "pending" && isAdmin -> {
+                    Button(onClick = onSubmit) {
+                        Icon(Icons.Outlined.Edit, null)
+                        Spacer(Modifier.width(6.dp))
+                        Text("Submit Result")
+                    }
+                }
+                status == "played" -> {
+                    Text(
+                        "Winner: ${winner ?: "Draw"}",
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -374,49 +556,72 @@ private fun TournamentPlayerRow(
 fun SubmitResultDialog(
     fixture: Fixture,
     tournament: Tournament,
-    members: List<gaming.xplay.data.model.Player>,
+    members: List<Player>,
     onConfirm: (Fixture, String?) -> Unit,
     onDismiss: () -> Unit
 ) {
     val player1 = members.find { it.uid == fixture.player1Id }
     val player2 = members.find { it.uid == fixture.player2Id }
-    var selectedWinner by remember { mutableStateOf<String?>(null) }
-    var hasSelection by remember { mutableStateOf(false) }
+
+    var selectedWinnerId by remember { mutableStateOf<String?>(null) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Submit Match Result") },
         text = {
-            Column {
-                Text("Select the winner:")
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Button(
-                        onClick = { 
-                            selectedWinner = fixture.player1Id 
-                            hasSelection = true 
-                        },
-                        enabled = selectedWinner != fixture.player1Id
+            Column(
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+
+                Text(
+                    text = "${player1?.name ?: "Player 1"} vs ${player2?.name ?: "Player 2"}",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+
+                Divider()
+
+                Column {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { selectedWinnerId = player1?.uid }
+                            .padding(vertical = 8.dp)
                     ) {
+                        RadioButton(
+                            selected = selectedWinnerId == player1?.uid,
+                            onClick = { selectedWinnerId = player1?.uid }
+                        )
                         Text(player1?.name ?: "")
                     }
-                    Spacer(modifier = Modifier.weight(1f))
-                    Button(
-                        onClick = { 
-                            selectedWinner = null
-                            hasSelection = true
-                        },
-                        enabled = tournament.rankingType == RankingType.LOCAL
-                    ) {
-                        Text("Draw")
+
+                    if (tournament.rankingType == RankingType.LOCAL) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { selectedWinnerId = null }
+                                .padding(vertical = 8.dp)
+                        ) {
+                            RadioButton(
+                                selected = selectedWinnerId == null,
+                                onClick = { selectedWinnerId = null }
+                            )
+                            Text("Draw")
+                        }
                     }
-                    Spacer(modifier = Modifier.weight(1f))
-                    Button(
-                        onClick = { 
-                            selectedWinner = fixture.player2Id
-                            hasSelection = true
-                        },
-                        enabled = selectedWinner != fixture.player2Id
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { selectedWinnerId = player2?.uid }
+                            .padding(vertical = 8.dp)
                     ) {
+                        RadioButton(
+                            selected = selectedWinnerId == player2?.uid,
+                            onClick = { selectedWinnerId = player2?.uid }
+                        )
                         Text(player2?.name ?: "")
                     }
                 }
@@ -425,11 +630,10 @@ fun SubmitResultDialog(
         confirmButton = {
             Button(
                 onClick = {
-                    onConfirm(fixture, selectedWinner)
-                },
-                enabled = hasSelection
+                    onConfirm(fixture, selectedWinnerId)
+                }
             ) {
-                Text("Confirm")
+                Text("Submit")
             }
         },
         dismissButton = {

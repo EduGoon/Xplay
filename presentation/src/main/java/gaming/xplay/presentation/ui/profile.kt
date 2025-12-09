@@ -240,8 +240,11 @@ fun XPBar(currentXP: Int) {
 }
 
 @Composable
-fun StatCard(label: String, value: Any, color: Color) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+fun StatCard(label: String, value: Any, color: Color, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
         Text(
             text = "$value",
             style = MaterialTheme.typography.headlineSmall.copy(

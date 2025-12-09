@@ -9,15 +9,20 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -31,6 +36,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import gaming.xplay.presentation.ui.State.UiState
@@ -49,16 +55,8 @@ fun NotificationsScreen(
 
     LaunchedEffect(joinRequestState) {
         when (val state = joinRequestState) {
-            is UiState.Success -> {
-                scope.launch {
-                    snackbarHostState.showSnackbar("Operation successful")
-                }
-            }
-            is UiState.Error -> {
-                scope.launch {
-                    snackbarHostState.showSnackbar(state.message)
-                }
-            }
+            is UiState.Success -> scope.launch { snackbarHostState.showSnackbar("Operation successful") }
+            is UiState.Error -> scope.launch { snackbarHostState.showSnackbar(state.message) }
             else -> {}
         }
     }
@@ -84,6 +82,7 @@ fun NotificationsScreen(
                         CircularProgressIndicator()
                     }
                 }
+
                 adminClubsState is UiState.Error -> {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Text(
@@ -92,6 +91,7 @@ fun NotificationsScreen(
                         )
                     }
                 }
+
                 pendingMembersState is UiState.Error -> {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Text(
@@ -100,6 +100,7 @@ fun NotificationsScreen(
                         )
                     }
                 }
+
                 adminClubsState is UiState.Success && pendingMembersState is UiState.Success -> {
                     val clubs = (adminClubsState as UiState.Success).data
                     val pendingMembers = (pendingMembersState as UiState.Success).data
@@ -110,25 +111,62 @@ fun NotificationsScreen(
                             text = "No new join requests"
                         )
                     } else {
-                        Box(modifier = Modifier.fillMaxSize()) {
-                            LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                                items(clubs) { club ->
-                                    pendingMembers[club.clubId]?.forEach { member ->
+                        LazyColumn(
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            clubs.forEach { club ->
+                                val members = pendingMembers[club.clubId] ?: emptyList()
+                                if (members.isNotEmpty()) {
+                                    item {
+                                        Text(
+                                            text = club.clubName,
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.SemiBold,
+                                            modifier = Modifier.padding(start = 8.dp, top = 8.dp)
+                                        )
+                                    }
+
+                                    items(members) { member ->
                                         Card(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(horizontal = 8.dp),
+                                            shape = RoundedCornerShape(12.dp),
+                                            elevation = CardDefaults.cardElevation(4.dp)
                                         ) {
-                                            Column(
+                                            Row(
                                                 modifier = Modifier
                                                     .fillMaxWidth()
-                                                    .padding(16.dp)
+                                                    .padding(12.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.SpaceBetween
                                             ) {
-                                                Text(text = "${member.name} wants to join ${club.clubName}")
-                                                Spacer(modifier = Modifier.height(16.dp))
-                                                Row(
-                                                    modifier = Modifier.fillMaxWidth(),
-                                                    horizontalArrangement = Arrangement.End
-                                                ) {
+                                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                                    Icon(
+                                                        imageVector = Icons.Outlined.Person,
+                                                        contentDescription = null,
+                                                        modifier = Modifier.size(28.dp),
+                                                        tint = MaterialTheme.colorScheme.primary
+                                                    )
+                                                    Spacer(modifier = Modifier.width(8.dp))
+                                                    Column {
+                                                        member.name?.let {
+                                                            Text(
+                                                                text = it,
+                                                                fontWeight = FontWeight.Medium,
+                                                                style = MaterialTheme.typography.bodyLarge
+                                                            )
+                                                        }
+                                                        Text(
+                                                            text = "Wants to join ${club.clubName}",
+                                                            style = MaterialTheme.typography.bodySmall,
+                                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                        )
+                                                    }
+                                                }
+
+                                                Row {
                                                     val isLoading = joinRequestState is UiState.Loading
                                                     Button(
                                                         onClick = {
@@ -138,9 +176,10 @@ fun NotificationsScreen(
                                                                 club.clubName
                                                             )
                                                         },
-                                                        enabled = !isLoading
+                                                        enabled = !isLoading,
+                                                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                                                     ) {
-                                                        Text(text = "Decline")
+                                                        Text("Decline", color = MaterialTheme.colorScheme.onError)
                                                     }
                                                     Spacer(modifier = Modifier.width(8.dp))
                                                     Button(
@@ -153,7 +192,7 @@ fun NotificationsScreen(
                                                         },
                                                         enabled = !isLoading
                                                     ) {
-                                                        Text(text = "Accept")
+                                                        Text("Accept")
                                                     }
                                                 }
                                             }
@@ -161,8 +200,11 @@ fun NotificationsScreen(
                                     }
                                 }
                             }
-                            if (joinRequestState is UiState.Loading) {
-                                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                        }
+
+                        if (joinRequestState is UiState.Loading) {
+                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                CircularProgressIndicator()
                             }
                         }
                     }

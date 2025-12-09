@@ -26,9 +26,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.BrokenImage
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -38,6 +40,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -57,6 +60,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -192,62 +196,100 @@ fun FifaClubsSection(clubViewModel: ClubViewModel, authViewModel: AuthViewModel,
 }
 
 @Composable
-fun CreateClubDialog(onDismiss: () -> Unit, onCreateClub: (String, Uri?) -> Unit) {
+fun CreateClubDialog(
+    onDismiss: () -> Unit,
+    onCreateClub: (String, Uri?) -> Unit
+) {
     var clubName by remember { mutableStateOf("") }
     var imageUri by remember { mutableStateOf<Uri?>(null) }
 
     val launcher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent(),
-        onResult = { uri: Uri? ->
-            imageUri = uri
-        }
-    )
+        ActivityResultContracts.GetContent()
+    ) { uri ->
+        imageUri = uri
+    }
 
-    androidx.compose.material3.AlertDialog(
+    AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(text = "Create a new club") },
+        title = {
+            Text(
+                text = "Create Club",
+                style = MaterialTheme.typography.titleLarge,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
+            )
+        },
         text = {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                if (imageUri != null) {
-                    SubcomposeAsyncImage(
-                        model = imageUri,
-                        contentDescription = "Selected image",
-                        modifier = Modifier
-                            .size(100.dp)
-                            .clip(CircleShape),
-                        contentScale = ContentScale.Crop
-                    )
-                } else {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "Add photo",
-                        modifier = Modifier
-                            .size(100.dp)
-                            .clickable { launcher.launch("image/*") },
-                        tint = MaterialTheme.colorScheme.primary
-                    )
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+
+                // Avatar Picker
+                Box(
+                    modifier = Modifier
+                        .size(112.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .clickable { launcher.launch("image/*") },
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (imageUri != null) {
+                        SubcomposeAsyncImage(
+                            model = imageUri,
+                            contentDescription = "Club Image",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.CameraAlt,
+                            contentDescription = "Add Photo",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(32.dp)
+                        )
+                    }
                 }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = if (imageUri == null) "Add club photo" else "Change club photo",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+
                 Spacer(modifier = Modifier.height(16.dp))
-                TextField(
+
+                // Club Name Field
+                OutlinedTextField(
                     value = clubName,
                     onValueChange = { if (it.length <= 10) clubName = it },
-                    label = { Text("Club Name (Max 10 characters)") },
-                    singleLine = true
+                    label = { Text("Club name") },
+                    supportingText = {
+                        Text("${clubName.length}/10 characters")
+                    },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
         },
         confirmButton = {
-            Button(onClick = { onCreateClub(clubName, imageUri) }) {
+            Button(
+                enabled = clubName.isNotBlank(),
+                onClick = { onCreateClub(clubName.trim(), imageUri) }
+            ) {
                 Text("Create")
             }
         },
         dismissButton = {
-            Button(onClick = onDismiss) {
+            TextButton(onClick = onDismiss) {
                 Text("Cancel")
             }
         }
     )
 }
+
 
 @Composable
 fun FifaClubCard(club: Club, onCardClicked: () -> Unit) {

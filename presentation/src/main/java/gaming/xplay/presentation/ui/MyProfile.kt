@@ -1,18 +1,40 @@
+
 package gaming.xplay.presentation.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -37,6 +59,8 @@ fun MyProfileScreen(
     val clubsState by clubViewModel.clubs.collectAsState()
     val createClubState by clubViewModel.createClubState.collectAsState()
     val leaderboardState by gameViewModel.leaderboard.collectAsState()
+    var selectedTab by remember { mutableStateOf(0) }
+    val tabs = listOf("My Clubs", "Match History")
 
     LaunchedEffect(Unit) {
         authViewModel.refreshCurrentUser()
@@ -44,30 +68,24 @@ fun MyProfileScreen(
     }
 
     LaunchedEffect(createClubState) {
-        if (createClubState is UiState.Success) {
-            authViewModel.refreshCurrentUser()
-        }
+        if (createClubState is UiState.Success) authViewModel.refreshCurrentUser()
     }
 
-    val userRanking = when (leaderboardState) {
-        is UiState.Success -> {
-            (leaderboardState as UiState.Success<List<gaming.xplay.data.model.rankings>>).data
-                .find { it.playerid == currentUser?.uid }
-        }
-        else -> null
-    }
+    val userRanking = (leaderboardState as? UiState.Success)?.data
+        ?.find { it.playerid == currentUser?.uid }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
+            .background(MaterialTheme.colorScheme.background)
     ) {
 
-        // Header
+        // ---------------- Header Panel ----------------
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(180.dp)
+                .background(MaterialTheme.colorScheme.primaryContainer)
         ) {
             SubcomposeAsyncImage(
                 model = currentUser?.profilePictureUrl,
@@ -77,20 +95,11 @@ fun MyProfileScreen(
             ) {
                 when (painter.state) {
                     is coil.compose.AsyncImagePainter.State.Error,
-                    is coil.compose.AsyncImagePainter.State.Empty -> {
-                        Box(
-                            Modifier
-                                .fillMaxSize()
-                                .background(
-                                    Brush.verticalGradient(
-                                        listOf(
-                                            MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
-                                            MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
-                                        )
-                                    )
-                                )
-                        )
-                    }
+                    is coil.compose.AsyncImagePainter.State.Empty -> Box(
+                        Modifier
+                            .fillMaxSize()
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.4f))
+                    )
                     else -> SubcomposeAsyncImageContent()
                 }
             }
@@ -110,49 +119,60 @@ fun MyProfileScreen(
 
         Spacer(Modifier.height(70.dp))
 
-        Column(Modifier.padding(horizontal = 16.dp)) {
-            Text(
-                text = currentUser?.name ?: "My Profile",
-                style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold)
-            )
+        // ---------------- Info Cards ----------------
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            StatCard("Wins", userRanking?.wins ?: 0, MaterialTheme.colorScheme.primary, modifier = Modifier.weight(1f))
+            StatCard("Losses", userRanking?.losses ?: 0, MaterialTheme.colorScheme.error, modifier = Modifier.weight(1f))
+            val total = (userRanking?.wins ?: 0) + (userRanking?.losses ?: 0)
+            val winRate = if (total > 0) ((userRanking?.wins ?: 0) * 100) / total else 0
+            StatCard("Winrate", "$winRate%", MaterialTheme.colorScheme.tertiary, modifier = Modifier.weight(1f))
+        }
 
-            Spacer(Modifier.height(12.dp))
-            XPBar(currentXP = userRanking?.XPpoints ?: 0)
+        Spacer(Modifier.height(28.dp))
 
-            Spacer(Modifier.height(28.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                StatCard("Wins", userRanking?.wins ?: 0, MaterialTheme.colorScheme.primary)
-                StatCard("Losses", userRanking?.losses ?: 0, MaterialTheme.colorScheme.error)
-                val total = (userRanking?.wins ?: 0) + (userRanking?.losses ?: 0)
-                val winRate = if (total > 0) ((userRanking?.wins ?: 0) * 100) / total else 0
-                StatCard("Winrate", "$winRate%", MaterialTheme.colorScheme.tertiary)
+        // ---------------- XP Panel ----------------
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            shape = RoundedCornerShape(14.dp),
+            elevation = CardDefaults.cardElevation(6.dp)
+        ) {
+            val xp = userRanking?.XPpoints ?: 0
+            val targetXP = ((xp / 100) + 1) * 100
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("XP Progress", style = MaterialTheme.typography.titleMedium)
+                LinearProgressIndicator(
+                    progress = { xp.toFloat() / targetXP.toFloat() },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(12.dp)
+                        .clip(RoundedCornerShape(6.dp)),
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Text("$xp / $targetXP XP", style = MaterialTheme.typography.bodyMedium)
             }
+        }
 
-            Spacer(Modifier.height(36.dp))
+        Spacer(Modifier.height(28.dp))
 
-
-            var selectedTab by remember { mutableStateOf(0) }
-            val tabs = listOf("My Clubs", "Match History")
-
-            TabRow(
-                selectedTabIndex = selectedTab,
-                containerColor = MaterialTheme.colorScheme.surface,
-                contentColor = MaterialTheme.colorScheme.primary
-            ) {
+        // ---------------- Section Panels ----------------
+        Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+            TabRow(selectedTabIndex = selectedTab) {
                 tabs.forEachIndexed { index, title ->
                     Tab(
                         selected = selectedTab == index,
                         onClick = { selectedTab = index },
-                        text = { Text(title) }
+                        text = { Text(text = title) }
                     )
                 }
             }
-
             Spacer(Modifier.height(16.dp))
-
             when (selectedTab) {
                 0 -> { // My Clubs
                     when (val state = clubsState) {

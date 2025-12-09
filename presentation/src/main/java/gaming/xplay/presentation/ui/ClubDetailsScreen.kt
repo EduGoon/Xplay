@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -23,9 +24,16 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.Send
+import androidx.compose.material.icons.filled.EmojiEvents
+import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.Public
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.EmojiEvents
 import androidx.compose.material.icons.outlined.Groups
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Send
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -33,7 +41,9 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -55,6 +65,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -571,29 +582,62 @@ fun getFormattedDateTime(epochSeconds: Long): String {
 }
 
 @Composable
-fun CreatePostInput(text: String, onTextChange: (String) -> Unit, isLoading: Boolean, onPost: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically
+fun CreatePostInput(
+    text: String,
+    onTextChange: (String) -> Unit,
+    isLoading: Boolean,
+    onPost: () -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        tonalElevation = 2.dp
     ) {
-        TextField(
-            value = text,
-            onValueChange = { if (it.length <= 150) onTextChange(it) },
-            label = { Text("Write a post") },
-            modifier = Modifier.weight(1f),
-            enabled = !isLoading
-        )
-        Spacer(modifier = Modifier.width(8.dp))
-        Button(onClick = onPost, enabled = text.isNotBlank() && !isLoading) {
-            if (isLoading) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(24.dp),
-                    color = MaterialTheme.colorScheme.onPrimary
-                )
-            } else {
-                Text("Post")
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+
+            TextField(
+                value = text,
+                onValueChange = { if (it.length <= 150) onTextChange(it) },
+                modifier = Modifier
+                    .weight(1f)
+                    .heightIn(min = 56.dp),
+                enabled = !isLoading,
+                placeholder = {
+                    Text("Write a post…")
+                },
+                leadingIcon = {
+                    Icon(
+                        Icons.Outlined.Edit,
+                        contentDescription = null
+                    )
+                },
+                singleLine = false,
+                maxLines = 3
+            )
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            FilledIconButton(
+                onClick = onPost,
+                enabled = text.isNotBlank() && !isLoading,
+                shape = CircleShape
+            ) {
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
+                } else {
+                    Icon(
+                        Icons.Outlined.Send,
+                        contentDescription = "Post"
+                    )
+                }
             }
         }
     }
@@ -609,34 +653,101 @@ fun CreateTournamentDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Create Tournament") },
-        text = {
+        title = {
             Column {
-                OutlinedTextField(
-                    value = tournamentName,
-                    onValueChange = { newName -> tournamentName = newName },
-                    label = { Text("Tournament Name") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                Text(
+                    text = "Create Tournament",
+                    style = MaterialTheme.typography.titleLarge
                 )
-                Spacer(modifier = Modifier.height(16.dp))
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Checkbox(
-                        checked = isRankedGlobally,
-                        onCheckedChange = { isRankedGlobally = it })
-                    Text(text = "Ranked Globally")
+                Text(
+                    text = "Configure tournament visibility and ranking",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp)
+            ) {
+
+                // Tournament name section
+                Column {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.EmojiEvents,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            text = "Tournament Info",
+                            style = MaterialTheme.typography.labelLarge
+                        )
+                    }
+
+                    Spacer(Modifier.height(8.dp))
+
+                    OutlinedTextField(
+                        value = tournamentName,
+                        onValueChange = { tournamentName = it },
+                        label = { Text("Tournament name") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+
+                // Ranking type section
+                Column {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Public,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            text = "Ranking Type",
+                            style = MaterialTheme.typography.labelLarge
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    RankingOptionCard(
+                        selected = isRankedGlobally,
+                        icon = Icons.Default.Public,
+                        title = "Global Ranking",
+                        description = "Results affect the global leaderboard",
+                        onClick = { isRankedGlobally = true }
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    RankingOptionCard(
+                        selected = !isRankedGlobally,
+                        icon = Icons.Default.Groups,
+                        title = "Local Ranking",
+                        description = "Results are limited to this tournament",
+                        onClick = { isRankedGlobally = false }
+                    )
                 }
             }
         },
         confirmButton = {
             Button(
+                enabled = tournamentName.isNotBlank(),
                 onClick = {
-                    if (tournamentName.isNotBlank()) {
-                        val rankingType = if (isRankedGlobally) RankingType.GLOBAL else RankingType.LOCAL
-                        onConfirm( tournamentName, rankingType)
-                    }
+                    val rankingType =
+                        if (isRankedGlobally) RankingType.GLOBAL else RankingType.LOCAL
+                    onConfirm(tournamentName.trim(), rankingType)
                 }
             ) {
                 Text("Create")
@@ -648,6 +759,62 @@ fun CreateTournamentDialog(
             }
         }
     )
+}
+
+@Composable
+private fun RankingOptionCard(
+    selected: Boolean,
+    icon: ImageVector,
+    title: String,
+    description: String,
+    onClick: () -> Unit
+) {
+    val borderColor = if (selected)
+        MaterialTheme.colorScheme.primary
+    else
+        MaterialTheme.colorScheme.outline
+
+    val backgroundColor = if (selected)
+        MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
+    else
+        MaterialTheme.colorScheme.surfaceVariant
+
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = backgroundColor,
+        border = BorderStroke(1.dp, borderColor),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = if (selected)
+                    MaterialTheme.colorScheme.primary
+                else
+                    MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Spacer(Modifier.width(16.dp))
+
+            Column {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.bodyLarge
+                )
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
 }
 
 @Composable
