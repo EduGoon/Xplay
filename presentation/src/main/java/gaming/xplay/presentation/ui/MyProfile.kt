@@ -1,6 +1,8 @@
-
 package gaming.xplay.presentation.ui
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -15,8 +17,10 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -36,6 +40,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -78,6 +84,7 @@ fun MyProfileScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
+            .verticalScroll(rememberScrollState())
     ) {
 
         // ---------------- Header Panel ----------------
@@ -100,6 +107,7 @@ fun MyProfileScreen(
                             .fillMaxSize()
                             .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.4f))
                     )
+
                     else -> SubcomposeAsyncImageContent()
                 }
             }
@@ -119,22 +127,6 @@ fun MyProfileScreen(
 
         Spacer(Modifier.height(70.dp))
 
-        // ---------------- Info Cards ----------------
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            StatCard("Wins", userRanking?.wins ?: 0, MaterialTheme.colorScheme.primary, modifier = Modifier.weight(1f))
-            StatCard("Losses", userRanking?.losses ?: 0, MaterialTheme.colorScheme.error, modifier = Modifier.weight(1f))
-            val total = (userRanking?.wins ?: 0) + (userRanking?.losses ?: 0)
-            val winRate = if (total > 0) ((userRanking?.wins ?: 0) * 100) / total else 0
-            StatCard("Winrate", "$winRate%", MaterialTheme.colorScheme.tertiary, modifier = Modifier.weight(1f))
-        }
-
-        Spacer(Modifier.height(28.dp))
-
         // ---------------- XP Panel ----------------
         Card(
             modifier = Modifier
@@ -148,7 +140,7 @@ fun MyProfileScreen(
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("XP Progress", style = MaterialTheme.typography.titleMedium)
                 LinearProgressIndicator(
-                    progress = { xp.toFloat() / targetXP.toFloat() },
+                    progress = xp.toFloat() / targetXP.toFloat(),
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(12.dp)
@@ -160,6 +152,33 @@ fun MyProfileScreen(
         }
 
         Spacer(Modifier.height(28.dp))
+
+        // ---------------- Info Cards ----------------
+        val wins = userRanking?.wins ?: 0
+        val losses = userRanking?.losses ?: 0
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            StatCard(title = "Wins", value = wins.toString(), modifier = Modifier.weight(1f))
+            StatCard(title = "Losses", value = losses.toString(), modifier = Modifier.weight(1f))
+        }
+
+        Spacer(Modifier.height(16.dp))
+
+        WinLossDonutChart(
+            wins = wins,
+            losses = losses,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+        )
+
+
+        Spacer(Modifier.height(28.dp))
+
 
         // ---------------- Section Panels ----------------
         Column(modifier = Modifier.padding(horizontal = 16.dp)) {
@@ -191,7 +210,10 @@ fun MyProfileScreen(
 
                             if (my.isNotEmpty()) {
                                 my.forEach { club ->
-                                    ClubCard(club = club, isAdmin = club.adminId == currentUser?.uid)
+                                    ClubCard(
+                                        club = club,
+                                        isAdmin = club.adminId == currentUser?.uid
+                                    )
                                     Spacer(Modifier.height(16.dp))
                                 }
                             } else {
@@ -204,6 +226,7 @@ fun MyProfileScreen(
                         }
                     }
                 }
+
                 1 -> { // Match History
                     MatchHistory(gameViewModel, authViewModel, currentUser?.uid ?: "")
                 }
@@ -211,6 +234,27 @@ fun MyProfileScreen(
         }
     }
 }
+
+@Composable
+fun StatCard(title: String, value: String, modifier: Modifier = Modifier) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        elevation = CardDefaults.cardElevation(4.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(text = title, style = MaterialTheme.typography.titleMedium)
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(text = value, style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold))
+        }
+    }
+}
+
 
 @Composable
 fun ClubCard(club: Club, isAdmin: Boolean) {
@@ -253,6 +297,75 @@ fun ClubCard(club: Club, isAdmin: Boolean) {
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun WinLossDonutChart(
+    wins: Int,
+    losses: Int,
+    modifier: Modifier = Modifier
+) {
+    val totalGames = wins + losses
+    if (totalGames == 0) {
+        Box(
+            modifier = modifier
+                .height(150.dp)
+                .fillMaxWidth(),
+            contentAlignment = Alignment.Center
+        ) {
+            Text("Play a match to see your stats!", style = MaterialTheme.typography.bodyLarge)
+        }
+        return
+    }
+
+    val winPercentage = wins.toFloat() / totalGames.toFloat()
+    val winAngle = 360 * winPercentage
+
+    val animatedSweepAngle by animateFloatAsState(
+        targetValue = winAngle,
+        animationSpec = tween(durationMillis = 1000, delayMillis = 250),
+        label = "winLossDonut"
+    )
+
+    val winRate = (winPercentage * 100).toInt()
+
+    val lossColor = MaterialTheme.colorScheme.error.copy(alpha = 0.2f)
+    val winColor = MaterialTheme.colorScheme.primary
+
+    Box(
+        modifier = modifier.height(180.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Canvas(modifier = Modifier.size(150.dp)) {
+            // Background arc (losses)
+            drawArc(
+                color = lossColor,
+                startAngle = -90f,
+                sweepAngle = 360f,
+                useCenter = false,
+                style = Stroke(width = 30f, cap = StrokeCap.Round)
+            )
+            // Foreground arc (wins)
+            drawArc(
+                color = winColor,
+                startAngle = -90f,
+                sweepAngle = animatedSweepAngle,
+                useCenter = false,
+                style = Stroke(width = 30f, cap = StrokeCap.Round)
+            )
+        }
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                text = "$winRate%",
+                style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
+            )
+            Text(
+                text = "Win Rate",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }

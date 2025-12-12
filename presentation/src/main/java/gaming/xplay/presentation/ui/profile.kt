@@ -301,13 +301,6 @@ fun MatchHistory(
     }
 
     Column(modifier = Modifier.fillMaxWidth()) {
-        Text(
-            text = "Match History",
-            style = MaterialTheme.typography.titleLarge.copy(
-                fontWeight = FontWeight.Bold
-            ),
-            color = MaterialTheme.colorScheme.onBackground
-        )
         Spacer(modifier = Modifier.height(16.dp))
 
         when (val state = matchHistoryState) {
