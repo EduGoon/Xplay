@@ -12,6 +12,7 @@ import gaming.xplay.data.repo.StorageRepository
 import gaming.xplay.presentation.ui.State.UiState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -27,17 +28,30 @@ class ClubViewModel @Inject constructor(
     private val _createClubState = MutableStateFlow<UiState<Club>>(UiState.Loading)
     val createClubState: StateFlow<UiState<Club>> = _createClubState
 
+    private val _isRefreshing = MutableStateFlow(false)
+    val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
+
     init {
         fetchClubs()
     }
 
-    fun fetchClubs() {
+    fun fetchClubs(isRefresh: Boolean = false) {
         viewModelScope.launch {
-            _clubs.value = UiState.Loading
+            if (!isRefresh) {
+                _clubs.value = UiState.Loading
+            }
             when (val result = clubRepository.getClubs()) {
                 is Result.Success -> _clubs.value = UiState.Success(result.data)
                 is Result.Error -> _clubs.value = UiState.Error(result.exception.message ?: "An error occurred")
             }
+        }
+    }
+
+    fun refreshClubs() {
+        viewModelScope.launch {
+            _isRefreshing.value = true
+            fetchClubs(isRefresh = true)
+            _isRefreshing.value = false
         }
     }
 

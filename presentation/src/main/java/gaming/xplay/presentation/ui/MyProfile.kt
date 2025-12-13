@@ -204,7 +204,7 @@ fun MyProfileScreen(
                         is UiState.Success -> {
                             val all = state.data
                             val my = all.filter {
-                                currentUser?.clubs?.contains(it.clubId) == true ||
+                                it.memberIds.contains(currentUser?.uid) ||
                                         it.adminId == currentUser?.uid
                             }
 

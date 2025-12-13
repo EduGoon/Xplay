@@ -28,7 +28,6 @@ import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Public
-import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.EmojiEvents
 import androidx.compose.material.icons.outlined.Groups
@@ -39,8 +38,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -53,6 +52,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -67,6 +68,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -95,6 +97,7 @@ private enum class ClubSection {
     Members, Tournaments
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ClubDetailsScreen(
     navController: NavController,
@@ -113,6 +116,9 @@ fun ClubDetailsScreen(
     var showCreateTournamentDialog by remember { mutableStateOf(false) }
     var selectedSection by remember { mutableStateOf<ClubSection?>(null) }
     var postText by remember { mutableStateOf("") } // Hoisted state
+
+    val isRefreshing by clubDetailsViewModel.isRefreshing.collectAsState()
+    val pullToRefreshState = rememberPullToRefreshState()
 
     LaunchedEffect(Unit) {
         clubDetailsViewModel.joinClubActionState.collectLatest { state ->
@@ -184,334 +190,353 @@ fun ClubDetailsScreen(
             }
         }
     ) { paddingValues ->
-        when (val state = clubState) {
-            is UiState.Loading -> {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
-                }
-            }
-
-            is UiState.Error -> {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(text = state.message, color = MaterialTheme.colorScheme.error)
-                }
-            }
-
-            is UiState.Success -> {
-                val club = state.data
-                val isMember = club.memberIds.contains(currentUser?.uid)
-
-                if (showCreateTournamentDialog) {
-                    CreateTournamentDialog(
-                        onConfirm = { tournamentName, rankingType ->
-                            currentUser?.uid?.let { adminId ->
-                                clubDetailsViewModel.createTournament(tournamentName, adminId, rankingType)
-                            }
-                        },
-                        onDismiss = { showCreateTournamentDialog = false }
-                    )
-                }
-
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(paddingValues),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                    contentPadding = PaddingValues(bottom = 16.dp)
-                ) {
-
-                    // Header
-                    item {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(200.dp)
-                        ) {
-                            SubcomposeAsyncImage(
-                                model = club.imageUrl,
-                                contentDescription = club.clubName,
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier.fillMaxSize()
-                            ) {
-                                when (painter.state) {
-                                    is AsyncImagePainter.State.Error,
-                                    is AsyncImagePainter.State.Empty -> {
-                                        Box(
-                                            Modifier
-                                                .fillMaxSize()
-                                                .background(
-                                                    Brush.verticalGradient(
-                                                        colors = listOf(
-                                                            MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
-                                                            MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
-                                                        )
-                                                    )
-                                                )
-                                        )
-                                    }
-
-                                    else -> SubcomposeAsyncImageContent()
-                                }
-                            }
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(
-                                        Brush.verticalGradient(
-                                            colors = listOf(
-                                                Color.Transparent,
-                                                Color.Black.copy(alpha = 0.35f)
-                                            )
-                                        )
-                                    )
-                            )
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .align(Alignment.BottomCenter)
-                                    .padding(horizontal = 16.dp, vertical = 12.dp)
-                                    .height(IntrinsicSize.Min),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = club.clubName,
-                                    style = MaterialTheme.typography.headlineMedium.copy(
-                                        color = Color.White,
-                                        fontWeight = FontWeight.Bold
-                                    ),
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.weight(1f)
-                                )
-                                Spacer(Modifier.width(8.dp))
-                                Row(
-                                    modifier = Modifier.fillMaxHeight(),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Button(
-                                        onClick = { selectedSection = if (selectedSection == ClubSection.Members) null else ClubSection.Members },
-                                        shape = RoundedCornerShape(50),
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = if (selectedSection == ClubSection.Members) Color.White else Color.White.copy(alpha = 0.2f),
-                                            contentColor = if (selectedSection == ClubSection.Members) MaterialTheme.colorScheme.primary else Color.White
-                                        ),
-                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
-                                    ) {
-                                        Text("Members (${club.members})")
-                                    }
-                                    Spacer(Modifier.width(8.dp))
-                                    Button(
-                                        onClick = { selectedSection = if (selectedSection == ClubSection.Tournaments) null else ClubSection.Tournaments },
-                                        shape = RoundedCornerShape(50),
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = if (selectedSection == ClubSection.Tournaments) Color.White else Color.White.copy(alpha = 0.2f),
-                                            contentColor = if (selectedSection == ClubSection.Tournaments) MaterialTheme.colorScheme.primary else Color.White
-                                        ),
-                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
-                                    ) {
-                                        Text("Tournaments")
-                                    }
-                                }
-                            }
+        PullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = { clubDetailsViewModel.refreshClubDetails() },
+            state = pullToRefreshState,
+            modifier = Modifier.padding(paddingValues)
+        ) {
+            when (val state = clubState) {
+                is UiState.Loading -> {
+                    if (!isRefreshing) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator()
                         }
                     }
+                }
 
-                    // Main content area
-                    when (selectedSection) {
-                        null -> {
-                            // Show posts when no section is selected
-                            when (val postsState = clubPostsState) {
-                                is UiState.Loading -> {
-                                    item {
-                                        Box(modifier = Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center){
-                                            CircularProgressIndicator()
-                                        }
-                                    }
+                is UiState.Error -> {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text(text = state.message, color = MaterialTheme.colorScheme.error)
+                    }
+                }
+
+                is UiState.Success -> {
+                    val club = state.data
+                    val isMember = club.memberIds.contains(currentUser?.uid)
+
+                    if (showCreateTournamentDialog) {
+                        CreateTournamentDialog(
+                            createTournamentState = createTournamentState,
+                            onConfirm = { tournamentName, rankingType ->
+                                currentUser?.uid?.let { adminId ->
+                                    clubDetailsViewModel.createTournament(tournamentName, adminId, rankingType)
                                 }
-                                is UiState.Error -> {
-                                    item {
-                                        Text(
-                                            text = postsState.message,
-                                            color = MaterialTheme.colorScheme.error,
-                                            modifier = Modifier.padding(16.dp)
-                                        )
-                                    }
-                                }
-                                is UiState.Success -> {
-                                    if (postsState.data.isEmpty()) {
-                                        item {
-                                            EmptyState(
-                                                icon = Icons.Outlined.Info,
-                                                text = "No posts for this club"
+                            },
+                            onDismiss = { showCreateTournamentDialog = false }
+                        )
+                    }
+
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        contentPadding = PaddingValues(bottom = 16.dp)
+                    ) {
+
+                        // Header
+                        item {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(200.dp)
+                            ) {
+                                SubcomposeAsyncImage(
+                                    model = club.imageUrl,
+                                    contentDescription = club.clubName,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize()
+                                ) {
+                                    when (painter.state) {
+                                        is AsyncImagePainter.State.Error,
+                                        is AsyncImagePainter.State.Empty -> {
+                                            Box(
+                                                Modifier
+                                                    .fillMaxSize()
+                                                    .background(
+                                                        Brush.verticalGradient(
+                                                            colors = listOf(
+                                                                MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
+                                                                MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+                                                            )
+                                                        )
+                                                    )
                                             )
                                         }
-                                    } else {
-                                        items(postsState.data) { post ->
-                                            ClubPostItem(post, authViewModel)
-                                            HorizontalDivider(thickness = 0.5.dp)
+
+                                        else -> SubcomposeAsyncImageContent()
+                                    }
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(
+                                            Brush.verticalGradient(
+                                                colors = listOf(
+                                                    Color.Transparent,
+                                                    Color.Black.copy(alpha = 0.35f)
+                                                )
+                                            )
+                                        )
+                                )
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .align(Alignment.BottomCenter)
+                                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                                        .height(IntrinsicSize.Min),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = club.clubName,
+                                        style = MaterialTheme.typography.headlineMedium.copy(
+                                            color = Color.White,
+                                            fontWeight = FontWeight.Bold
+                                        ),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    Spacer(Modifier.width(8.dp))
+                                    Row(
+                                        modifier = Modifier.fillMaxHeight(),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Button(
+                                            onClick = { selectedSection = if (selectedSection == ClubSection.Members) null else ClubSection.Members },
+                                            shape = RoundedCornerShape(50),
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = if (selectedSection == ClubSection.Members) Color.White else Color.White.copy(alpha = 0.2f),
+                                                contentColor = if (selectedSection == ClubSection.Members) MaterialTheme.colorScheme.primary else Color.White
+                                            ),
+                                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+                                        ) {
+                                            Text("Members (${club.members})")
+                                        }
+                                        Spacer(Modifier.width(8.dp))
+                                        Button(
+                                            onClick = { selectedSection = if (selectedSection == ClubSection.Tournaments) null else ClubSection.Tournaments },
+                                            shape = RoundedCornerShape(50),
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = if (selectedSection == ClubSection.Tournaments) Color.White else Color.White.copy(alpha = 0.2f),
+                                                contentColor = if (selectedSection == ClubSection.Tournaments) MaterialTheme.colorScheme.primary else Color.White
+                                            ),
+                                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+                                        ) {
+                                            Text("Tournaments")
                                         }
                                     }
                                 }
                             }
                         }
-                        ClubSection.Members -> {
-                            // Show members
-                            if ((membersState as? UiState.Success)?.data?.isEmpty() == true) {
-                                item {
-                                    EmptyState(
-                                        icon = Icons.Outlined.Groups,
-                                        text = "No members yet. Be the first to join!"
-                                    )
-                                }
-                            } else {
-                                items((membersState as? UiState.Success)?.data ?: emptyList()) { member ->
-                                    val ranking = ((rankingsState as? UiState.Success)?.data ?: emptyList())
-                                        .find { ranking -> ranking.playerid == member.uid }
-                                    val playerSearchResult = PlayerSearchResult(member, ranking)
-                                    val isAdmin = club.adminId == member.uid
-                                    val isCurrentUser = currentUser?.uid == member.uid
 
-                                    Card(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(horizontal = 16.dp)
-                                            .then(
-                                                if (isCurrentUser) Modifier.border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(14.dp))
-                                                else Modifier
-                                            ),
-                                        shape = RoundedCornerShape(14.dp),
-                                        colors = CardDefaults.cardColors(
-                                            containerColor = MaterialTheme.colorScheme.surface
-                                        )
-                                    ) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(12.dp)
-                                        ) {
-                                            PlayerRow(
-                                                result = playerSearchResult,
-                                                onClick = {}
+                        // Main content area
+                        when (selectedSection) {
+                            null -> {
+                                // Show posts when no section is selected
+                                when (val postsState = clubPostsState) {
+                                    is UiState.Loading -> {
+                                        item {
+                                            Box(
+                                                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                CircularProgressIndicator()
+                                            }
+                                        }
+                                    }
+
+                                    is UiState.Error -> {
+                                        item {
+                                            Text(
+                                                text = postsState.message,
+                                                color = MaterialTheme.colorScheme.error,
+                                                modifier = Modifier.padding(16.dp)
                                             )
+                                        }
+                                    }
 
-                                            if (isAdmin) {
-                                                Spacer(modifier = Modifier.width(8.dp))
-                                                AdminBadge()
+                                    is UiState.Success -> {
+                                        if (postsState.data.isEmpty()) {
+                                            item {
+                                                EmptyState(
+                                                    icon = Icons.Outlined.Info,
+                                                    text = "No posts for this club"
+                                                )
+                                            }
+                                        } else {
+                                            items(postsState.data) { post ->
+                                                ClubPostItem(post, authViewModel)
+                                                HorizontalDivider(thickness = 0.5.dp)
                                             }
                                         }
                                     }
                                 }
                             }
 
-                            // Join Button
-                            item {
-                                Spacer(modifier = Modifier.height(16.dp))
-                                val isPending = club.pendingMemberIds.contains(currentUser?.uid)
-                                Button(
-                                    onClick = {
-                                        currentUser?.uid?.let { userId ->
-                                            clubDetailsViewModel.joinClub(
-                                                userId,
-                                                club,
-                                                currentUser?.name ?: "A player"
-                                            )
-                                        }
-                                    },
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 16.dp),
-                                    enabled = currentUser != null && club.adminId != currentUser?.uid && !isMember && !isPending
-                                ) {
-                                    when {
-                                        isMember -> Text("You are a member")
-                                        isPending -> Text("Request Sent")
-                                        else -> Text("Join Club")
-                                    }
-                                }
-                            }
-                        }
-                        ClubSection.Tournaments -> {
-                            // Show tournaments
-                            item {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(start = 16.dp, end = 16.dp, top = 24.dp, bottom = 8.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        text = "Tournaments",
-                                        style = MaterialTheme.typography.headlineSmall
-                                    )
-                                    if (club.adminId == currentUser?.uid) {
-                                        Button(
-                                            onClick = { showCreateTournamentDialog = true },
-                                            shape = RoundedCornerShape(50),
-                                        ) {
-                                            Text("Create")
-                                        }
-                                    }
-                                }
-                            }
-
-                            // Tournaments List
-                            when (val tournamentUiState = tournamentsState) {
-                                is UiState.Loading -> {
+                            ClubSection.Members -> {
+                                // Show members
+                                if ((membersState as? UiState.Success)?.data?.isEmpty() == true) {
                                     item {
-                                        CircularProgressIndicator(modifier = Modifier.padding(16.dp))
-                                    }
-                                }
-
-                                is UiState.Error -> {
-                                    item {
-                                        Text(
-                                            text = tournamentUiState.message,
-                                            color = MaterialTheme.colorScheme.error,
-                                            modifier = Modifier.padding(16.dp)
+                                        EmptyState(
+                                            icon = Icons.Outlined.Groups,
+                                            text = "No members yet. Be the first to join!"
                                         )
                                     }
-                                }
+                                } else {
+                                    items((membersState as? UiState.Success)?.data ?: emptyList()) { member ->
+                                        val ranking = ((rankingsState as? UiState.Success)?.data ?: emptyList())
+                                            .find { ranking -> ranking.playerid == member.uid }
+                                        val playerSearchResult = PlayerSearchResult(member, ranking)
+                                        val isAdmin = club.adminId == member.uid
+                                        val isCurrentUser = currentUser?.uid == member.uid
 
-                                is UiState.Success -> {
-                                    if (tournamentUiState.data.isEmpty()) {
-                                        item {
-                                            EmptyState(
-                                                icon = Icons.Outlined.EmojiEvents,
-                                                text = "No tournaments yet. Create one to get started!"
+                                        Card(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(horizontal = 16.dp)
+                                                .then(
+                                                    if (isCurrentUser) Modifier.border(
+                                                        2.dp,
+                                                        MaterialTheme.colorScheme.primary,
+                                                        RoundedCornerShape(14.dp)
+                                                    )
+                                                    else Modifier
+                                                ),
+                                            shape = RoundedCornerShape(14.dp),
+                                            colors = CardDefaults.cardColors(
+                                                containerColor = MaterialTheme.colorScheme.surface
                                             )
-                                        }
-                                    } else {
-                                        items(tournamentUiState.data) { tournament ->
-                                            Card(
+                                        ) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.SpaceBetween,
                                                 modifier = Modifier
                                                     .fillMaxWidth()
-                                                    .padding(horizontal = 16.dp, vertical = 4.dp)
-                                                    .clickable { navController.navigate("tournamentscreen/${tournament.tournamentId}") },
-                                                shape = RoundedCornerShape(12.dp),
-                                                colors = CardDefaults.cardColors(
-                                                    containerColor = MaterialTheme.colorScheme.surface
-                                                )
+                                                    .padding(12.dp)
                                             ) {
-                                                Row(
+                                                PlayerRow(
+                                                    result = playerSearchResult,
+                                                    onClick = {}
+                                                )
+
+                                                if (isAdmin) {
+                                                    Spacer(modifier = Modifier.width(8.dp))
+                                                    AdminBadge()
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // Join Button
+                                item {
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                    val isPending = club.pendingMemberIds.contains(currentUser?.uid)
+                                    Button(
+                                        onClick = {
+                                            currentUser?.uid?.let { userId ->
+                                                clubDetailsViewModel.joinClub(
+                                                    userId,
+                                                    club,
+                                                    currentUser?.name ?: "A player"
+                                                )
+                                            }
+                                        },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 16.dp),
+                                        enabled = currentUser != null && club.adminId != currentUser?.uid && !isMember && !isPending
+                                    ) {
+                                        when {
+                                            isMember -> Text("You are a member")
+                                            isPending -> Text("Request Sent")
+                                            else -> Text("Join Club")
+                                        }
+                                    }
+                                }
+                            }
+
+                            ClubSection.Tournaments -> {
+                                // Show tournaments
+                                item {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(start = 16.dp, end = 16.dp, top = 24.dp, bottom = 8.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = "Tournaments",
+                                            style = MaterialTheme.typography.headlineSmall
+                                        )
+                                        if (club.adminId == currentUser?.uid) {
+                                            Button(
+                                                onClick = { showCreateTournamentDialog = true },
+                                                shape = RoundedCornerShape(50),
+                                            ) {
+                                                Text("Create")
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // Tournaments List
+                                when (val tournamentUiState = tournamentsState) {
+                                    is UiState.Loading -> {
+                                        item {
+                                            CircularProgressIndicator(modifier = Modifier.padding(16.dp))
+                                        }
+                                    }
+
+                                    is UiState.Error -> {
+                                        item {
+                                            Text(
+                                                text = tournamentUiState.message,
+                                                color = MaterialTheme.colorScheme.error,
+                                                modifier = Modifier.padding(16.dp)
+                                            )
+                                        }
+                                    }
+
+                                    is UiState.Success -> {
+                                        if (tournamentUiState.data.isEmpty()) {
+                                            item {
+                                                EmptyState(
+                                                    icon = Icons.Outlined.EmojiEvents,
+                                                    text = "No tournaments yet!"
+                                                )
+                                            }
+                                        } else {
+                                            items(tournamentUiState.data) { tournament ->
+                                                Card(
                                                     modifier = Modifier
                                                         .fillMaxWidth()
-                                                        .padding(16.dp),
-                                                    verticalAlignment = Alignment.CenterVertically,
-                                                    horizontalArrangement = Arrangement.SpaceBetween
+                                                        .padding(horizontal = 16.dp, vertical = 4.dp)
+                                                        .clickable { navController.navigate("tournamentscreen/${tournament.tournamentId}") },
+                                                    shape = RoundedCornerShape(12.dp),
+                                                    colors = CardDefaults.cardColors(
+                                                        containerColor = MaterialTheme.colorScheme.surface
+                                                    )
                                                 ) {
-                                                    Text(
-                                                        text = tournament.name,
-                                                        style = MaterialTheme.typography.titleMedium
-                                                    )
-                                                    Text(
-                                                        text = tournament.status,
-                                                        style = MaterialTheme.typography.bodySmall,
-                                                        color = MaterialTheme.colorScheme.primary
-                                                    )
+                                                    Row(
+                                                        modifier = Modifier
+                                                            .fillMaxWidth()
+                                                            .padding(16.dp),
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                        horizontalArrangement = Arrangement.SpaceBetween
+                                                    ) {
+                                                        Text(
+                                                            text = tournament.name,
+                                                            style = MaterialTheme.typography.titleMedium
+                                                        )
+                                                        Text(
+                                                            text = tournament.status,
+                                                            style = MaterialTheme.typography.bodySmall,
+                                                            color = MaterialTheme.colorScheme.primary
+                                                        )
+                                                    }
                                                 }
                                             }
                                         }
@@ -645,11 +670,21 @@ fun CreatePostInput(
 
 @Composable
 fun CreateTournamentDialog(
+    createTournamentState: CreateTournamentState,
     onConfirm: (String, RankingType) -> Unit,
     onDismiss: () -> Unit
 ) {
     var tournamentName by remember { mutableStateOf("") }
     var isRankedGlobally by remember { mutableStateOf(true) }
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val isLoading = createTournamentState is CreateTournamentState.Loading
+
+    LaunchedEffect(createTournamentState) {
+        if (createTournamentState is CreateTournamentState.Success) {
+            keyboardController?.hide()
+            onDismiss()
+        }
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -698,7 +733,8 @@ fun CreateTournamentDialog(
                         onValueChange = { tournamentName = it },
                         label = { Text("Tournament name") },
                         singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !isLoading
                     )
                 }
 
@@ -726,7 +762,8 @@ fun CreateTournamentDialog(
                         icon = Icons.Default.Public,
                         title = "Global Ranking",
                         description = "Results affect the global leaderboard",
-                        onClick = { isRankedGlobally = true }
+                        onClick = { isRankedGlobally = true },
+                        enabled = !isLoading
                     )
 
                     Spacer(modifier = Modifier.height(8.dp))
@@ -736,25 +773,33 @@ fun CreateTournamentDialog(
                         icon = Icons.Default.Groups,
                         title = "Local Ranking",
                         description = "Results are limited to this tournament",
-                        onClick = { isRankedGlobally = false }
+                        onClick = { isRankedGlobally = false },
+                        enabled = !isLoading
                     )
                 }
             }
         },
         confirmButton = {
             Button(
-                enabled = tournamentName.isNotBlank(),
+                enabled = tournamentName.isNotBlank() && !isLoading,
                 onClick = {
                     val rankingType =
                         if (isRankedGlobally) RankingType.GLOBAL else RankingType.LOCAL
                     onConfirm(tournamentName.trim(), rankingType)
                 }
             ) {
-                Text("Create")
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
+                } else {
+                    Text("Create")
+                }
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            TextButton(onClick = onDismiss, enabled = !isLoading) {
                 Text("Cancel")
             }
         }
@@ -767,7 +812,8 @@ private fun RankingOptionCard(
     icon: ImageVector,
     title: String,
     description: String,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    enabled: Boolean = true
 ) {
     val borderColor = if (selected)
         MaterialTheme.colorScheme.primary
@@ -785,7 +831,7 @@ private fun RankingOptionCard(
         border = BorderStroke(1.dp, borderColor),
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .clickable(onClick = onClick, enabled = enabled)
     ) {
         Row(
             modifier = Modifier.padding(16.dp),

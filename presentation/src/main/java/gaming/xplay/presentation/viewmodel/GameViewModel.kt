@@ -37,6 +37,9 @@ class GameViewModel @Inject constructor(
     private val _allChallenges = MutableStateFlow<UiState<List<Challenge>>>(UiState.Loading)
     private val _currentUser = MutableStateFlow<Result<Player?>>(Result.Error(Exception("Not logged in")))
 
+    private val _isRefreshing = MutableStateFlow(false)
+    val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
+
     val incomingChallenges: StateFlow<UiState<List<Challenge>>> = combine(
         _allChallenges,
         _currentUser
@@ -172,6 +175,30 @@ class GameViewModel @Inject constructor(
                     _allChallenges.value = UiState.Error("Failed to fetch user")
                 }
             }
+        }
+    }
+
+    fun refreshOutgoingChallenges() {
+        viewModelScope.launch {
+            _isRefreshing.value = true
+            fetchChallengesForCurrentUser()
+            _isRefreshing.value = false
+        }
+    }
+
+    fun refreshIncomingChallenges() {
+        viewModelScope.launch {
+            _isRefreshing.value = true
+            fetchChallengesForCurrentUser()
+            _isRefreshing.value = false
+        }
+    }
+
+    fun refreshActiveChallenges() {
+        viewModelScope.launch {
+            _isRefreshing.value = true
+            fetchChallengesForCurrentUser()
+            _isRefreshing.value = false
         }
     }
 

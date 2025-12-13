@@ -32,6 +32,8 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -96,21 +98,43 @@ fun ChallengesScreen(
             when (selectedTabIndex) {
                 0 -> {
                     val outgoingState by gameViewModel.outgoingChallenges.collectAsState()
-                    ChallengeList(uiState = outgoingState) { challenge ->
+                    val isRefreshing by gameViewModel.isRefreshing.collectAsState()
+                    RefreshableChallengeList(
+                        uiState = outgoingState,
+                        isRefreshing = isRefreshing,
+                        onRefresh = { gameViewModel.refreshOutgoingChallenges() }
+                    ) { challenge ->
                         OutgoingChallengeCard(challenge, challengeDetailsViewModel)
                     }
                 }
+
                 1 -> {
                     val incomingState by gameViewModel.incomingChallenges.collectAsState()
-                    ChallengeList(uiState = incomingState) { challenge ->
+                    val isRefreshing by gameViewModel.isRefreshing.collectAsState()
+                    RefreshableChallengeList(
+                        uiState = incomingState,
+                        isRefreshing = isRefreshing,
+                        onRefresh = { gameViewModel.refreshIncomingChallenges() }
+                    ) { challenge ->
                         IncomingChallengeCard(challenge, gameViewModel, challengeDetailsViewModel)
                     }
                 }
+
                 2 -> {
                     val activeState by gameViewModel.activeChallenges.collectAsState()
-                    ChallengeList(uiState = activeState) { challenge ->
+                    val isRefreshing by gameViewModel.isRefreshing.collectAsState()
+                    RefreshableChallengeList(
+                        uiState = activeState,
+                        isRefreshing = isRefreshing,
+                        onRefresh = { gameViewModel.refreshActiveChallenges() }
+                    ) { challenge ->
                         if (currentUserId != null) {
-                            ActiveChallengeCard(challenge, currentUserId, gameViewModel, challengeDetailsViewModel)
+                            ActiveChallengeCard(
+                                challenge,
+                                currentUserId,
+                                gameViewModel,
+                                challengeDetailsViewModel
+                            )
                         }
                     }
                 }
@@ -120,30 +144,46 @@ fun ChallengesScreen(
 }
 
 @Composable
-fun <T> ChallengeList(uiState: UiState<List<T>>, itemContent: @Composable (T) -> Unit) {
-    when (uiState) {
-        is UiState.Loading -> {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-            }
-        }
-        is UiState.Success -> {
-            if (uiState.data.isEmpty()) {
+fun <T> RefreshableChallengeList(
+    uiState: UiState<List<T>>,
+    isRefreshing: Boolean,
+    onRefresh: () -> Unit,
+    itemContent: @Composable (T) -> Unit
+) {
+    val pullToRefreshState = rememberPullToRefreshState()
+
+    PullToRefreshBox(
+        isRefreshing = isRefreshing,
+        onRefresh = onRefresh,
+        state = pullToRefreshState,
+        modifier = Modifier.fillMaxSize()
+    ) {
+        when (uiState) {
+            is UiState.Loading -> {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("No challenges here.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                 }
-            } else {
-                LazyColumn(modifier = Modifier.padding(16.dp)) {
-                    items(items = uiState.data) { item ->
-                        itemContent(item)
-                        Spacer(modifier = Modifier.height(10.dp))
+            }
+
+            is UiState.Success -> {
+                if (uiState.data.isEmpty()) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text("No challenges here.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                } else {
+                    LazyColumn(modifier = Modifier.padding(16.dp)) {
+                        items(items = uiState.data) { item ->
+                            itemContent(item)
+                            Spacer(modifier = Modifier.height(10.dp))
+                        }
                     }
                 }
             }
-        }
-        is UiState.Error -> {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text(uiState.message, color = MaterialTheme.colorScheme.error)
+
+            is UiState.Error -> {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(uiState.message, color = MaterialTheme.colorScheme.error)
+                }
             }
         }
     }

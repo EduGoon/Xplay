@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -32,6 +33,7 @@ sealed class JoinClubActionState {
 
 sealed class CreateTournamentState {
     object Idle : CreateTournamentState()
+    object Loading : CreateTournamentState()
     object Success : CreateTournamentState()
     data class Error(val message: String) : CreateTournamentState()
 }
@@ -77,12 +79,26 @@ class ClubDetailsViewModel @Inject constructor(
     private val _createPostState = MutableStateFlow<CreatePostState>(CreatePostState.Idle)
     val createPostState: StateFlow<CreatePostState> = _createPostState
 
+    private val _isRefreshing = MutableStateFlow(false)
+    val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
+
     init {
         fetchClubDetails()
     }
 
-    private fun fetchClubDetails() {
+    fun refreshClubDetails() {
         viewModelScope.launch {
+            _isRefreshing.value = true
+            fetchClubDetails(isRefresh = true)
+            _isRefreshing.value = false
+        }
+    }
+
+    private fun fetchClubDetails(isRefresh: Boolean = false) {
+        viewModelScope.launch {
+            if (!isRefresh) {
+                _club.value = UiState.Loading
+            }
             when (val result = clubRepository.getClub(clubId)) {
                 is Result.Success -> {
                     val clubData = result.data
@@ -95,6 +111,7 @@ class ClubDetailsViewModel @Inject constructor(
                         _club.value = UiState.Error("Club not found")
                     }
                 }
+
                 is Result.Error -> _club.value = UiState.Error(result.exception.message ?: "An error occurred")
             }
         }
@@ -118,6 +135,7 @@ class ClubDetailsViewModel @Inject constructor(
                     _createPostState.value = CreatePostState.Success
                     fetchClubPosts(clubId)
                 }
+
                 is Result.Error -> _createPostState.value = CreatePostState.Error("Failed to create post")
             }
         }
@@ -134,6 +152,7 @@ class ClubDetailsViewModel @Inject constructor(
                     _members.value = UiState.Success(result.data)
                     fetchMemberRankings(result.data)
                 }
+
                 is Result.Error -> _members.value = UiState.Error(result.exception.message ?: "An error occurred")
             }
         }
@@ -165,12 +184,14 @@ class ClubDetailsViewModel @Inject constructor(
 
     fun createTournament(tournamentName: String, adminId: String, rankingType: RankingType) {
         viewModelScope.launch {
+            _createTournamentState.value = CreateTournamentState.Loading
             val request = CreateTournamentRequest(clubId, adminId, tournamentName, rankingType)
             when (val result = clubRepository.createTournament(request)) {
                 is Result.Success -> {
                     _createTournamentState.value = CreateTournamentState.Success
-                    fetchTournaments(clubId)
+                    fetchClubDetails()
                 }
+
                 is Result.Error -> _createTournamentState.value = CreateTournamentState.Error("Failed to create tournament")
             }
         }
@@ -185,6 +206,7 @@ class ClubDetailsViewModel @Inject constructor(
                     sendJoinClubRequestNotification(club.adminId, club.clubName, playerName)
                     fetchClubDetails()
                 }
+
                 is Result.Error -> {
                     _joinClubActionState.emit(JoinClubActionState.Error(result.exception.message ?: "An unknown error occurred"))
                 }

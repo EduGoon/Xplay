@@ -112,37 +112,31 @@ fun NotificationsScreen(
                         )
                     } else {
                         LazyColumn(
-                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp),
                             modifier = Modifier.fillMaxSize()
-                        ) {
-                            clubs.forEach { club ->
+                        ) {                            clubs.forEach { club ->
                                 val members = pendingMembers[club.clubId] ?: emptyList()
                                 if (members.isNotEmpty()) {
-                                    item {
-                                        Text(
-                                            text = club.clubName,
-                                            style = MaterialTheme.typography.titleMedium,
-                                            fontWeight = FontWeight.SemiBold,
-                                            modifier = Modifier.padding(start = 8.dp, top = 8.dp)
-                                        )
-                                    }
-
                                     items(members) { member ->
                                         Card(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(horizontal = 8.dp),
+                                            modifier = Modifier.fillMaxWidth(),
                                             shape = RoundedCornerShape(12.dp),
                                             elevation = CardDefaults.cardElevation(4.dp)
                                         ) {
-                                            Row(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .padding(12.dp),
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.SpaceBetween
+                                            Column(
+                                                modifier = Modifier.padding(12.dp)
                                             ) {
-                                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Text(
+                                                    text = club.clubName,
+                                                    style = MaterialTheme.typography.titleMedium,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    modifier = Modifier.padding(bottom = 8.dp)
+                                                )
+
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    modifier = Modifier.fillMaxWidth()
+                                                ) {
                                                     Icon(
                                                         imageVector = Icons.Outlined.Person,
                                                         contentDescription = null,
@@ -159,14 +153,19 @@ fun NotificationsScreen(
                                                             )
                                                         }
                                                         Text(
-                                                            text = "Wants to join ${club.clubName}",
+                                                            text = "Wants to join your club",
                                                             style = MaterialTheme.typography.bodySmall,
                                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                                         )
                                                     }
                                                 }
 
-                                                Row {
+                                                Spacer(modifier = Modifier.height(12.dp))
+
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.End
+                                                ) {
                                                     val isLoading = joinRequestState is UiState.Loading
                                                     Button(
                                                         onClick = {

@@ -6,12 +6,12 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Leaderboard
 import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.SportsEsports
 import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -27,11 +27,9 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.navArgument
@@ -39,12 +37,13 @@ import com.google.accompanist.navigation.animation.AnimatedNavHost
 import com.google.accompanist.navigation.animation.composable
 import com.google.accompanist.navigation.animation.rememberAnimatedNavController
 import gaming.xplay.presentation.viewmodel.AuthViewModel
+import gaming.xplay.presentation.viewmodel.ClubViewModel
 import gaming.xplay.presentation.viewmodel.GameViewModel
 import gaming.xplay.presentation.viewmodel.NavigationState
 
 @OptIn(ExperimentalAnimationApi::class)
 @Composable
-fun MainApp(authViewModel: AuthViewModel = hiltViewModel(), gameViewModel: GameViewModel = hiltViewModel(), webClientId: String) {
+fun MainApp(authViewModel: AuthViewModel = hiltViewModel(), gameViewModel: GameViewModel = hiltViewModel(), clubViewModel: ClubViewModel = hiltViewModel(), webClientId: String) {
     val navController = rememberAnimatedNavController()
     val navigationState by authViewModel.navigationState.collectAsState()
     val errorState by authViewModel.errorState.collectAsState()
@@ -77,7 +76,7 @@ fun MainApp(authViewModel: AuthViewModel = hiltViewModel(), gameViewModel: GameV
     // Determine if the bottom bar should be shown
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
-    val bottomBarRoutes = setOf("home", "challenges", "leaderboard")
+    val bottomBarRoutes = setOf("home", "challenges", "leaderboard", "clubs")
     val showBottomBar = currentDestination?.route in bottomBarRoutes
 
     Scaffold(
@@ -92,7 +91,15 @@ fun MainApp(authViewModel: AuthViewModel = hiltViewModel(), gameViewModel: GameV
                         icon = { Icon(Icons.Filled.Home, contentDescription = "Home") },
                         label = { Text("Home") },
                         selected = currentDestination?.hierarchy?.any { it.route == "home" } == true,
-                        onClick = { navController.navigate("home") { launchSingleTop = true } },
+                        onClick = {
+                            navController.navigate("home") {
+                                popUpTo(navController.graph.findStartDestination().id) {
+                                    saveState = true
+                                }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        },
                         colors = NavigationBarItemDefaults.colors(
                             selectedIconColor = MaterialTheme.colorScheme.primary,
                             selectedTextColor = MaterialTheme.colorScheme.primary,
@@ -106,7 +113,37 @@ fun MainApp(authViewModel: AuthViewModel = hiltViewModel(), gameViewModel: GameV
                         icon = { Icon(Icons.Filled.List, contentDescription = "Challenges") },
                         label = { Text("Challenges") },
                         selected = currentDestination?.hierarchy?.any { it.route == "challenges" } == true,
-                        onClick = { navController.navigate("challenges") { launchSingleTop = true } },
+                        onClick = {
+                            navController.navigate("challenges") {
+                                popUpTo(navController.graph.findStartDestination().id) {
+                                    saveState = true
+                                }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = MaterialTheme.colorScheme.primary,
+                            selectedTextColor = MaterialTheme.colorScheme.primary,
+                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            indicatorColor = MaterialTheme.colorScheme.surface
+                        )
+                    )
+                    // Clubs Tab
+                    NavigationBarItem(
+                        icon = { Icon(Icons.Filled.SportsEsports, contentDescription = "Clubs") },
+                        label = { Text("Clubs") },
+                        selected = currentDestination?.hierarchy?.any { it.route == "clubs" } == true,
+                        onClick = {
+                            navController.navigate("clubs") {
+                                popUpTo(navController.graph.findStartDestination().id) {
+                                    saveState = true
+                                }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        },
                         colors = NavigationBarItemDefaults.colors(
                             selectedIconColor = MaterialTheme.colorScheme.primary,
                             selectedTextColor = MaterialTheme.colorScheme.primary,
@@ -120,7 +157,15 @@ fun MainApp(authViewModel: AuthViewModel = hiltViewModel(), gameViewModel: GameV
                         icon = { Icon(Icons.Filled.Leaderboard, contentDescription = "Leaderboard") },
                         label = { Text("Leaderboard") },
                         selected = currentDestination?.hierarchy?.any { it.route == "leaderboard" } == true,
-                        onClick = { navController.navigate("leaderboard") { launchSingleTop = true } },
+                        onClick = {
+                            navController.navigate("leaderboard") {
+                                popUpTo(navController.graph.findStartDestination().id) {
+                                    saveState = true
+                                }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        },
                         colors = NavigationBarItemDefaults.colors(
                             selectedIconColor = MaterialTheme.colorScheme.primary,
                             selectedTextColor = MaterialTheme.colorScheme.primary,
@@ -145,6 +190,7 @@ fun MainApp(authViewModel: AuthViewModel = hiltViewModel(), gameViewModel: GameV
             composable("onboardingScreen") { OnboardingScreen(authViewModel) }
             composable("home") { HomePage(navController, authViewModel) }
             composable("challenges") { ChallengesScreen(gameViewModel, authViewModel) }
+            composable("clubs") { ClubsScreen(clubViewModel, authViewModel, navController) }
             composable("leaderboard") { LeaderboardScreen(navController, authViewModel, gameViewModel) }
             composable("notifications") { NotificationsScreen() }
             composable("myprofile") { MyProfileScreen(authViewModel) }

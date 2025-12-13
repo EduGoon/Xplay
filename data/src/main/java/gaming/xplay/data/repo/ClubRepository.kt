@@ -43,8 +43,10 @@ class ClubRepository @Inject constructor(
                 it.update(playerRef, "clubs", FieldValue.arrayUnion(newClubRef.id))
             }.await()
 
+            Log.d("ClubRepository", "Club created successfully with adminId: ${request.adminId}")
             Result.Success(newClub)
         } catch (e: Exception) {
+            Log.e("ClubRepository", "Error creating club", e)
             Result.Error(e)
         }
     }
