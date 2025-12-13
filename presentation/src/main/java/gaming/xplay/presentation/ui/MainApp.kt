@@ -188,7 +188,7 @@ fun MainApp(authViewModel: AuthViewModel = hiltViewModel(), gameViewModel: GameV
             composable("splash") { SplashScreen() }
             composable("login") { LoginScreen(authViewModel, webClientId) }
             composable("onboardingScreen") { OnboardingScreen(authViewModel) }
-            composable("home") { HomePage(navController, authViewModel) }
+            composable("home") { HomePage(navController) }
             composable("challenges") { ChallengesScreen(gameViewModel, authViewModel) }
             composable("clubs") { ClubsScreen(clubViewModel, authViewModel, navController) }
             composable("leaderboard") { LeaderboardScreen(navController, authViewModel, gameViewModel) }

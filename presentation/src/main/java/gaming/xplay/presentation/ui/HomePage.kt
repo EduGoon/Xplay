@@ -44,7 +44,7 @@ import gaming.xplay.presentation.viewmodel.ClubViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomePage(navController: NavController, authViewModel: AuthViewModel, clubViewModel: ClubViewModel = hiltViewModel()) {
+fun HomePage(navController: NavController) {
     Scaffold(
         topBar = {
             TopAppBar(
