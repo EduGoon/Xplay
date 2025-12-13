@@ -41,6 +41,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -61,7 +62,9 @@ import coil.compose.SubcomposeAsyncImage
 import gaming.xplay.data.model.Club
 import gaming.xplay.presentation.ui.State.UiState
 import gaming.xplay.presentation.viewmodel.AuthViewModel
+import gaming.xplay.presentation.viewmodel.ClubNavigationState
 import gaming.xplay.presentation.viewmodel.ClubViewModel
+import kotlinx.coroutines.flow.collectLatest
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -72,6 +75,14 @@ fun ClubsScreen(clubViewModel: ClubViewModel, authViewModel: AuthViewModel, navC
     val currentUser by authViewModel.currentUser.collectAsState()
     val isRefreshing by clubViewModel.isRefreshing.collectAsState()
     val pullToRefreshState = rememberPullToRefreshState()
+    val navigationState by clubViewModel.navigationState.collectAsState()
+
+    LaunchedEffect(navigationState) {
+        (navigationState as? ClubNavigationState.ToClubDetails)?.let {
+            navController.navigate("clubdetails/${it.clubId}?isNewAdmin=${it.isNewAdmin}")
+            clubViewModel.onNavigationHandled()
+        }
+    }
 
     Column(modifier = Modifier.padding(16.dp)) {
         Row(

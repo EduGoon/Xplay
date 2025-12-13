@@ -25,6 +25,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Send
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Public
@@ -43,6 +44,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -60,6 +62,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -75,7 +78,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
-import coil.compose.AsyncImagePainter
+import coil.compose.AsyncImagePainter.State
 import coil.compose.SubcomposeAsyncImage
 import coil.compose.SubcomposeAsyncImageContent
 import gaming.xplay.data.model.ClubPost
@@ -119,6 +122,9 @@ fun ClubDetailsScreen(
 
     val isRefreshing by clubDetailsViewModel.isRefreshing.collectAsState()
     val pullToRefreshState = rememberPullToRefreshState()
+    val isNewAdmin = navController.currentBackStackEntry?.arguments?.getBoolean("isNewAdmin") ?: false
+    var showNewAdminMessage by rememberSaveable { mutableStateOf(isNewAdmin) }
+
 
     LaunchedEffect(Unit) {
         clubDetailsViewModel.joinClubActionState.collectLatest { state ->
@@ -247,8 +253,8 @@ fun ClubDetailsScreen(
                                     modifier = Modifier.fillMaxSize()
                                 ) {
                                     when (painter.state) {
-                                        is AsyncImagePainter.State.Error,
-                                        is AsyncImagePainter.State.Empty -> {
+                                        is State.Error,
+                                        is State.Empty -> {
                                             Box(
                                                 Modifier
                                                     .fillMaxSize()
@@ -330,9 +336,14 @@ fun ClubDetailsScreen(
                             }
                         }
 
-                        // Main content area
+                        // Main content area for posts
                         when (selectedSection) {
                             null -> {
+                                if (showNewAdminMessage) {
+                                    item {
+                                        NewAdminMessage { showNewAdminMessage = false }
+                                    }
+                                }
                                 // Show posts when no section is selected
                                 when (val postsState = clubPostsState) {
                                     is UiState.Loading -> {
@@ -546,6 +557,38 @@ fun ClubDetailsScreen(
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+fun NewAdminMessage(onDismiss: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.Top
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Welcome, Club Admin!", style = MaterialTheme.typography.titleMedium)
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "You can now manage your club. Here are a few tips to get you started:",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Spacer(Modifier.height(8.dp))
+                Text("• Go to the 'Tournaments' tab to create new tournaments.")
+                Text("• As an admin, you can start tournaments and submit match results.")
+                Text("• You can also manage your club members.")
+            }
+            IconButton(onClick = onDismiss) {
+                Icon(Icons.Default.Close, contentDescription = "Dismiss")
             }
         }
     }

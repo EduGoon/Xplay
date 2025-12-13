@@ -179,6 +179,15 @@ class ClubRepository @Inject constructor(
         }
     }
 
+    suspend fun getPlayer(playerId: String): Result<Player?> {
+        return try {
+            val player = firestore.collection("players").document(playerId).get().await().toObject(Player::class.java)
+            Result.Success(player)
+        } catch (e: Exception) {
+            Result.Error(e)
+        }
+    }
+
     suspend fun createClubPost(clubId: String, authorId: String, authorName: String?, text: String): Result<Unit> {
         return try {
             val newPostRef = firestore.collection("clubs").document(clubId).collection("posts").document()

@@ -33,12 +33,12 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import gaming.xplay.data.model.Player
 import gaming.xplay.presentation.ui.State.UiState
 import gaming.xplay.presentation.viewmodel.NotificationViewModel
 import kotlinx.coroutines.launch
@@ -49,15 +49,25 @@ fun NotificationsScreen(
 ) {
     val adminClubsState by notificationViewModel.adminClubs.collectAsState()
     val pendingMembersState by notificationViewModel.pendingMembers.collectAsState()
-    val joinRequestState by notificationViewModel.joinRequestState.collectAsState()
+    val joinRequestStates by notificationViewModel.joinRequestState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
 
-    LaunchedEffect(joinRequestState) {
-        when (val state = joinRequestState) {
-            is UiState.Success -> scope.launch { snackbarHostState.showSnackbar("Operation successful") }
-            is UiState.Error -> scope.launch { snackbarHostState.showSnackbar(state.message) }
-            else -> {}
+    joinRequestStates.forEach {
+        val (requestId, state) = it
+        val (clubId, playerId) = requestId.split("-")
+
+        LaunchedEffect(state) {
+            when (state) {
+                is UiState.Success -> {
+                    snackbarHostState.showSnackbar("Operation successful")
+                    notificationViewModel.clearJoinRequestStatus(clubId, playerId)
+                }
+                is UiState.Error -> {
+                    snackbarHostState.showSnackbar(state.message)
+                    notificationViewModel.clearJoinRequestStatus(clubId, playerId)
+                }
+                else -> {}
+            }
         }
     }
 
@@ -118,94 +128,101 @@ fun NotificationsScreen(
                                 val members = pendingMembers[club.clubId] ?: emptyList()
                                 if (members.isNotEmpty()) {
                                     items(members) { member ->
-                                        Card(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            shape = RoundedCornerShape(12.dp),
-                                            elevation = CardDefaults.cardElevation(4.dp)
-                                        ) {
-                                            Column(
-                                                modifier = Modifier.padding(12.dp)
-                                            ) {
-                                                Text(
-                                                    text = club.clubName,
-                                                    style = MaterialTheme.typography.titleMedium,
-                                                    fontWeight = FontWeight.SemiBold,
-                                                    modifier = Modifier.padding(bottom = 8.dp)
-                                                )
-
-                                                Row(
-                                                    verticalAlignment = Alignment.CenterVertically,
-                                                    modifier = Modifier.fillMaxWidth()
-                                                ) {
-                                                    Icon(
-                                                        imageVector = Icons.Outlined.Person,
-                                                        contentDescription = null,
-                                                        modifier = Modifier.size(28.dp),
-                                                        tint = MaterialTheme.colorScheme.primary
-                                                    )
-                                                    Spacer(modifier = Modifier.width(8.dp))
-                                                    Column {
-                                                        member.name?.let {
-                                                            Text(
-                                                                text = it,
-                                                                fontWeight = FontWeight.Medium,
-                                                                style = MaterialTheme.typography.bodyLarge
-                                                            )
-                                                        }
-                                                        Text(
-                                                            text = "Wants to join your club",
-                                                            style = MaterialTheme.typography.bodySmall,
-                                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                                        )
-                                                    }
-                                                }
-
-                                                Spacer(modifier = Modifier.height(12.dp))
-
-                                                Row(
-                                                    modifier = Modifier.fillMaxWidth(),
-                                                    horizontalArrangement = Arrangement.End
-                                                ) {
-                                                    val isLoading = joinRequestState is UiState.Loading
-                                                    Button(
-                                                        onClick = {
-                                                            notificationViewModel.declineJoinRequest(
-                                                                club.clubId,
-                                                                member.uid,
-                                                                club.clubName
-                                                            )
-                                                        },
-                                                        enabled = !isLoading,
-                                                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                                                    ) {
-                                                        Text("Decline", color = MaterialTheme.colorScheme.onError)
-                                                    }
-                                                    Spacer(modifier = Modifier.width(8.dp))
-                                                    Button(
-                                                        onClick = {
-                                                            notificationViewModel.approveJoinRequest(
-                                                                club.clubId,
-                                                                member.uid,
-                                                                club.clubName
-                                                            )
-                                                        },
-                                                        enabled = !isLoading
-                                                    ) {
-                                                        Text("Accept")
-                                                    }
-                                                }
-                                            }
-                                        }
+                                        JoinRequestCard(
+                                            clubName = club.clubName,
+                                            member = member,
+                                            requestState = joinRequestStates["${club.clubId}-${member.uid}"],
+                                            onAccept = { notificationViewModel.approveJoinRequest(club.clubId, member.uid, club.clubName) },
+                                            onDecline = { notificationViewModel.declineJoinRequest(club.clubId, member.uid, club.clubName) }
+                                        )
                                     }
                                 }
                             }
                         }
+                    }
+                }
+            }
+        }
+    }
+}
 
-                        if (joinRequestState is UiState.Loading) {
-                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                CircularProgressIndicator()
-                            }
-                        }
+@Composable
+fun JoinRequestCard(
+    clubName: String,
+    member: Player,
+    requestState: UiState<Unit>?,
+    onAccept: () -> Unit,
+    onDecline: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        elevation = CardDefaults.cardElevation(4.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp)
+        ) {
+            Text(
+                text = clubName,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Person,
+                    contentDescription = null,
+                    modifier = Modifier.size(28.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Column {
+                    member.name?.let {
+                        Text(
+                            text = it,
+                            fontWeight = FontWeight.Medium,
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                    }
+                    Text(
+                        text = "Wants to join your club",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
+            ) {
+                val isLoading = requestState is UiState.Loading
+                Button(
+                    onClick = onDecline,
+                    enabled = !isLoading,
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) {
+                    if (isLoading) {
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onError)
+                    } else {
+                        Text("Decline", color = MaterialTheme.colorScheme.onError)
+                    }
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Button(
+                    onClick = onAccept,
+                    enabled = !isLoading
+                ) {
+                    if (isLoading) {
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                    } else {
+                        Text("Accept")
                     }
                 }
             }

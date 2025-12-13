@@ -261,34 +261,6 @@ fun StatCard(label: String, value: Any, color: Color, modifier: Modifier = Modif
 }
 
 @Composable
-fun EmptyState(
-    modifier: Modifier = Modifier,
-    icon: ImageVector,
-    text: String
-) {
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(vertical = 48.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            modifier = Modifier.size(80.dp),
-            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            text = text,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-        )
-    }
-}
-
-@Composable
 fun MatchHistory(
     gameViewModel: GameViewModel,
     authViewModel: AuthViewModel,

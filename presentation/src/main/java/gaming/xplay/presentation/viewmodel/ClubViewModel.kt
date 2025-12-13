@@ -16,6 +16,12 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+
+sealed class ClubNavigationState {
+    data object Idle : ClubNavigationState()
+    data class ToClubDetails(val clubId: String, val isNewAdmin: Boolean) : ClubNavigationState()
+}
+
 @HiltViewModel
 class ClubViewModel @Inject constructor(
     private val clubRepository: ClubRepository,
@@ -27,6 +33,9 @@ class ClubViewModel @Inject constructor(
 
     private val _createClubState = MutableStateFlow<UiState<Club>>(UiState.Loading)
     val createClubState: StateFlow<UiState<Club>> = _createClubState
+
+    private val _navigationState = MutableStateFlow<ClubNavigationState>(ClubNavigationState.Idle)
+    val navigationState: StateFlow<ClubNavigationState> = _navigationState.asStateFlow()
 
     private val _isRefreshing = MutableStateFlow(false)
     val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
@@ -71,11 +80,24 @@ class ClubViewModel @Inject constructor(
             val request = CreateClubRequest(clubName, adminId, imageUrl)
             when (val result = clubRepository.createClub(request)) {
                 is Result.Success -> {
-                    _createClubState.value = UiState.Success(result.data)
+                    val newClub = result.data
+                    _createClubState.value = UiState.Success(newClub)
                     fetchClubs()
+
+                    val userResult = clubRepository.getPlayer(adminId)
+                    val isNewAdmin = if (userResult is Result.Success) {
+                        !userResult.data?.isClubOwner!!
+                    } else {
+                        false
+                    }
+                    _navigationState.value = ClubNavigationState.ToClubDetails(newClub.clubId, isNewAdmin)
                 }
                 is Result.Error -> _createClubState.value = UiState.Error("Failed to create club")
             }
         }
+    }
+
+    fun onNavigationHandled() {
+        _navigationState.value = ClubNavigationState.Idle
     }
 }

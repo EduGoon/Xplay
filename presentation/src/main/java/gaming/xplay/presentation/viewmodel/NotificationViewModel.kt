@@ -12,6 +12,7 @@ import gaming.xplay.data.repo.NotificationRepository
 import gaming.xplay.presentation.ui.State.UiState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -28,8 +29,8 @@ class NotificationViewModel @Inject constructor(
     private val _pendingMembers = MutableStateFlow<UiState<Map<String, List<Player>>>>(UiState.Loading)
     val pendingMembers: StateFlow<UiState<Map<String, List<Player>>>> = _pendingMembers
 
-    private val _joinRequestState = MutableStateFlow<UiState<Unit>?>(null)
-    val joinRequestState: StateFlow<UiState<Unit>?> = _joinRequestState
+    private val _joinRequestState = MutableStateFlow<Map<String, UiState<Unit>>>(emptyMap())
+    val joinRequestState: StateFlow<Map<String, UiState<Unit>>> = _joinRequestState
 
     init {
         fetchAdminClubs()
@@ -37,6 +38,7 @@ class NotificationViewModel @Inject constructor(
 
     fun fetchAdminClubs() {
         viewModelScope.launch {
+            _adminClubs.value = UiState.Loading
             when (val result = authRepository.fetchCurrentUserProfile()) {
                 is Result.Success -> {
                     val currentUser = result.data
@@ -60,12 +62,16 @@ class NotificationViewModel @Inject constructor(
 
     private fun fetchPendingMembersForClubs(clubs: List<Club>) {
         viewModelScope.launch {
+            _pendingMembers.value = UiState.Loading
             val pendingMembersMap = mutableMapOf<String, List<Player>>()
-            for (club in clubs) {
+            clubs.forEach { club ->
                 if (club.pendingMemberIds.isNotEmpty()) {
                     when (val result = clubRepository.getClubMembers(club.pendingMemberIds)) {
                         is Result.Success -> pendingMembersMap[club.clubId] = result.data
-                        is Result.Error -> { /* Handle error */ }
+                        is Result.Error -> {
+                            _pendingMembers.value = UiState.Error(result.exception.message ?: "Could not load pending members")
+                            return@launch
+                        }
                     }
                 }
             }
@@ -73,45 +79,51 @@ class NotificationViewModel @Inject constructor(
         }
     }
     fun approveJoinRequest(clubId: String, playerId: String, clubName: String) {
-
+        val requestId = "$clubId-$playerId"
         viewModelScope.launch {
-            _joinRequestState.value = UiState.Loading
+            _joinRequestState.update { it + (requestId to UiState.Loading) }
             try {
                 val request = gaming.xplay.data.model.JoinClubRequest(clubId, playerId)
                 when (val result = clubRepository.approveJoinRequest(request)) {
                     is Result.Success -> {
                         sendApprovalNotification(playerId, clubName)
                         fetchAdminClubs() // Refresh the list
-                        _joinRequestState.value = UiState.Success(Unit)
+                        _joinRequestState.update { it + (requestId to UiState.Success(Unit)) }
                     }
 
-                    is Result.Error -> _joinRequestState.value =
-                        UiState.Error(result.exception.message ?: "An error occurred")
+                    is Result.Error -> _joinRequestState.update { it + (requestId to UiState.Error(result.exception.message ?: "An error occurred")) }
                 }
             } catch (e: Exception) {
-                _joinRequestState.value = UiState.Error(e.message ?: "An error occurred")
+                _joinRequestState.update { it + (requestId to UiState.Error(e.message ?: "An error occurred")) }
             }
         }
     }
 
     fun declineJoinRequest(clubId: String, playerId: String, clubName: String) {
+        val requestId = "$clubId-$playerId"
         viewModelScope.launch {
-            _joinRequestState.value = UiState.Loading
+            _joinRequestState.update { it + (requestId to UiState.Loading) }
             try {
                 val request = gaming.xplay.data.model.JoinClubRequest(clubId, playerId)
                 when (val result = clubRepository.declineJoinRequest(request)) {
                     is Result.Success -> {
                         // sendRejectionNotification(playerId, clubName)
                         fetchAdminClubs() // Refresh the list
-                        _joinRequestState.value = UiState.Success(Unit)
+                        _joinRequestState.update { it + (requestId to UiState.Success(Unit)) }
                     }
 
-                    is Result.Error -> _joinRequestState.value =
-                        UiState.Error(result.exception.message ?: "An error occurred")
+                    is Result.Error -> _joinRequestState.update { it + (requestId to UiState.Error(result.exception.message ?: "An error occurred")) }
                 }
             } catch (e: Exception) {
-                _joinRequestState.value = UiState.Error(e.message ?: "An error occurred")
+                _joinRequestState.update { it + (requestId to UiState.Error(e.message ?: "An error occurred")) }
             }
+        }
+    }
+    
+    fun clearJoinRequestStatus(clubId: String, playerId: String) {
+        val requestId = "$clubId-$playerId"
+        viewModelScope.launch {
+            _joinRequestState.update { it - requestId }
         }
     }
 
@@ -121,7 +133,7 @@ class NotificationViewModel @Inject constructor(
             notificationRepository.sendNotification(
                 gaming.xplay.data.model.NotificationRequest(
                     targetUserId = playerId,
-                    title = "You're in!",
+                    title = "You'''re in!",
                     body = "Your request to join $clubName has been approved."
                 )
             )
