@@ -127,10 +127,10 @@ class ClubDetailsViewModel @Inject constructor(
         }
     }
 
-    fun createClubPost(text: String, authorId: String, authorName: String?) {
+    fun createClubPost(text: String, authorId: String) {
         viewModelScope.launch {
             _createPostState.value = CreatePostState.Loading
-            when (val result = clubRepository.createClubPost(clubId, authorId, authorName, text)) {
+            when (val result = clubRepository.createClubPost(clubId, authorId, text)) {
                 is Result.Success -> {
                     _createPostState.value = CreatePostState.Success
                     fetchClubPosts(clubId)

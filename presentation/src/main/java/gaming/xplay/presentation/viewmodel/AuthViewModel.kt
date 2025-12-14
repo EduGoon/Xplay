@@ -1,5 +1,6 @@
 package gaming.xplay.presentation.viewmodel
 
+import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -22,6 +23,13 @@ sealed class NavigationState {
     object ToLogin : NavigationState()
     object ToOnboarding : NavigationState()
     object ToHome : NavigationState()
+}
+
+sealed class UpdateProfileState {
+    object Idle : UpdateProfileState()
+    object Loading : UpdateProfileState()
+    data class Success(val player: Player) : UpdateProfileState()
+    data class Error(val message: String) : UpdateProfileState()
 }
 
 @HiltViewModel
@@ -48,6 +56,9 @@ class AuthViewModel @Inject constructor(
     private val _currentUser = MutableStateFlow<Player?>(null)
     val currentUser: StateFlow<Player?> = _currentUser.asStateFlow()
 
+    private val _updateProfileState = MutableStateFlow<UpdateProfileState>(UpdateProfileState.Idle)
+    val updateProfileState: StateFlow<UpdateProfileState> = _updateProfileState.asStateFlow()
+
     init {
         checkCurrentUser()
     }
@@ -69,6 +80,10 @@ class AuthViewModel @Inject constructor(
                 }
             }
         }
+    }
+
+    fun resetUpdateProfileState() {
+        _updateProfileState.value = UpdateProfileState.Idle
     }
 
     fun refreshCurrentUser() {
@@ -95,6 +110,26 @@ class AuthViewModel @Inject constructor(
                 }
             }
             _isLoading.value = false
+        }
+    }
+
+    fun updateUserProfile(name: String, profilePictureUri: Uri?) {
+        viewModelScope.launch {
+            _updateProfileState.value = UpdateProfileState.Loading
+            val uid = checkCurrentUserUid()
+            if (uid != null) {
+                when (val result = authRepository.updateUserProfile(uid, name, profilePictureUri)) {
+                    is Result.Success -> {
+                        _updateProfileState.value = UpdateProfileState.Success(result.data)
+                        refreshCurrentUser()
+                    }
+                    is Result.Error -> {
+                        _updateProfileState.value = UpdateProfileState.Error("Failed to update profile.")
+                    }
+                }
+            } else {
+                _updateProfileState.value = UpdateProfileState.Error("User not logged in.")
+            }
         }
     }
 
@@ -154,7 +189,7 @@ class AuthViewModel @Inject constructor(
         }
     }
 
-    fun checkCurrentUserUid() : String? {
+    fun checkCurrentUserUid(): String? {
         return authRepository.checkCurrentUserUid()
     }
 

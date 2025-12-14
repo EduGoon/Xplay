@@ -1,13 +1,16 @@
 package gaming.xplay.data.repo
 
+import android.net.Uri
 import android.util.Log
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.storage.FirebaseStorage
 import gaming.xplay.data.model.Player
 import gaming.xplay.data.model.Result
 import gaming.xplay.data.network.ApiService
 import kotlinx.coroutines.tasks.await
+import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -15,7 +18,8 @@ import javax.inject.Singleton
 class AuthRepository @Inject constructor(
     private val auth: FirebaseAuth,
     private val firestore: FirebaseFirestore,
-    private val apiService: ApiService
+    private val apiService: ApiService,
+    private val storage: FirebaseStorage
 ) {
 
     suspend fun signInWithGoogle(googleIdToken: String): Result<Player> {
@@ -71,6 +75,36 @@ class AuthRepository @Inject constructor(
             Result.Error(e)
         }
     }
+
+    suspend fun updateUserProfile(uid: String, name: String, profilePictureUri: Uri?): Result<Player> {
+        return try {
+            val user = firestore.collection("players").document(uid).get().await().toObject(Player::class.java)
+                ?: throw Exception("Player not found")
+
+            var newProfilePictureUrl = user.profilePictureUrl
+            if (profilePictureUri != null) {
+                newProfilePictureUrl = uploadImage(profilePictureUri)
+            }
+
+            val updatedPlayer = user.copy(
+                name = name,
+                profilePictureUrl = newProfilePictureUrl
+            )
+
+            firestore.collection("players").document(uid).set(updatedPlayer).await()
+
+            Result.Success(updatedPlayer)
+        } catch (e: Exception) {
+            Result.Error(e)
+        }
+    }
+
+    private suspend fun uploadImage(imageUri: Uri): String {
+        val storageRef = storage.reference.child("profile_pictures/${UUID.randomUUID()}")
+        val uploadTask = storageRef.putFile(imageUri).await()
+        return uploadTask.storage.downloadUrl.await().toString()
+    }
+
 
     suspend fun updateFCMToken(token: String) {
         val userId = auth.currentUser?.uid ?: return

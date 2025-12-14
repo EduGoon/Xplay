@@ -188,7 +188,7 @@ fun ClubDetailsScreen(
                     ) {
                         if (postText.isNotBlank()) {
                             currentUser?.let { user ->
-                                clubDetailsViewModel.createClubPost(postText, user.uid, user.name)
+                                clubDetailsViewModel.createClubPost(postText, user.uid)
                             }
                         }
                     }
@@ -623,7 +623,7 @@ fun ClubPostItem(post: ClubPost, authViewModel: AuthViewModel) {
         Column {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = post.authorName ?: "Unknown",
+                    text = author?.name ?: "Unknown",
                     fontWeight = FontWeight.Bold,
                     style = MaterialTheme.typography.bodyLarge
                 )

@@ -188,14 +188,14 @@ class ClubRepository @Inject constructor(
         }
     }
 
-    suspend fun createClubPost(clubId: String, authorId: String, authorName: String?, text: String): Result<Unit> {
+    suspend fun createClubPost(clubId: String, authorId: String, text: String): Result<Unit> {
         return try {
             val newPostRef = firestore.collection("clubs").document(clubId).collection("posts").document()
             val post = ClubPost(
                 postId = newPostRef.id,
                 clubId = clubId,
                 authorId = authorId,
-                authorName = authorName,
+                authorName = null,
                 text = text
             )
             newPostRef.set(post).await()

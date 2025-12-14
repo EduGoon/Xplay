@@ -1,10 +1,14 @@
 package gaming.xplay.presentation.ui
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,20 +25,32 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -44,7 +60,9 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import coil.compose.SubcomposeAsyncImage
@@ -54,6 +72,8 @@ import gaming.xplay.presentation.ui.State.UiState
 import gaming.xplay.presentation.viewmodel.AuthViewModel
 import gaming.xplay.presentation.viewmodel.ClubViewModel
 import gaming.xplay.presentation.viewmodel.GameViewModel
+import gaming.xplay.presentation.viewmodel.UpdateProfileState
+import kotlinx.coroutines.launch
 
 @Composable
 fun MyProfileScreen(
@@ -65,8 +85,13 @@ fun MyProfileScreen(
     val clubsState by clubViewModel.clubs.collectAsState()
     val createClubState by clubViewModel.createClubState.collectAsState()
     val leaderboardState by gameViewModel.leaderboard.collectAsState()
+    val updateProfileState by authViewModel.updateProfileState.collectAsState()
+
     var selectedTab by remember { mutableStateOf(0) }
     val tabs = listOf("My Clubs", "Match History")
+    var showEditProfileDialog by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
         authViewModel.refreshCurrentUser()
@@ -77,163 +102,315 @@ fun MyProfileScreen(
         if (createClubState is UiState.Success) authViewModel.refreshCurrentUser()
     }
 
+    LaunchedEffect(updateProfileState) {
+        when (val state = updateProfileState) {
+            is UpdateProfileState.Success -> {
+                scope.launch {
+                    snackbarHostState.showSnackbar("Profile updated successfully!")
+                }
+                showEditProfileDialog = false
+                authViewModel.resetUpdateProfileState()
+            }
+
+            is UpdateProfileState.Error -> {
+                scope.launch {
+                    snackbarHostState.showSnackbar(state.message)
+                }
+                authViewModel.resetUpdateProfileState()
+            }
+
+            else -> {}
+        }
+    }
+
     val userRanking = (leaderboardState as? UiState.Success)?.data
         ?.find { it.playerid == currentUser?.uid }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .verticalScroll(rememberScrollState())
-    ) {
+    if (showEditProfileDialog) {
+        EditProfileDialog(
+            currentUser = currentUser,
+            updateProfileState = updateProfileState,
+            onDismiss = { showEditProfileDialog = false },
+            onSave = { name, imageUri ->
+                authViewModel.updateUserProfile(name, imageUri)
+            }
+        )
+    }
 
-        // ---------------- Header Panel ----------------
-        Box(
+    Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }) { paddingValues ->
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .height(180.dp)
-                .background(MaterialTheme.colorScheme.primaryContainer)
+                .fillMaxSize()
+                .padding(paddingValues)
+                .background(MaterialTheme.colorScheme.background)
+                .verticalScroll(rememberScrollState())
         ) {
-            SubcomposeAsyncImage(
-                model = currentUser?.profilePictureUrl,
-                contentDescription = null,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
-            ) {
-                when (painter.state) {
-                    is coil.compose.AsyncImagePainter.State.Error,
-                    is coil.compose.AsyncImagePainter.State.Empty -> Box(
-                        Modifier
-                            .fillMaxSize()
-                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.4f))
-                    )
 
-                    else -> SubcomposeAsyncImageContent()
+            // ---------------- Header Panel ----------------
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(180.dp)
+                    .background(MaterialTheme.colorScheme.primaryContainer)
+            ) {
+                SubcomposeAsyncImage(
+                    model = currentUser?.profilePictureUrl,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                ) {
+                    when (painter.state) {
+                        is coil.compose.AsyncImagePainter.State.Error,
+                        is coil.compose.AsyncImagePainter.State.Empty -> Box(
+                            Modifier
+                                .fillMaxSize()
+                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.4f))
+                        )
+
+                        else -> SubcomposeAsyncImageContent()
+                    }
+                }
+
+                AsyncImage(
+                    model = currentUser?.profilePictureUrl ?: "",
+                    contentDescription = "Avatar",
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .offset(x = 16.dp, y = 60.dp)
+                        .size(110.dp)
+                        .clip(CircleShape)
+                        .border(3.dp, MaterialTheme.colorScheme.background, CircleShape),
+                    contentScale = ContentScale.Crop
+                )
+
+                IconButton(
+                    onClick = { showEditProfileDialog = true }, modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(16.dp)
+                ) {
+                    Icon(Icons.Default.Edit, contentDescription = "Edit Profile")
                 }
             }
 
-            AsyncImage(
-                model = currentUser?.profilePictureUrl ?: "",
-                contentDescription = "Avatar",
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .offset(x = 16.dp, y = 60.dp)
-                    .size(110.dp)
-                    .clip(CircleShape)
-                    .border(3.dp, MaterialTheme.colorScheme.background, CircleShape),
-                contentScale = ContentScale.Crop
-            )
-        }
-
-        Spacer(Modifier.height(70.dp))
-
-        // ---------------- XP Panel ----------------
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp),
-            shape = RoundedCornerShape(14.dp),
-            elevation = CardDefaults.cardElevation(6.dp)
-        ) {
-            val xp = userRanking?.XPpoints ?: 0
-            val targetXP = ((xp / 100) + 1) * 100
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("XP Progress", style = MaterialTheme.typography.titleMedium)
-                LinearProgressIndicator(
-                    progress = xp.toFloat() / targetXP.toFloat(),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(12.dp)
-                        .clip(RoundedCornerShape(6.dp)),
-                    color = MaterialTheme.colorScheme.primary
-                )
-                Text("$xp / $targetXP XP", style = MaterialTheme.typography.bodyMedium)
-            }
-        }
-
-        Spacer(Modifier.height(28.dp))
-
-        // ---------------- Info Cards ----------------
-        val wins = userRanking?.wins ?: 0
-        val losses = userRanking?.losses ?: 0
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            StatCard(title = "Wins", value = wins.toString(), modifier = Modifier.weight(1f))
-            StatCard(title = "Losses", value = losses.toString(), modifier = Modifier.weight(1f))
-        }
-
-        Spacer(Modifier.height(16.dp))
-
-        WinLossDonutChart(
-            wins = wins,
-            losses = losses,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-        )
-
-
-        Spacer(Modifier.height(28.dp))
-
-
-        // ---------------- Section Panels ----------------
-        Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-            TabRow(selectedTabIndex = selectedTab) {
-                tabs.forEachIndexed { index, title ->
-                    Tab(
-                        selected = selectedTab == index,
-                        onClick = { selectedTab = index },
-                        text = { Text(text = title) }
+            Spacer(Modifier.height(70.dp))
+            currentUser?.let {
+                it.name?.let { text ->
+                    Text(
+                        text = text,
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp)
                     )
                 }
             }
             Spacer(Modifier.height(16.dp))
-            when (selectedTab) {
-                0 -> { // My Clubs
-                    when (val state = clubsState) {
-                        is UiState.Loading -> {
-                            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                                CircularProgressIndicator()
-                            }
-                        }
 
-                        is UiState.Success -> {
-                            val all = state.data
-                            val my = all.filter {
-                                it.memberIds.contains(currentUser?.uid) ||
-                                        it.adminId == currentUser?.uid
-                            }
+            // ---------------- XP Panel ----------------
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                shape = RoundedCornerShape(14.dp),
+                elevation = CardDefaults.cardElevation(6.dp)
+            ) {
+                val xp = userRanking?.XPpoints ?: 0
+                val targetXP = ((xp / 100) + 1) * 100
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("XP Progress", style = MaterialTheme.typography.titleMedium)
+                    LinearProgressIndicator(
+                        progress = xp.toFloat() / targetXP.toFloat(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(12.dp)
+                            .clip(RoundedCornerShape(6.dp)),
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Text("$xp / $targetXP XP", style = MaterialTheme.typography.bodyMedium)
+                }
+            }
 
-                            if (my.isNotEmpty()) {
-                                my.forEach { club ->
-                                    ClubCard(
-                                        club = club,
-                                        isAdmin = club.adminId == currentUser?.uid
-                                    )
-                                    Spacer(Modifier.height(16.dp))
-                                }
-                            } else {
-                                Text("You haven't joined any clubs yet.")
-                            }
-                        }
+            Spacer(Modifier.height(28.dp))
 
-                        is UiState.Error -> {
-                            Text(state.message)
-                        }
+            // ---------------- Info Cards ----------------
+            val wins = userRanking?.wins ?: 0
+            val losses = userRanking?.losses ?: 0
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                StatCard(title = "Wins", value = wins.toString(), modifier = Modifier.weight(1f))
+                StatCard(title = "Losses", value = losses.toString(), modifier = Modifier.weight(1f))
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            WinLossDonutChart(
+                wins = wins,
+                losses = losses,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+            )
+
+
+            Spacer(Modifier.height(28.dp))
+
+
+            // ---------------- Section Panels ----------------
+            Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+                TabRow(selectedTabIndex = selectedTab) {
+                    tabs.forEachIndexed { index, title ->
+                        Tab(
+                            selected = selectedTab == index,
+                            onClick = { selectedTab = index },
+                            text = { Text(text = title) }
+                        )
                     }
                 }
+                Spacer(Modifier.height(16.dp))
+                when (selectedTab) {
+                    0 -> { // My Clubs
+                        when (val state = clubsState) {
+                            is UiState.Loading -> {
+                                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                                    CircularProgressIndicator()
+                                }
+                            }
 
-                1 -> { // Match History
-                    MatchHistory(gameViewModel, authViewModel, currentUser?.uid ?: "")
+                            is UiState.Success -> {
+                                val all = state.data
+                                val my = all.filter {
+                                    it.memberIds.contains(currentUser?.uid) ||
+                                            it.adminId == currentUser?.uid
+                                }
+
+                                if (my.isNotEmpty()) {
+                                    my.forEach { club ->
+                                        ClubCard(
+                                            club = club,
+                                            isAdmin = club.adminId == currentUser?.uid
+                                        )
+                                        Spacer(Modifier.height(16.dp))
+                                    }
+                                } else {
+                                    Text("You haven\'t joined any clubs yet.")
+                                }
+                            }
+
+                            is UiState.Error -> {
+                                Text(state.message)
+                            }
+                        }
+                    }
+
+                    1 -> { // Match History
+                        MatchHistory(gameViewModel, authViewModel, currentUser?.uid ?: "")
+                    }
                 }
             }
         }
     }
 }
+
+@Composable
+fun EditProfileDialog(
+    currentUser: gaming.xplay.data.model.Player?,
+    updateProfileState: UpdateProfileState,
+    onDismiss: () -> Unit,
+    onSave: (String, Uri?) -> Unit
+) {
+    var name by remember { mutableStateOf(currentUser?.name ?: "") }
+    var imageUri by remember { mutableStateOf<Uri?>(null) }
+
+    val imagePicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent(),
+        onResult = { uri ->
+            imageUri = uri
+        }
+    )
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(16.dp),
+            color = MaterialTheme.colorScheme.surface
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text("Edit Profile", style = MaterialTheme.typography.headlineSmall)
+                Spacer(Modifier.height(20.dp))
+
+                Box(modifier = Modifier.clickable { imagePicker.launch("image/*") }) {
+                    AsyncImage(
+                        model = imageUri ?: currentUser?.profilePictureUrl,
+                        contentDescription = "Profile Picture",
+                        modifier = Modifier
+                            .size(100.dp)
+                            .clip(CircleShape)
+                            .border(2.dp, MaterialTheme.colorScheme.primary, CircleShape),
+                        contentScale = ContentScale.Crop
+                    )
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = "Edit Image",
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .background(MaterialTheme.colorScheme.primary, CircleShape)
+                            .padding(8.dp),
+                        tint = MaterialTheme.colorScheme.onPrimary
+                    )
+                }
+
+                Spacer(Modifier.height(16.dp))
+
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { if (it.length <= 10) name = it },
+                    label = { Text("Username") },
+                    modifier = Modifier.fillMaxWidth(),
+                    supportingText = {
+                        Text(
+                            text = "${name.length} / 10",
+                            modifier = Modifier.fillMaxWidth(),
+                            textAlign = TextAlign.End,
+                        )
+                    }
+                )
+
+                Spacer(Modifier.height(24.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text("Cancel")
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    Button(
+                        onClick = { onSave(name, imageUri) },
+                        enabled = updateProfileState !is UpdateProfileState.Loading
+                    ) {
+                        if (updateProfileState is UpdateProfileState.Loading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                color = Color.White
+                            )
+                        } else {
+                            Text("Save")
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 
 @Composable
 fun StatCard(title: String, value: String, modifier: Modifier = Modifier) {
@@ -250,7 +427,10 @@ fun StatCard(title: String, value: String, modifier: Modifier = Modifier) {
         ) {
             Text(text = title, style = MaterialTheme.typography.titleMedium)
             Spacer(modifier = Modifier.height(4.dp))
-            Text(text = value, style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold))
+            Text(
+                text = value,
+                style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold)
+            )
         }
     }
 }
