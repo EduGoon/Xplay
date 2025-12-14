@@ -17,6 +17,7 @@ import gaming.xplay.data.repo.TournamentRepository
 import gaming.xplay.presentation.ui.State.UiState
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -38,6 +39,7 @@ sealed class StartTournamentActionState {
 
 sealed class SubmitMatchResultActionState {
     object Idle : SubmitMatchResultActionState()
+    object Loading : SubmitMatchResultActionState()
     object Success : SubmitMatchResultActionState()
     data class Error(val message: String) : SubmitMatchResultActionState()
 }
@@ -73,13 +75,27 @@ class TournamentViewModel @Inject constructor(
     private val _startTournamentActionState = MutableSharedFlow<StartTournamentActionState>()
     val startTournamentActionState: SharedFlow<StartTournamentActionState> = _startTournamentActionState
 
-    private val _submitMatchResultActionState = MutableSharedFlow<SubmitMatchResultActionState>()
-    val submitMatchResultActionState: SharedFlow<SubmitMatchResultActionState> = _submitMatchResultActionState
+    private val _submitMatchResultActionState = MutableStateFlow<SubmitMatchResultActionState>(SubmitMatchResultActionState.Idle)
+    val submitMatchResultActionState: StateFlow<SubmitMatchResultActionState> = _submitMatchResultActionState
+
+    private val _isRefreshing = MutableStateFlow(false)
+    val isRefreshing: StateFlow<Boolean> = _isRefreshing
 
     init {
         fetchTournamentDetails()
         fetchFixtures()
         fetchTournamentRankings()
+    }
+
+    fun refreshTournamentDetails() {
+        viewModelScope.launch {
+            _isRefreshing.value = true
+            fetchTournamentDetails()
+            fetchFixtures()
+            fetchTournamentRankings()
+            delay(1000) // To ensure the refresh indicator is visible
+            _isRefreshing.value = false
+        }
     }
 
     private fun fetchTournamentDetails() {
@@ -192,18 +208,19 @@ class TournamentViewModel @Inject constructor(
 
     fun submitTournamentMatchResult(fixture: Fixture, winnerId: String?) {
         viewModelScope.launch {
+            _submitMatchResultActionState.value = SubmitMatchResultActionState.Loading
             val tournamentData = (_tournament.value as? UiState.Success)?.data
             if (tournamentData != null) {
                 when (tournamentRepository.submitTournamentMatchResult(tournamentData, fixture, winnerId)) {
                     is Result.Success -> {
-                        _submitMatchResultActionState.emit(SubmitMatchResultActionState.Success)
+                        _submitMatchResultActionState.value = SubmitMatchResultActionState.Success
                         fetchFixtures()
                         fetchTournamentRankings()
                     }
-                    is Result.Error -> _submitMatchResultActionState.emit(SubmitMatchResultActionState.Error("Failed to submit result"))
+                    is Result.Error -> _submitMatchResultActionState.value = SubmitMatchResultActionState.Error("Failed to submit result")
                 }
             } else {
-                _submitMatchResultActionState.emit(SubmitMatchResultActionState.Error("Could not get tournament data"))
+                _submitMatchResultActionState.value = SubmitMatchResultActionState.Error("Could not get tournament data")
             }
         }
     }
