@@ -28,6 +28,7 @@ import javax.inject.Inject
 
 sealed class ChallengeCreationState {
     object Idle : ChallengeCreationState()
+    object Loading : ChallengeCreationState()
     object Success : ChallengeCreationState()
     data class Error(val message: String) : ChallengeCreationState()
 }
@@ -126,8 +127,14 @@ class GameViewModel @Inject constructor(
         _challengeCreationState.value = ChallengeCreationState.Idle
     }
 
-    fun createChallenge(player2Id: String, gameId: String) {
+    fun onChallengeCreate(player2Id: String, gameId: String) {
+        if (_challengeCreationState.value is ChallengeCreationState.Loading || _challengeCreationState.value is ChallengeCreationState.Error) return
+        createChallenge(player2Id, gameId)
+    }
+
+    private fun createChallenge(player2Id: String, gameId: String) {
         viewModelScope.launch {
+            _challengeCreationState.value = ChallengeCreationState.Loading
             when (val currentUserResult = authRepository.fetchCurrentUserProfile()) {
                 is Result.Success -> {
                     val currentUser = currentUserResult.data

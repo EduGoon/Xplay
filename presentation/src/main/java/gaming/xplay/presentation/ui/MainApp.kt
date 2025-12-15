@@ -218,13 +218,13 @@ fun MainApp(authViewModel: AuthViewModel = hiltViewModel(), gameViewModel: GameV
                 val wins = backStackEntry.arguments?.getInt("wins")!!
                 val losses = backStackEntry.arguments?.getInt("losses")!!
                 PlayerProfile(
-                    navController,
-                    authViewModel,
-                    gameViewModel,
-                    playerId,
-                    xpPoints,
-                    wins,
-                    losses
+                    navController = navController,
+                    authViewModel = authViewModel,
+                    gameViewModel = gameViewModel,
+                    userId = playerId,
+                    xpPoints = xpPoints,
+                    wins = wins,
+                    losses = losses
                 )
             }
         }

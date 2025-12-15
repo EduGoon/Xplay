@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -28,10 +29,9 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -48,12 +48,19 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import coil.compose.AsyncImage
+import com.airbnb.lottie.compose.LottieAnimation
+import com.airbnb.lottie.compose.LottieCompositionSpec
+import com.airbnb.lottie.compose.rememberLottieComposition
 import gaming.xplay.data.model.Match
 import gaming.xplay.data.model.Player
+import gaming.xplay.presentation.R
 import gaming.xplay.presentation.ui.State.UiState
 import gaming.xplay.presentation.viewmodel.AuthViewModel
 import gaming.xplay.presentation.viewmodel.ChallengeCreationState
@@ -63,35 +70,36 @@ import gaming.xplay.presentation.viewmodel.GameViewModel
 fun PlayerProfile(
     navController: NavController,
     authViewModel: AuthViewModel = hiltViewModel(),
-    gameviewmodel: GameViewModel = hiltViewModel(),
+    gameViewModel: GameViewModel = hiltViewModel(),
     userId: String,
-    XPpoints: Int? = null,
+    xpPoints: Int? = null,
     wins: Int? = null,
     losses: Int? = null
 ) {
     var player by remember { mutableStateOf<Player?>(null) }
-    val snackbarHostState = remember { SnackbarHostState() }
-    val challengeCreationState by gameviewmodel.challengeCreationState.collectAsState()
+    val challengeCreationState by gameViewModel.challengeCreationState.collectAsState()
 
     LaunchedEffect(userId) {
         player = authViewModel.getPlayerProfile(userId)
     }
 
-    LaunchedEffect(challengeCreationState) {
-        when (val state = challengeCreationState) {
-            is ChallengeCreationState.Success -> {
-                snackbarHostState.showSnackbar("Challenge created successfully!")
-                gameviewmodel.onChallengeCreationStatusConsumed()
+    if (challengeCreationState is ChallengeCreationState.Success || challengeCreationState is ChallengeCreationState.Error) {
+        ChallengeResultDialog(
+            state = challengeCreationState,
+            onDismiss = { gameViewModel.onChallengeCreationStatusConsumed() },
+            onNavigateToChallenges = {
+                gameViewModel.onChallengeCreationStatusConsumed()
+                navController.navigate("challenges") {
+                    popUpTo(navController.graph.findStartDestination().id) {
+                        saveState = true
+                    }
+                    launchSingleTop = true
+                    restoreState = true
+                }
             }
-            is ChallengeCreationState.Error -> {
-                snackbarHostState.showSnackbar(state.message)
-                gameviewmodel.onChallengeCreationStatusConsumed()
-            }
-            ChallengeCreationState.Idle -> {
-                // Do nothing
-            }
-        }
+        )
     }
+
 
     val playerName = player?.name ?: "Loading..."
     val playerAvi = player?.profilePictureUrl
@@ -99,7 +107,6 @@ fun PlayerProfile(
     val winRate = if (totalMatches > 0) ((wins ?: 0) * 100f / totalMatches).toInt() else 0
 
     Scaffold(
-        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         containerColor = Color.Transparent
     ) { paddingValues ->
         Column(
@@ -140,7 +147,7 @@ fun PlayerProfile(
 
             Spacer(Modifier.height(24.dp)) // Increased spacing
 
-            XPBar(currentXP = XPpoints ?: 0)
+            XPBar(currentXP = xpPoints ?: 0)
 
             Spacer(Modifier.height(32.dp)) // Increased spacing
 
@@ -155,8 +162,11 @@ fun PlayerProfile(
 
             Spacer(Modifier.height(24.dp))
 
+            val isLoading = challengeCreationState is ChallengeCreationState.Loading
+
             Button(
-                onClick = { gameviewmodel.createChallenge(userId, "FIFA") },
+                onClick = { gameViewModel.onChallengeCreate(userId, "FIFA") },
+                enabled = !isLoading,
                 shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary
@@ -165,12 +175,88 @@ fun PlayerProfile(
                     .fillMaxWidth(0.8f)
                     .height(48.dp)
             ) {
-                Text("Challenge", color = MaterialTheme.colorScheme.onPrimary)
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
+                } else {
+                    Text("Challenge", color = MaterialTheme.colorScheme.onPrimary)
+                }
             }
 
             Spacer(Modifier.height(40.dp))
 
-            MatchHistory(gameviewmodel, authViewModel, userId)
+            MatchHistory(gameViewModel, authViewModel, userId)
+        }
+    }
+}
+
+
+@Composable
+fun ChallengeResultDialog(
+    state: ChallengeCreationState,
+    onDismiss: () -> Unit,
+    onNavigateToChallenges: () -> Unit
+) {
+    val isSuccess = state is ChallengeCreationState.Success
+    val composition by rememberLottieComposition(
+        spec = LottieCompositionSpec.RawRes(
+            if (isSuccess) R.raw.success else R.raw.error
+        )
+    )
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                IconButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.align(Alignment.End)
+                ) {
+                    Icon(Icons.Default.Close, contentDescription = "Close dialog")
+                }
+
+                LottieAnimation(
+                    composition = composition,
+                    iterations = 1,
+                    modifier = Modifier.size(120.dp)
+                )
+
+                Spacer(Modifier.height(16.dp))
+
+                Text(
+                    text = if (isSuccess) "Challenge Created!" else "Challenge Failed",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Spacer(Modifier.height(8.dp))
+
+                Text(
+                    text = if (isSuccess) "Go to challenges tab to see your challenge" else "Challenge creation has failed",
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Center
+                )
+
+                if (isSuccess) {
+                    Spacer(Modifier.height(24.dp))
+                    Button(
+                        onClick = onNavigateToChallenges,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary
+                        )
+                    ) {
+                        Text("Go to Challenges")
+                    }
+                }
+            }
         }
     }
 }
@@ -281,6 +367,7 @@ fun MatchHistory(
                     CircularProgressIndicator()
                 }
             }
+
             is UiState.Success -> {
                 val matches = state.data
                 if (matches.isEmpty()) {
@@ -295,6 +382,7 @@ fun MatchHistory(
                     }
                 }
             }
+
             is UiState.Error -> {
                 Text(state.message)
             }
@@ -359,5 +447,29 @@ fun MatchCard(match: Match, currentUserId: String, authViewModel: AuthViewModel)
                 )
             )
         }
+    }
+}
+
+@Composable
+fun EmptyState(icon: ImageVector, text: String) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            modifier = Modifier.size(64.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }

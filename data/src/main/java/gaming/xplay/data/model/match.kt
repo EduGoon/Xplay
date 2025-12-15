@@ -6,5 +6,6 @@ data class Match(
     val player1Id: String = "",
     val player2Id: String = "",
     val winnerId: String = "",
-    val loserId: String = ""
+    val loserId: String = "",
+    val status: String = ""
 )

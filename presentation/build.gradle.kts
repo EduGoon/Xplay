@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "gaming.xplay.presentation"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         minSdk = 24
@@ -71,6 +71,9 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.foundation)
     kapt("com.google.dagger:hilt-android-compiler:2.51.1")
+
+    // Lottie
+    implementation("com.airbnb.android:lottie-compose:6.4.0")
 
     // Core / AppCompat / Material (in case you need them in Compose previews or legacy views)
     implementation(libs.androidx.core.ktx)
