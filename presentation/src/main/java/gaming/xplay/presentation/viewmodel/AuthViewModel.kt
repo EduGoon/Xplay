@@ -16,6 +16,8 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -63,6 +65,17 @@ class AuthViewModel @Inject constructor(
 
     init {
         checkCurrentUser()
+        userSessionManager.logoutEvents
+            .onEach { clearData() }
+            .launchIn(viewModelScope)
+    }
+
+    private fun clearData() {
+        _signInState.value = null
+        _errorState.value = null
+        _searchResults.value = emptyList()
+        _currentUser.value = null
+        _updateProfileState.value = UpdateProfileState.Idle
     }
 
     private fun checkCurrentUser() {
@@ -104,6 +117,7 @@ class AuthViewModel @Inject constructor(
                         _navigationState.value = NavigationState.ToHome
                     }
                     _signInState.value = true
+                    refreshCurrentUser()
                 }
                 is Result.Error -> {
                     Log.e(TAG, "signInWithGoogle: failed", result.exception)

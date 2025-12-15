@@ -72,9 +72,7 @@ fun ChallengesScreen(
 
     LaunchedEffect(key1 = currentUserId) {
         if (currentUserId != null) {
-            gameViewModel.refreshOutgoingChallenges()
-            gameViewModel.refreshIncomingChallenges()
-            gameViewModel.refreshActiveChallenges()
+            gameViewModel.refreshAllChallenges()
         }
     }
 
@@ -338,12 +336,8 @@ fun ActiveChallengeCard(
                     Text("I Lost", color = MaterialTheme.colorScheme.onError)
                 }
             }
-        } else if (challenge.status == "waiting verification"){
-            Text("Your result: ${myResult.replaceFirstChar { it.uppercase() }}", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Spacer(modifier = Modifier.height(8.dp))
-            Text("Waiting for opponent...", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }else if(challenge.status == "completed"){
-             /*TODO : Create something like a pop up dialog box that shows match completed with a tick*/
+        } else if (challenge.status == "waiting verification") {
+            Text("Result submitted. Waiting for opponent to verify.", color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

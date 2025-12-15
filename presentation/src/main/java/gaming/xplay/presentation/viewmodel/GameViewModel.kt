@@ -13,6 +13,8 @@ import gaming.xplay.data.repo.GameRepository
 import gaming.xplay.data.repo.NotificationRepository
 import gaming.xplay.presentation.session.UserSessionManager
 import gaming.xplay.presentation.ui.State.UiState
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -57,6 +59,7 @@ class GameViewModel @Inject constructor(
                     UiState.Error("User not logged in")
                 }
             }
+
             allChallenges is UiState.Error -> allChallenges
             else -> UiState.Loading
         }
@@ -75,6 +78,7 @@ class GameViewModel @Inject constructor(
                     UiState.Error("User not logged in")
                 }
             }
+
             allChallenges is UiState.Error -> allChallenges
             else -> UiState.Loading
         }
@@ -89,6 +93,7 @@ class GameViewModel @Inject constructor(
                     it.status == "accepted" || it.status == "waiting verification"
                 })
             }
+
             is UiState.Error -> allChallenges
             is UiState.Loading -> UiState.Loading
         }
@@ -100,14 +105,18 @@ class GameViewModel @Inject constructor(
     private val _leaderboard = MutableStateFlow<UiState<List<rankings>>>(UiState.Loading)
     val leaderboard: StateFlow<UiState<List<rankings>>> = _leaderboard.asStateFlow()
 
+    private val _leaderboardPlayerProfiles = MutableStateFlow<Map<String, Player?>>(emptyMap())
+    val leaderboardPlayerProfiles: StateFlow<Map<String, Player?>> = _leaderboardPlayerProfiles.asStateFlow()
+
+
     private val _errorState = MutableStateFlow<String?>(null)
     val errorState: StateFlow<String?> = _errorState.asStateFlow()
 
-    private val _challengeCreationState = MutableStateFlow<ChallengeCreationState>(ChallengeCreationState.Idle)
+    private val _challengeCreationState =
+        MutableStateFlow<ChallengeCreationState>(ChallengeCreationState.Idle)
     val challengeCreationState: StateFlow<ChallengeCreationState> = _challengeCreationState.asStateFlow()
 
     init {
-        fetchChallengesForCurrentUser()
         userSessionManager.logoutEvents
             .onEach { clearAllData() }
             .launchIn(viewModelScope)
@@ -123,19 +132,28 @@ class GameViewModel @Inject constructor(
                 is Result.Success -> {
                     val currentUser = currentUserResult.data
                     if (currentUser != null) {
-                        val challenge = Challenge(player1Id = currentUser.uid, player2Id = player2Id, gameId = gameId)
+                        val challenge = Challenge(
+                            player1Id = currentUser.uid,
+                            player2Id = player2Id,
+                            gameId = gameId
+                        )
                         when (gameRepository.createChallenge(challenge)) {
                             is Result.Success -> {
                                 _challengeCreationState.value = ChallengeCreationState.Success
                                 fetchChallengesForCurrentUser()
                             }
-                            is Result.Error -> _challengeCreationState.value = ChallengeCreationState.Error("Failed to create challenge.")
+
+                            is Result.Error -> _challengeCreationState.value =
+                                ChallengeCreationState.Error("Failed to create challenge.")
                         }
                     } else {
-                        _challengeCreationState.value = ChallengeCreationState.Error("Could not identify current user.")
+                        _challengeCreationState.value =
+                            ChallengeCreationState.Error("Could not identify current user.")
                     }
                 }
-                is Result.Error -> _challengeCreationState.value = ChallengeCreationState.Error("Failed to fetch current user.")
+
+                is Result.Error -> _challengeCreationState.value =
+                    ChallengeCreationState.Error("Failed to fetch current user.")
             }
         }
     }
@@ -146,6 +164,7 @@ class GameViewModel @Inject constructor(
                 is Result.Success -> {
                     fetchChallengesForCurrentUser()
                 }
+
                 is Result.Error -> _errorState.value = "Failed to accept challenge."
             }
         }
@@ -157,8 +176,15 @@ class GameViewModel @Inject constructor(
                 is Result.Success -> {
                     fetchChallengesForCurrentUser()
                 }
+
                 is Result.Error -> _errorState.value = "Failed to reject challenge."
             }
+        }
+    }
+
+    fun refreshAllChallenges() {
+        viewModelScope.launch {
+            fetchChallengesForCurrentUser()
         }
     }
 
@@ -169,15 +195,19 @@ class GameViewModel @Inject constructor(
                 is Result.Success -> {
                     val currentUser = currentUserResult.data
                     if (currentUser != null) {
-                        _allChallenges.value = UiState.Loading
+                        if (_allChallenges.value !is UiState.Success) {
+                            _allChallenges.value = UiState.Loading
+                        }
                         when (val result = gameRepository.getAllChallenges(currentUser.uid)) {
                             is Result.Success -> _allChallenges.value = UiState.Success(result.data)
-                            is Result.Error -> _allChallenges.value = UiState.Error(result.exception.message ?: "An error occurred")
+                            is Result.Error -> _allChallenges.value =
+                                UiState.Error(result.exception.message ?: "An error occurred")
                         }
                     } else {
                         _allChallenges.value = UiState.Error("User not logged in")
                     }
                 }
+
                 is Result.Error -> {
                     _allChallenges.value = UiState.Error("Failed to fetch user")
                 }
@@ -214,7 +244,8 @@ class GameViewModel @Inject constructor(
             _errorState.value = null
             when (val submitResult = gameRepository.submitMatchResult(challengeId, result)) {
                 is Result.Success -> fetchChallengesForCurrentUser()
-                is Result.Error -> _errorState.value = submitResult.exception.message ?: "An unexpected error occurred."
+                is Result.Error -> _errorState.value =
+                    submitResult.exception.message ?: "An unexpected error occurred."
             }
         }
     }
@@ -224,7 +255,8 @@ class GameViewModel @Inject constructor(
             _matchHistory.value = UiState.Loading
             when (val result = gameRepository.getMatchHistory(playerId)) {
                 is Result.Success -> _matchHistory.value = UiState.Success(result.data)
-                is Result.Error -> _matchHistory.value = UiState.Error(result.exception.message ?: "An unknown error occurred")
+                is Result.Error -> _matchHistory.value =
+                    UiState.Error(result.exception.message ?: "An unknown error occurred")
             }
         }
     }
@@ -233,9 +265,29 @@ class GameViewModel @Inject constructor(
         viewModelScope.launch {
             _leaderboard.value = UiState.Loading
             when (val result = gameRepository.getLeaderboard(gameId)) {
-                is Result.Success -> _leaderboard.value = UiState.Success(result.data)
-                is Result.Error -> _leaderboard.value = UiState.Error(result.exception.message ?: "An unknown error occurred")
+                is Result.Success -> {
+                    _leaderboard.value = UiState.Success(result.data)
+                    val playerIds = result.data.map { it.playerid }
+                    fetchPlayerProfilesForLeaderboard(playerIds)
+                }
+
+                is Result.Error -> _leaderboard.value =
+                    UiState.Error(result.exception.message ?: "An unknown error occurred")
             }
+        }
+    }
+
+    private fun fetchPlayerProfilesForLeaderboard(playerIds: List<String>) {
+        viewModelScope.launch {
+            val profileDeferreds = playerIds.map {
+                async {
+                    when (val profileResult = authRepository.getPlayerProfile(it)) {
+                        is Result.Success -> it to profileResult.data
+                        is Result.Error -> it to null
+                    }
+                }
+            }
+            _leaderboardPlayerProfiles.value = profileDeferreds.awaitAll().toMap()
         }
     }
 
@@ -254,5 +306,6 @@ class GameViewModel @Inject constructor(
         _matchHistory.value = UiState.Loading
         _leaderboard.value = UiState.Loading
         _currentUser.value = Result.Error(Exception("Not logged in"))
+        _leaderboardPlayerProfiles.value = emptyMap()
     }
 }

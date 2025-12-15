@@ -1,9 +1,7 @@
 package gaming.xplay.presentation.ui
 
-import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -64,9 +62,13 @@ fun LeaderboardScreen(
     val searchResults by authViewModel.searchResults.collectAsState()
     val isLoading by authViewModel.isLoading.collectAsState()
     val leaderboardState by gameViewModel.leaderboard.collectAsState()
+    val leaderboardPlayerProfiles by gameViewModel.leaderboardPlayerProfiles.collectAsState()
+    val currentUser by authViewModel.currentUser.collectAsState()
 
-    LaunchedEffect(Unit) {
-        gameViewModel.fetchLeaderboard("FIFA")
+    LaunchedEffect(currentUser) {
+        if (currentUser != null) {
+            gameViewModel.fetchLeaderboard("FIFA")
+        }
     }
 
     Column(
@@ -86,8 +88,9 @@ fun LeaderboardScreen(
         Spacer(modifier = Modifier.height(32.dp))
         if (searchQuery.isBlank()) {
             LeaderboardSection(
-                leaderboardState,
-                authViewModel,
+                leaderboardState = leaderboardState,
+                playerProfiles = leaderboardPlayerProfiles,
+                currentUser = currentUser,
                 onRefresh = {
                     gameViewModel.fetchLeaderboard("FIFA")
                 },
@@ -227,11 +230,11 @@ fun PlayerRow(
 @Composable
 fun LeaderboardSection(
     leaderboardState: UiState<List<rankings>>,
-    authViewModel: AuthViewModel,
+    playerProfiles: Map<String, Player?>,
+    currentUser: Player?,
     onRefresh: () -> Unit,
     navController: NavController
 ) {
-    val currentUser by authViewModel.currentUser.collectAsState()
     Column(modifier = Modifier.padding(horizontal = 16.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -281,11 +284,12 @@ fun LeaderboardSection(
                         verticalArrangement = Arrangement.spacedBy(0.dp),
                     ) {
                         leaderboardState.data.forEachIndexed { index, ranking ->
+                            val player = playerProfiles[ranking.playerid]
                             RankingRow(
                                 ranking = ranking,
                                 rank = index + 1,
-                                authViewModel = authViewModel,
-                                isCurrentUser = currentUser?.uid == ranking.playerid
+                                player = player,
+                                isCurrentUser = currentUser?.uid == ranking.playerid,
                             ) { playerId, xpPoints, wins, losses ->
                                 if (currentUser?.uid == playerId) {
                                     navController.navigate("myprofile")
@@ -320,70 +324,49 @@ fun LeaderboardSection(
 fun RankingRow(
     ranking: rankings,
     rank: Int,
-    authViewModel: AuthViewModel,
+    player: Player?,
     isCurrentUser: Boolean,
     onClick: (String, Int, Int, Int) -> Unit
 ) {
-    var player by remember { mutableStateOf<Player?>(null) }
-
-    LaunchedEffect(ranking.playerid) {
-        player = authViewModel.getPlayerProfile(ranking.playerid)
-    }
-
-    val medalEmoji = when (rank) {
-        1 -> "🥇"
-        2 -> "🥈"
-        3 -> "🥉"
-        else -> "⭐"
-    }
-
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(if (isCurrentUser) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
-            .clickable(
-                onClick = { onClick(ranking.playerid, ranking.XPpoints, ranking.wins, ranking.losses) },
-                indication = LocalIndication.current,
-                interactionSource = remember { MutableInteractionSource() }
-            )
+            .clickable { onClick(ranking.playerid, ranking.XPpoints, ranking.wins, ranking.losses) }
+            .background(if (isCurrentUser) MaterialTheme.colorScheme.primary.copy(alpha = 0.1f) else Color.Transparent)
             .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            modifier = Modifier.weight(1f),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+        Text(
+            text = "$rank.",
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.width(32.dp)
+        )
+        // You can add player avatar here
+        Spacer(modifier = Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = "$medalEmoji $rank",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
+                text = player?.name ?: "Loading...",
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                color = if (isCurrentUser) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
             )
-            Spacer(modifier = Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = player?.name ?: "Loading...",
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Medium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    text = "XP: ${ranking.XPpoints}",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+            Text(
+                text = "XP: ${ranking.XPpoints}",
+                style = MaterialTheme.typography.labelMedium,
+                color = if (isCurrentUser) MaterialTheme.colorScheme.primary.copy(alpha = 0.8f) else MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
         Text(
-            text = "${ranking.wins} Wins • ${ranking.losses} Losses",
+            text = "${ranking.wins} W / ${ranking.losses} L",
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.End,
-            modifier = Modifier.widthIn(min = 100.dp)
+            modifier = Modifier.widthIn(min = 80.dp)
         )
     }
 }
