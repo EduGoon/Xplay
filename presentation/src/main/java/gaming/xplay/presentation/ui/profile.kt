@@ -1,5 +1,6 @@
 package gaming.xplay.presentation.ui
 
+import android.text.format.DateUtils
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
@@ -28,6 +29,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Divider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -65,6 +67,9 @@ import gaming.xplay.presentation.ui.State.UiState
 import gaming.xplay.presentation.viewmodel.AuthViewModel
 import gaming.xplay.presentation.viewmodel.ChallengeCreationState
 import gaming.xplay.presentation.viewmodel.GameViewModel
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @Composable
 fun PlayerProfile(
@@ -376,9 +381,13 @@ fun MatchHistory(
                         text = "No match history found"
                     )
                 } else {
-                    matches.forEach { match ->
-                        MatchCard(match = match, currentUserId = userId, authViewModel = authViewModel)
-                        Spacer(modifier = Modifier.height(8.dp))
+                    val groupedMatches = matches.groupBy { getFormattedDate(it.playedAt) }
+                    groupedMatches.forEach { (date, matches) ->
+                        DateDivider(date = date)
+                        matches.forEach { match ->
+                            MatchCard(match = match, currentUserId = userId, authViewModel = authViewModel)
+                            Spacer(modifier = Modifier.height(8.dp))
+                        }
                     }
                 }
             }
@@ -387,6 +396,42 @@ fun MatchHistory(
                 Text(state.message)
             }
         }
+    }
+}
+
+@Composable
+fun DateDivider(date: String) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center
+    ) {
+        Divider(
+            modifier = Modifier.weight(1f),
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
+        )
+        Text(
+            text = date,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 16.dp)
+        )
+        Divider(
+            modifier = Modifier.weight(1f),
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
+        )
+    }
+}
+
+fun getFormattedDate(date: Date?): String {
+    if (date == null) return "Unknown Date"
+
+    return when {
+        DateUtils.isToday(date.time) -> "Today"
+        DateUtils.isToday(date.time + DateUtils.DAY_IN_MILLIS) -> "Yesterday"
+        else -> SimpleDateFormat("MMMM d, yyyy", Locale.getDefault()).format(date)
     }
 }
 

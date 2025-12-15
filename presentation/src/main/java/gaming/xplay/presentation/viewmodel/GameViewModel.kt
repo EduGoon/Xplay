@@ -33,6 +33,13 @@ sealed class ChallengeCreationState {
     data class Error(val message: String) : ChallengeCreationState()
 }
 
+sealed class MatchSubmissionState {
+    object Idle : MatchSubmissionState()
+    object Loading : MatchSubmissionState()
+    data class Success(val message: String) : MatchSubmissionState()
+    data class Error(val message: String) : MatchSubmissionState()
+}
+
 @HiltViewModel
 class GameViewModel @Inject constructor(
     private val gameRepository: GameRepository,
@@ -116,6 +123,9 @@ class GameViewModel @Inject constructor(
     private val _challengeCreationState =
         MutableStateFlow<ChallengeCreationState>(ChallengeCreationState.Idle)
     val challengeCreationState: StateFlow<ChallengeCreationState> = _challengeCreationState.asStateFlow()
+
+    private val _matchSubmissionState = MutableStateFlow<MatchSubmissionState>(MatchSubmissionState.Idle)
+    val matchSubmissionState: StateFlow<MatchSubmissionState> = _matchSubmissionState.asStateFlow()
 
     init {
         userSessionManager.logoutEvents
@@ -246,15 +256,28 @@ class GameViewModel @Inject constructor(
         }
     }
 
-    fun submitMatchResult(challengeId: String, result: String) {
+    fun submitMatchResult(challenge: Challenge, result: String) {
         viewModelScope.launch {
-            _errorState.value = null
-            when (val submitResult = gameRepository.submitMatchResult(challengeId, result)) {
-                is Result.Success -> fetchChallengesForCurrentUser()
-                is Result.Error -> _errorState.value =
-                    submitResult.exception.message ?: "An unexpected error occurred."
+            _matchSubmissionState.value = MatchSubmissionState.Loading
+            val submitResult = gameRepository.submitMatchResult(challenge.challengeId, result)
+            when (submitResult) {
+                is Result.Success -> {
+                    val successMessage = if (challenge.status == "accepted") {
+                        "Result submitted, waiting for opponent"
+                    } else {
+                        "Result submitted. Match Completed, see match in Match History"
+                    }
+                    _matchSubmissionState.value = MatchSubmissionState.Success(successMessage)
+                    fetchChallengesForCurrentUser()
+                }
+                is Result.Error -> _matchSubmissionState.value =
+                    MatchSubmissionState.Error("Failed to submit match result.")
             }
         }
+    }
+
+    fun onMatchSubmissionStatusConsumed() {
+        _matchSubmissionState.value = MatchSubmissionState.Idle
     }
 
     fun fetchMatchHistory(playerId: String) {

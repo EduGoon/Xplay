@@ -1,5 +1,10 @@
 package gaming.xplay.presentation.ui
 
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -13,6 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
@@ -43,16 +49,25 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.airbnb.lottie.compose.LottieAnimation
+import com.airbnb.lottie.compose.LottieCompositionSpec
+import com.airbnb.lottie.compose.LottieConstants
+import com.airbnb.lottie.compose.rememberLottieComposition
 import gaming.xplay.data.model.Challenge
+import gaming.xplay.presentation.R
 import gaming.xplay.presentation.ui.State.UiState
 import gaming.xplay.presentation.viewmodel.AuthViewModel
 import gaming.xplay.presentation.viewmodel.ChallengeDetailsViewModel
 import gaming.xplay.presentation.viewmodel.GameViewModel
+import gaming.xplay.presentation.viewmodel.MatchSubmissionState
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -74,6 +89,14 @@ fun ChallengesScreen(
         if (currentUserId != null) {
             gameViewModel.refreshAllChallenges()
         }
+    }
+
+    val matchSubmissionState by gameViewModel.matchSubmissionState.collectAsState()
+    if (matchSubmissionState is MatchSubmissionState.Success || matchSubmissionState is MatchSubmissionState.Error) {
+        MatchSubmissionDialog(
+            state = matchSubmissionState,
+            onDismiss = { gameViewModel.onMatchSubmissionStatusConsumed() }
+        )
     }
 
     Scaffold(
@@ -314,6 +337,9 @@ fun ActiveChallengeCard(
 
     val myResult = if (currentUserId == challenge.player1Id) challenge.player1Result else challenge.player2Result
 
+    val matchSubmissionState by viewModel.matchSubmissionState.collectAsState()
+    val isSubmitting = matchSubmissionState is MatchSubmissionState.Loading
+
     ChallengeCard(challenge, player1Name, player2Name, challenge.acceptedAt, "Accepted on:") {
         if (challenge.status == "disputed") {
             Text("Match Disputed", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
@@ -322,22 +348,126 @@ fun ActiveChallengeCard(
             Spacer(modifier = Modifier.height(8.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                 Button(
-                    onClick = { viewModel.submitMatchResult(challenge.challengeId, "win") },
+                    onClick = { viewModel.submitMatchResult(challenge, "win") },
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
-                    shape = RoundedCornerShape(8.dp)
+                    shape = RoundedCornerShape(8.dp),
+                    enabled = !isSubmitting
                 ) {
-                    Text("I Won", color = MaterialTheme.colorScheme.onSecondary)
+                    if (isSubmitting) {
+                        ThreeDotLoader()
+                    } else {
+                        Text("I Won", color = MaterialTheme.colorScheme.onSecondary)
+                    }
                 }
                 Button(
-                    onClick = { viewModel.submitMatchResult(challenge.challengeId, "loss") },
+                    onClick = { viewModel.submitMatchResult(challenge, "loss") },
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
-                    shape = RoundedCornerShape(8.dp)
+                    shape = RoundedCornerShape(8.dp),
+                    enabled = !isSubmitting
                 ) {
-                    Text("I Lost", color = MaterialTheme.colorScheme.onError)
+                    if (isSubmitting) {
+                        ThreeDotLoader()
+                    } else {
+                        Text("I Lost", color = MaterialTheme.colorScheme.onError)
+                    }
                 }
             }
         } else if (challenge.status == "waiting verification") {
             Text("Result submitted. Waiting for opponent to verify.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+@Composable
+fun ThreeDotLoader() {
+    val transition = rememberInfiniteTransition(label = "")
+    val alpha1 by transition.animateFloat(
+        initialValue = 0.4f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(600),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "alpha1"
+    )
+    val alpha2 by transition.animateFloat(
+        initialValue = 0.4f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(600, delayMillis = 200),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "alpha2"
+    )
+    val alpha3 by transition.animateFloat(
+        initialValue = 0.4f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(600, delayMillis = 400),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "alpha3"
+    )
+
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(modifier = Modifier.size(8.dp).alpha(alpha1).background(Color.White, CircleShape))
+        Spacer(modifier = Modifier.padding(horizontal = 4.dp))
+        Box(modifier = Modifier.size(8.dp).alpha(alpha2).background(Color.White, CircleShape))
+        Spacer(modifier = Modifier.padding(horizontal = 4.dp))
+        Box(modifier = Modifier.size(8.dp).alpha(alpha3).background(Color.White, CircleShape))
+    }
+}
+
+@Composable
+fun MatchSubmissionDialog(
+    state: MatchSubmissionState,
+    onDismiss: () -> Unit
+) {
+    val isSuccess = state is MatchSubmissionState.Success
+    val composition by rememberLottieComposition(
+        spec = LottieCompositionSpec.RawRes(
+            if (isSuccess) R.raw.success else R.raw.error
+        )
+    )
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                if (isSuccess) {
+                    Text(
+                        text = "Submitted",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(Modifier.height(16.dp))
+                }
+                LottieAnimation(
+                    composition = composition,
+                    iterations = if (isSuccess) 1 else LottieConstants.IterateForever,
+                    modifier = Modifier.size(120.dp)
+                )
+
+                Spacer(Modifier.height(16.dp))
+
+                val message = when (state) {
+                    is MatchSubmissionState.Success -> state.message
+                    is MatchSubmissionState.Error -> state.message
+                    else -> ""
+                }
+
+                Text(
+                    text = message,
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Center
+                )
+            }
         }
     }
 }

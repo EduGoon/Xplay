@@ -1,5 +1,7 @@
 package gaming.xplay.data.model
 
+import java.util.Date
+
 data class Match(
     val matchid: String = "",
     val gameId: String = "",
@@ -7,5 +9,6 @@ data class Match(
     val player2Id: String = "",
     val winnerId: String = "",
     val loserId: String = "",
-    val status: String = ""
+    val status: String = "",
+    val playedAt: Date? = null
 )

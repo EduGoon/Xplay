@@ -95,17 +95,20 @@ class GameRepository @Inject constructor(
         return try {
             val player1Matches = db.collection("matches")
                 .whereEqualTo("player1Id", playerId)
+                .orderBy("playedAt", Query.Direction.DESCENDING)
                 .get()
                 .await()
 
             val player2Matches = db.collection("matches")
                 .whereEqualTo("player2Id", playerId)
+                .orderBy("playedAt", Query.Direction.DESCENDING)
                 .get()
                 .await()
 
             val allMatches = (player1Matches.toObjects(Match::class.java) +
                     player2Matches.toObjects(Match::class.java))
                 .distinctBy { it.matchid }
+                .sortedByDescending { it.playedAt }
 
             Result.Success(allMatches)
         } catch (e: Exception) {
