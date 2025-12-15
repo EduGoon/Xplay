@@ -363,6 +363,7 @@ fun EditProfileDialog(
 ) {
     var name by remember { mutableStateOf(currentUser?.name ?: "") }
     var imageUri by remember { mutableStateOf<Uri?>(null) }
+    val isNameInvalid = name.length > 10
 
     val imagePicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent(),
@@ -408,9 +409,10 @@ fun EditProfileDialog(
 
                 OutlinedTextField(
                     value = name,
-                    onValueChange = { if (it.length <= 10) name = it },
+                    onValueChange = { name = it },
                     label = { Text("Username") },
                     modifier = Modifier.fillMaxWidth(),
+                    isError = isNameInvalid,
                     supportingText = {
                         Text(
                             text = "${name.length} / 10",
@@ -432,7 +434,7 @@ fun EditProfileDialog(
                     Spacer(Modifier.width(8.dp))
                     Button(
                         onClick = { onSave(name, imageUri) },
-                        enabled = updateProfileState !is UpdateProfileState.Loading
+                        enabled = updateProfileState !is UpdateProfileState.Loading && !isNameInvalid && name.isNotEmpty()
                     ) {
                         if (updateProfileState is UpdateProfileState.Loading) {
                             CircularProgressIndicator(

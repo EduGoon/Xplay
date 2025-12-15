@@ -10,6 +10,7 @@ import gaming.xplay.data.model.Result
 import gaming.xplay.data.repo.AuthRepository
 import gaming.xplay.data.repo.GameRepository
 import gaming.xplay.presentation.model.PlayerSearchResult
+import gaming.xplay.presentation.session.UserSessionManager
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,7 +36,8 @@ sealed class UpdateProfileState {
 @HiltViewModel
 class AuthViewModel @Inject constructor(
     private val authRepository: AuthRepository,
-    private val gameRepository: GameRepository
+    private val gameRepository: GameRepository,
+    private val userSessionManager: UserSessionManager
 ) : ViewModel() {
 
     private val _navigationState = MutableStateFlow<NavigationState>(NavigationState.Loading)
@@ -67,14 +69,9 @@ class AuthViewModel @Inject constructor(
         viewModelScope.launch {
             when (val result = authRepository.fetchCurrentUserProfile()) {
                 is Result.Success -> {
-                    val player = result.data
-                    _currentUser.value = player
-                    if (player != null) {
-                        if (player.isFirstTime) {
-                            _navigationState.value = NavigationState.ToOnboarding
-                        } else {
-                            _navigationState.value = NavigationState.ToHome
-                        }
+                    _currentUser.value = result.data
+                    if (result.data != null) {
+                        _navigationState.value = NavigationState.ToHome
                     } else {
                         _navigationState.value = NavigationState.ToLogin
                     }
@@ -101,7 +98,6 @@ class AuthViewModel @Inject constructor(
             when (val result = authRepository.signInWithGoogle(idToken)) {
                 is Result.Success -> {
                     val player = result.data
-                    _currentUser.value = player
                     if (player.isFirstTime) {
                         _navigationState.value = NavigationState.ToOnboarding
                     } else {
@@ -210,8 +206,11 @@ class AuthViewModel @Inject constructor(
     }
 
     fun signOut() {
-        authRepository.signOut()
-        _navigationState.value = NavigationState.ToLogin
+        viewModelScope.launch {
+            authRepository.signOut()
+            userSessionManager.onLogout()
+            _navigationState.value = NavigationState.ToLogin
+        }
     }
 
     companion object {

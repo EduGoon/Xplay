@@ -67,7 +67,16 @@ fun ChallengesScreen(
     val tabs = listOf("Outgoing", "Incoming", "Active")
     val snackbarHostState = remember { SnackbarHostState() }
 
-    val currentUserId = authViewModel.checkCurrentUserUid()
+    val currentUser by authViewModel.currentUser.collectAsState()
+    val currentUserId = currentUser?.uid
+
+    LaunchedEffect(key1 = currentUserId) {
+        if (currentUserId != null) {
+            gameViewModel.refreshOutgoingChallenges()
+            gameViewModel.refreshIncomingChallenges()
+            gameViewModel.refreshActiveChallenges()
+        }
+    }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },

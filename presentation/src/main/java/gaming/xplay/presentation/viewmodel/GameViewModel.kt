@@ -11,12 +11,15 @@ import gaming.xplay.data.model.rankings
 import gaming.xplay.data.repo.AuthRepository
 import gaming.xplay.data.repo.GameRepository
 import gaming.xplay.data.repo.NotificationRepository
+import gaming.xplay.presentation.session.UserSessionManager
 import gaming.xplay.presentation.ui.State.UiState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -31,7 +34,8 @@ sealed class ChallengeCreationState {
 class GameViewModel @Inject constructor(
     private val gameRepository: GameRepository,
     private val notificationRepository: NotificationRepository,
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val userSessionManager: UserSessionManager
 ) : ViewModel() {
 
     private val _allChallenges = MutableStateFlow<UiState<List<Challenge>>>(UiState.Loading)
@@ -104,6 +108,9 @@ class GameViewModel @Inject constructor(
 
     init {
         fetchChallengesForCurrentUser()
+        userSessionManager.logoutEvents
+            .onEach { clearAllData() }
+            .launchIn(viewModelScope)
     }
 
     fun onChallengeCreationStatusConsumed() {
@@ -240,5 +247,12 @@ class GameViewModel @Inject constructor(
                 null
             }
         }
+    }
+
+    fun clearAllData() {
+        _allChallenges.value = UiState.Loading
+        _matchHistory.value = UiState.Loading
+        _leaderboard.value = UiState.Loading
+        _currentUser.value = Result.Error(Exception("Not logged in"))
     }
 }

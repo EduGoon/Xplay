@@ -30,6 +30,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -43,6 +47,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import gaming.xplay.presentation.viewmodel.AuthViewModel
 import kotlinx.coroutines.launch
 
+@Immutable
 data class OnboardingPage(
     val imageVector: ImageVector,
     val title: String,
@@ -54,24 +59,27 @@ data class OnboardingPage(
 fun OnboardingScreen(
     authViewModel: AuthViewModel = hiltViewModel()
 ) {
-    val pages = listOf(
-        OnboardingPage(
-            imageVector = Icons.Default.Games,
-            title = "Know your Ranking",
-            description = "Get to know where you rank countrywide and aim to improve"
-        ),
-        OnboardingPage(
-            imageVector = Icons.Default.Group,
-            title = "Create and Join Game Clubs",
-            description = "You can create tournaments with members within a club and track the outcomes." +
-                    "You can Join existing clubs to be able to play tournaments"
-        ),
-        OnboardingPage(
-            imageVector = Icons.Default.Notifications,
-            title = "Stay Updated",
-            description = "Get notified about new releases, club activities, and challenge invites."
+    // ✅ FIX 1: Stable list across recompositions
+    val pages = remember {
+        listOf(
+            OnboardingPage(
+                imageVector = Icons.Default.Games,
+                title = "Know your Ranking",
+                description = "Get to know where you rank countrywide and aim to improve"
+            ),
+            OnboardingPage(
+                imageVector = Icons.Default.Group,
+                title = "Create and Join Game Clubs",
+                description = "You can create tournaments with members within a club and track the outcomes. " +
+                        "You can join existing clubs to be able to play tournaments"
+            ),
+            OnboardingPage(
+                imageVector = Icons.Default.Notifications,
+                title = "Stay Updated",
+                description = "Get notified about new releases, club activities, and challenge invites."
+            )
         )
-    )
+    }
 
     val pagerState = rememberPagerState(pageCount = { pages.size })
     val scope = rememberCoroutineScope()
@@ -81,14 +89,15 @@ fun OnboardingScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
             .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        // ✅ FIX 2: Keyed pager pages
         HorizontalPager(
             state = pagerState,
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.weight(1f),
+            key = { page -> pages[page].title }
         ) { page ->
-            OnboardingPageContent(pages[page])
+            OnboardingPageContent(page = pages[page])
         }
 
         PagerIndicator(
@@ -99,7 +108,7 @@ fun OnboardingScreen(
 
         Button(
             onClick = {
-                if (pagerState.currentPage == pages.size - 1) {
+                if (pagerState.currentPage == pages.lastIndex) {
                     authViewModel.completeOnboarding()
                 } else {
                     scope.launch {
@@ -107,19 +116,22 @@ fun OnboardingScreen(
                     }
                 }
             },
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary
-            ),
             modifier = Modifier
                 .fillMaxWidth()
                 .height(50.dp),
-            shape = RoundedCornerShape(12.dp)
+            shape = RoundedCornerShape(12.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary
+            )
         ) {
-            if (pagerState.currentPage == pages.size - 1) {
-                Text("Let's Go!", fontSize = 18.sp)
+            if (pagerState.currentPage == pages.lastIndex) {
+                Text(text = "Let's Go!", fontSize = 18.sp)
             } else {
-                Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Next")
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                    contentDescription = "Next"
+                )
             }
         }
     }
@@ -128,9 +140,9 @@ fun OnboardingScreen(
 @Composable
 fun OnboardingPageContent(page: OnboardingPage) {
     Column(
+        modifier = Modifier.fillMaxSize(), // ✅ FIX 3: measurement-safe
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-        modifier = Modifier.fillMaxHeight()
+        verticalArrangement = Arrangement.Center
     ) {
         Icon(
             imageVector = page.imageVector,
@@ -138,14 +150,18 @@ fun OnboardingPageContent(page: OnboardingPage) {
             modifier = Modifier.size(120.dp),
             tint = MaterialTheme.colorScheme.primary
         )
+
         Spacer(modifier = Modifier.height(32.dp))
+
         Text(
             text = page.title,
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onBackground
         )
+
         Spacer(modifier = Modifier.height(16.dp))
+
         Text(
             text = page.description,
             style = MaterialTheme.typography.bodyLarge,
@@ -156,22 +172,38 @@ fun OnboardingPageContent(page: OnboardingPage) {
 }
 
 @Composable
-fun PagerIndicator(pageCount: Int, currentPage: Int, modifier: Modifier = Modifier) {
+fun PagerIndicator(
+    pageCount: Int,
+    currentPage: Int,
+    modifier: Modifier = Modifier
+) {
     Row(
+        modifier = modifier,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = modifier
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        repeat(pageCount) { iteration ->
-            val color = if (currentPage == iteration) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-            val width = animateDpAsState(targetValue = if (currentPage == iteration) 24.dp else 8.dp, label = "")
-            Box(
-                modifier = Modifier
-                    .height(8.dp)
-                    .width(width.value)
-                    .clip(CircleShape)
-                    .background(color)
-            )
+        repeat(pageCount) { index ->
+            // ✅ FIX 4: Stable animation slots
+            key(index) {
+                val width by animateDpAsState(
+                    targetValue = if (currentPage == index) 24.dp else 8.dp,
+                    label = "indicator_width"
+                )
+
+                val color =
+                    if (currentPage == index)
+                        MaterialTheme.colorScheme.primary
+                    else
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+
+                Box(
+                    modifier = Modifier
+                        .height(8.dp)
+                        .width(width)
+                        .clip(CircleShape)
+                        .background(color)
+                )
+            }
         }
     }
 }

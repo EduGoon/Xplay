@@ -6,19 +6,29 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import gaming.xplay.data.model.Player
 import gaming.xplay.data.model.Result
 import gaming.xplay.data.repo.AuthRepository
+import gaming.xplay.presentation.session.UserSessionManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class ChallengeDetailsViewModel @Inject constructor(
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val userSessionManager: UserSessionManager
 ) : ViewModel() {
 
     private val _playerProfiles = MutableStateFlow<Map<String, Player?>>(emptyMap())
     val playerProfiles: StateFlow<Map<String, Player?>> = _playerProfiles.asStateFlow()
+
+    init {
+        userSessionManager.logoutEvents
+            .onEach { clearData() }
+            .launchIn(viewModelScope)
+    }
 
     fun fetchPlayerProfile(playerId: String) {
         if (_playerProfiles.value.containsKey(playerId)) return
@@ -33,5 +43,9 @@ class ChallengeDetailsViewModel @Inject constructor(
                 }
             }
         }
+    }
+
+    fun clearData() {
+        _playerProfiles.value = emptyMap()
     }
 }
