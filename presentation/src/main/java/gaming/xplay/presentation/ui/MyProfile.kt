@@ -26,15 +26,21 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalDrawerSheet
+import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.NavigationDrawerItem
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -44,6 +50,7 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -92,6 +99,8 @@ fun MyProfileScreen(
     var showEditProfileDialog by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+
 
     LaunchedEffect(Unit) {
         authViewModel.refreshCurrentUser()
@@ -137,178 +146,207 @@ fun MyProfileScreen(
         )
     }
 
-    Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .background(MaterialTheme.colorScheme.background)
-                .verticalScroll(rememberScrollState())
-        ) {
-
-            // ---------------- Header Panel ----------------
-            Box(
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+            ModalDrawerSheet(modifier = Modifier.fillMaxWidth(0.5f)) {
+                Spacer(Modifier.height(12.dp))
+                NavigationDrawerItem(
+                    icon = { Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Log Out") },
+                    label = { Text("Log Out") },
+                    selected = false,
+                    onClick = { authViewModel.signOut() }
+                )
+            }
+        }
+    ) {
+        Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }) { paddingValues ->
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(180.dp)
-                    .background(MaterialTheme.colorScheme.primaryContainer)
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .background(MaterialTheme.colorScheme.background)
+                    .verticalScroll(rememberScrollState())
             ) {
-                SubcomposeAsyncImage(
-                    model = currentUser?.profilePictureUrl,
-                    contentDescription = null,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
-                ) {
-                    when (painter.state) {
-                        is coil.compose.AsyncImagePainter.State.Error,
-                        is coil.compose.AsyncImagePainter.State.Empty -> Box(
-                            Modifier
-                                .fillMaxSize()
-                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.4f))
-                        )
 
-                        else -> SubcomposeAsyncImageContent()
+                // ---------------- Header Panel ----------------
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(180.dp)
+                        .background(MaterialTheme.colorScheme.primaryContainer)
+                ) {
+                    SubcomposeAsyncImage(
+                        model = currentUser?.profilePictureUrl,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    ) {
+                        when (painter.state) {
+                            is coil.compose.AsyncImagePainter.State.Error,
+                            is coil.compose.AsyncImagePainter.State.Empty -> Box(
+                                Modifier
+                                    .fillMaxSize()
+                                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.4f))
+                            )
+
+                            else -> SubcomposeAsyncImageContent()
+                        }
+                    }
+
+                    AsyncImage(
+                        model = currentUser?.profilePictureUrl ?: "",
+                        contentDescription = "Avatar",
+                        modifier = Modifier
+                            .align(Alignment.BottomStart)
+                            .offset(x = 16.dp, y = 60.dp)
+                            .size(110.dp)
+                            .clip(CircleShape)
+                            .border(3.dp, MaterialTheme.colorScheme.background, CircleShape),
+                        contentScale = ContentScale.Crop
+                    )
+
+                    Row(
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                    ) {
+                        IconButton(
+                            onClick = { scope.launch { drawerState.open() } }
+                        ) {
+                            Icon(Icons.Default.Menu, contentDescription = "Menu")
+                        }
+                    }
+
+                    Row(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                    ) {
+                        IconButton(
+                            onClick = { showEditProfileDialog = true },
+                        ) {
+                            Icon(Icons.Default.Edit, contentDescription = "Edit Profile")
+                        }
                     }
                 }
 
-                AsyncImage(
-                    model = currentUser?.profilePictureUrl ?: "",
-                    contentDescription = "Avatar",
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .offset(x = 16.dp, y = 60.dp)
-                        .size(110.dp)
-                        .clip(CircleShape)
-                        .border(3.dp, MaterialTheme.colorScheme.background, CircleShape),
-                    contentScale = ContentScale.Crop
-                )
-
-                IconButton(
-                    onClick = { showEditProfileDialog = true }, modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(16.dp)
-                ) {
-                    Icon(Icons.Default.Edit, contentDescription = "Edit Profile")
-                }
-            }
-
-            Spacer(Modifier.height(70.dp))
-            currentUser?.let {
-                it.name?.let { text ->
-                    Text(
-                        text = text,
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp)
-                    )
-                }
-            }
-            Spacer(Modifier.height(16.dp))
-
-            // ---------------- XP Panel ----------------
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                shape = RoundedCornerShape(14.dp),
-                elevation = CardDefaults.cardElevation(6.dp)
-            ) {
-                val xp = userRanking?.XPpoints ?: 0
-                val targetXP = ((xp / 100) + 1) * 100
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("XP Progress", style = MaterialTheme.typography.titleMedium)
-                    LinearProgressIndicator(
-                        progress = xp.toFloat() / targetXP.toFloat(),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(12.dp)
-                            .clip(RoundedCornerShape(6.dp)),
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Text("$xp / $targetXP XP", style = MaterialTheme.typography.bodyMedium)
-                }
-            }
-
-            Spacer(Modifier.height(28.dp))
-
-            // ---------------- Info Cards ----------------
-            val wins = userRanking?.wins ?: 0
-            val losses = userRanking?.losses ?: 0
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                StatCard(title = "Wins", value = wins.toString(), modifier = Modifier.weight(1f))
-                StatCard(title = "Losses", value = losses.toString(), modifier = Modifier.weight(1f))
-            }
-
-            Spacer(Modifier.height(16.dp))
-
-            WinLossDonutChart(
-                wins = wins,
-                losses = losses,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-            )
-
-
-            Spacer(Modifier.height(28.dp))
-
-
-            // ---------------- Section Panels ----------------
-            Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-                TabRow(selectedTabIndex = selectedTab) {
-                    tabs.forEachIndexed { index, title ->
-                        Tab(
-                            selected = selectedTab == index,
-                            onClick = { selectedTab = index },
-                            text = { Text(text = title) }
+                Spacer(Modifier.height(70.dp))
+                currentUser?.let {
+                    it.name?.let { text ->
+                        Text(
+                            text = text,
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp)
                         )
                     }
                 }
                 Spacer(Modifier.height(16.dp))
-                when (selectedTab) {
-                    0 -> { // My Clubs
-                        when (val state = clubsState) {
-                            is UiState.Loading -> {
-                                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                                    CircularProgressIndicator()
-                                }
-                            }
 
-                            is UiState.Success -> {
-                                val all = state.data
-                                val my = all.filter {
-                                    it.memberIds.contains(currentUser?.uid) ||
-                                            it.adminId == currentUser?.uid
-                                }
+                // ---------------- XP Panel ----------------
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    elevation = CardDefaults.cardElevation(6.dp)
+                ) {
+                    val xp = userRanking?.XPpoints ?: 0
+                    val targetXP = ((xp / 100) + 1) * 100
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("XP Progress", style = MaterialTheme.typography.titleMedium)
+                        LinearProgressIndicator(
+                            progress = xp.toFloat() / targetXP.toFloat(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(12.dp)
+                                .clip(RoundedCornerShape(6.dp)),
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Text("$xp / $targetXP XP", style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
 
-                                if (my.isNotEmpty()) {
-                                    my.forEach { club ->
-                                        ClubCard(
-                                            club = club,
-                                            isAdmin = club.adminId == currentUser?.uid
-                                        )
-                                        Spacer(Modifier.height(16.dp))
-                                    }
-                                } else {
-                                    Text("You haven\'t joined any clubs yet.")
-                                }
-                            }
+                Spacer(Modifier.height(28.dp))
 
-                            is UiState.Error -> {
-                                Text(state.message)
-                            }
+                // ---------------- Info Cards ----------------
+                val wins = userRanking?.wins ?: 0
+                val losses = userRanking?.losses ?: 0
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    StatCard(title = "Wins", value = wins.toString(), modifier = Modifier.weight(1f))
+                    StatCard(title = "Losses", value = losses.toString(), modifier = Modifier.weight(1f))
+                }
+
+                Spacer(Modifier.height(16.dp))
+
+                WinLossDonutChart(
+                    wins = wins,
+                    losses = losses,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                )
+
+
+                Spacer(Modifier.height(28.dp))
+
+
+                // ---------------- Section Panels ----------------
+                Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+                    TabRow(selectedTabIndex = selectedTab) {
+                        tabs.forEachIndexed { index, title ->
+                            Tab(
+                                selected = selectedTab == index,
+                                onClick = { selectedTab = index },
+                                text = { Text(text = title) }
+                            )
                         }
                     }
+                    Spacer(Modifier.height(16.dp))
+                    when (selectedTab) {
+                        0 -> { // My Clubs
+                            when (val state = clubsState) {
+                                is UiState.Loading -> {
+                                    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                                        CircularProgressIndicator()
+                                    }
+                                }
 
-                    1 -> { // Match History
-                        MatchHistory(gameViewModel, authViewModel, currentUser?.uid ?: "")
+                                is UiState.Success -> {
+                                    val all = state.data
+                                    val my = all.filter {
+                                        it.memberIds.contains(currentUser?.uid) ||
+                                                it.adminId == currentUser?.uid
+                                    }
+
+                                    if (my.isNotEmpty()) {
+                                        my.forEach { club ->
+                                            ClubCard(
+                                                club = club,
+                                                isAdmin = club.adminId == currentUser?.uid
+                                            )
+                                            Spacer(Modifier.height(16.dp))
+                                        }
+                                    } else {
+                                        Text("You haven't joined any clubs yet.")
+                                    }
+                                }
+
+                                is UiState.Error -> {
+                                    Text(state.message)
+                                }
+                            }
+                        }
+
+                        1 -> { // Match History
+                            MatchHistory(gameViewModel, authViewModel, currentUser?.uid ?: "")
+                        }
                     }
                 }
             }

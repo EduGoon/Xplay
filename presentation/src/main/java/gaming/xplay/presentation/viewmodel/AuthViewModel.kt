@@ -67,9 +67,14 @@ class AuthViewModel @Inject constructor(
         viewModelScope.launch {
             when (val result = authRepository.fetchCurrentUserProfile()) {
                 is Result.Success -> {
-                    _currentUser.value = result.data
-                    if (result.data != null) {
-                        _navigationState.value = NavigationState.ToHome
+                    val player = result.data
+                    _currentUser.value = player
+                    if (player != null) {
+                        if (player.isFirstTime) {
+                            _navigationState.value = NavigationState.ToOnboarding
+                        } else {
+                            _navigationState.value = NavigationState.ToHome
+                        }
                     } else {
                         _navigationState.value = NavigationState.ToLogin
                     }
@@ -96,6 +101,7 @@ class AuthViewModel @Inject constructor(
             when (val result = authRepository.signInWithGoogle(idToken)) {
                 is Result.Success -> {
                     val player = result.data
+                    _currentUser.value = player
                     if (player.isFirstTime) {
                         _navigationState.value = NavigationState.ToOnboarding
                     } else {
