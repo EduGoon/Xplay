@@ -269,14 +269,14 @@ fun ChallengeResultDialog(
 
 @Composable
 fun XPBar(currentXP: Int) {
-    val level = (currentXP / 1000) + 1
-    val xpForLevel = currentXP % 1000
-    val progress = xpForLevel / 1000f
+    val level = (currentXP / 100) + 1
+    val xpForLevel = currentXP % 100
+    val progress = xpForLevel / 100f
 
     // Animate the progress bar
     val animatedProgress by animateFloatAsState(
         targetValue = progress,
-        animationSpec = tween(durationMillis = 1000, delayMillis = 200), label = ""
+        animationSpec = tween(durationMillis = 100, delayMillis = 200), label = ""
     )
 
     Column(
@@ -297,7 +297,7 @@ fun XPBar(currentXP: Int) {
                 )
             )
             Text(
-                text = "$xpForLevel / 1000 XP",
+                text = "$xpForLevel / 100 XP",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
