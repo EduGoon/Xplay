@@ -120,7 +120,6 @@ class GameRepository @Inject constructor(
         return try {
             val board = db.collection("rankings")
                 .whereEqualTo("gameid", gameId)
-                .whereGreaterThanOrEqualTo("XPpoints", 0)
                 .orderBy("XPpoints", Query.Direction.DESCENDING)
                 .get()
                 .await()

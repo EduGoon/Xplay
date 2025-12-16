@@ -206,26 +206,30 @@ fun MyProfileScreen(
                         contentScale = ContentScale.Crop
                     )
 
-                    Row(
+                    IconButton(
+                        onClick = { scope.launch { drawerState.open() } },
                         modifier = Modifier
                             .align(Alignment.TopStart)
+                            .padding(8.dp)
+                            .background(
+                                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f),
+                                shape = CircleShape
+                            )
                     ) {
-                        IconButton(
-                            onClick = { scope.launch { drawerState.open() } }
-                        ) {
-                            Icon(Icons.Default.Menu, contentDescription = "Menu")
-                        }
+                        Icon(Icons.Default.Menu, contentDescription = "Menu")
                     }
 
-                    Row(
+                    IconButton(
+                        onClick = { showEditProfileDialog = true },
                         modifier = Modifier
                             .align(Alignment.TopEnd)
+                            .padding(8.dp)
+                            .background(
+                                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f),
+                                shape = CircleShape
+                            )
                     ) {
-                        IconButton(
-                            onClick = { showEditProfileDialog = true },
-                        ) {
-                            Icon(Icons.Default.Edit, contentDescription = "Edit Profile")
-                        }
+                        Icon(Icons.Default.Edit, contentDescription = "Edit Profile")
                     }
                 }
 

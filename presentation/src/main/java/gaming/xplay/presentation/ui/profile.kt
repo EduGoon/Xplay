@@ -34,6 +34,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -363,37 +364,61 @@ fun MatchHistory(
         gameViewModel.fetchMatchHistory(userId)
     }
 
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Spacer(modifier = Modifier.height(16.dp))
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        tonalElevation = 2.dp
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            Text(
+                text = "Match History",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
 
-        when (val state = matchHistoryState) {
-            is UiState.Loading -> {
-                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
+            when (val state = matchHistoryState) {
+                is UiState.Loading -> {
+                    Box(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator()
+                    }
                 }
-            }
 
-            is UiState.Success -> {
-                val matches = state.data
-                if (matches.isEmpty()) {
-                    EmptyState(
-                        icon = Icons.Outlined.History,
-                        text = "No match history found"
-                    )
-                } else {
-                    val groupedMatches = matches.groupBy { getFormattedDate(it.playedAt) }
-                    groupedMatches.forEach { (date, matches) ->
-                        DateDivider(date = date)
-                        matches.forEach { match ->
-                            MatchCard(match = match, currentUserId = userId, authViewModel = authViewModel)
-                            Spacer(modifier = Modifier.height(8.dp))
+                is UiState.Success -> {
+                    val matches = state.data
+                    if (matches.isEmpty()) {
+                        EmptyState(
+                            icon = Icons.Outlined.History,
+                            text = "No match history found"
+                        )
+                    } else {
+                        val groupedMatches =
+                            matches.groupBy { getFormattedDate(it.playedAt) }
+                        groupedMatches.forEach { (date, matches) ->
+                            DateDivider(date = date)
+                            matches.forEach { match ->
+                                MatchCard(
+                                    match = match,
+                                    currentUserId = userId,
+                                    authViewModel = authViewModel
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                            }
                         }
                     }
                 }
-            }
 
-            is UiState.Error -> {
-                Text(state.message)
+                is UiState.Error -> {
+                    Text(state.message)
+                }
             }
         }
     }
