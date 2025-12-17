@@ -85,6 +85,24 @@ fun ChallengesScreen(
     val currentUser by authViewModel.currentUser.collectAsState()
     val currentUserId = currentUser?.uid
 
+    val showOfflineError by authViewModel.showOfflineError.collectAsState()
+    val errorState by authViewModel.errorState.collectAsState()
+
+    LaunchedEffect(showOfflineError) {
+        if (showOfflineError) {
+            snackbarHostState.showSnackbar("You're offline. Please check your connection.")
+            authViewModel.dismissOfflineError()
+        }
+    }
+
+    LaunchedEffect(errorState) {
+        errorState?.let {
+            snackbarHostState.showSnackbar(it)
+            authViewModel.dismissError()
+        }
+    }
+
+
     LaunchedEffect(key1 = currentUserId) {
         if (currentUserId != null) {
             gameViewModel.refreshAllChallenges()

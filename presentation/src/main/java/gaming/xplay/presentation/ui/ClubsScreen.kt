@@ -36,6 +36,9 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -76,6 +79,16 @@ fun ClubsScreen(clubViewModel: ClubViewModel, authViewModel: AuthViewModel, navC
     val isRefreshing by clubViewModel.isRefreshing.collectAsState()
     val pullToRefreshState = rememberPullToRefreshState()
     val navigationState by clubViewModel.navigationState.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val hasConnection by authViewModel.hasConnection.collectAsState()
+    val showOfflineError by authViewModel.showOfflineError.collectAsState()
+
+    LaunchedEffect(showOfflineError) {
+        if (showOfflineError) {
+            snackbarHostState.showSnackbar("You're offline. Please check your connection.")
+            authViewModel.dismissOfflineError()
+        }
+    }
 
     LaunchedEffect(navigationState) {
         (navigationState as? ClubNavigationState.ToClubDetails)?.let {
@@ -84,108 +97,114 @@ fun ClubsScreen(clubViewModel: ClubViewModel, authViewModel: AuthViewModel, navC
         }
     }
 
-    Column(modifier = Modifier.padding(16.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Available FIFA clubs",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-            TextButton(onClick = { showCreateClubDialog = true }) {
-                Icon(Icons.Default.Add, contentDescription = "Create Club", modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.width(4.dp))
-                Text("Create Club")
+    Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Available FIFA clubs",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                TextButton(onClick = { showCreateClubDialog = true }) {
+                    Icon(Icons.Default.Add, contentDescription = "Create Club", modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Create Club")
+                }
             }
-        }
-        Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-        PullToRefreshBox(
-            isRefreshing = isRefreshing,
-            onRefresh = { clubViewModel.refreshClubs() },
-            state = pullToRefreshState
-        ) {
-            when (val state = clubsState) {
-                is UiState.Loading -> {
-                    if (!isRefreshing) {
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator()
+            PullToRefreshBox(
+                isRefreshing = isRefreshing,
+                onRefresh = { clubViewModel.refreshClubs() },
+                state = pullToRefreshState
+            ) {
+                when (val state = clubsState) {
+                    is UiState.Loading -> {
+                        if (!isRefreshing) {
+                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                CircularProgressIndicator()
+                            }
                         }
                     }
-                }
 
-                is UiState.Success -> {
-                    val clubs = state.data
-                    if (clubs.isEmpty()) {
+                    is UiState.Success -> {
+                        val clubs = state.data
+                        if (clubs.isEmpty()) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(16.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Groups,
+                                        contentDescription = "No clubs",
+                                        modifier = Modifier.size(48.dp),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                    Text(
+                                        "No clubs available. Create one!",
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        } else {
+                            LazyColumn(
+                                modifier = Modifier.fillMaxSize(),
+                                verticalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                items(clubs) { club ->
+                                    FifaClubCard(club = club) {
+                                        navController.navigate("clubdetails/${club.clubId}")
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    is UiState.Error -> {
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .padding(16.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Groups,
-                                    contentDescription = "No clubs",
-                                    modifier = Modifier.size(48.dp),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Spacer(modifier = Modifier.height(16.dp))
-                                Text(
-                                    "No clubs available. Create one!",
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
+                            Text(text = state.message, color = MaterialTheme.colorScheme.error)
                         }
-                    } else {
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            verticalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            items(clubs) { club ->
-                                FifaClubCard(club = club) {
-                                    navController.navigate("clubdetails/${club.clubId}")
-                                }
-                            }
-                        }
-                    }
-                }
-
-                is UiState.Error -> {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(16.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(text = state.message, color = MaterialTheme.colorScheme.error)
                     }
                 }
             }
         }
-    }
 
-    if (showCreateClubDialog) {
-        CreateClubDialog(
-            onDismiss = { showCreateClubDialog = false },
-            onCreateClub = { clubName, imageUri ->
-                currentUser?.uid?.let { it1 ->
-                    clubViewModel.createClub(
-                        clubName,
-                        it1,
-                        imageUri
-                    )
+        if (showCreateClubDialog) {
+            CreateClubDialog(
+                onDismiss = { showCreateClubDialog = false },
+                onCreateClub = { clubName, imageUri ->
+                    if (hasConnection) {
+                        currentUser?.uid?.let { it1 ->
+                            clubViewModel.createClub(
+                                clubName,
+                                it1,
+                                imageUri
+                            )
+                        }
+                        showCreateClubDialog = false
+                    } else {
+                        authViewModel.showOfflineError
+                    }
                 }
-                showCreateClubDialog = false
-            }
-        )
+            )
+        }
     }
 }
 

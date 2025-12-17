@@ -8,6 +8,7 @@ import gaming.xplay.data.model.Match
 import gaming.xplay.data.model.Player
 import gaming.xplay.data.model.Result
 import gaming.xplay.data.model.rankings
+import gaming.xplay.data.network.ConnectivityRepository
 import gaming.xplay.data.repo.AuthRepository
 import gaming.xplay.data.repo.GameRepository
 import gaming.xplay.data.repo.NotificationRepository
@@ -45,7 +46,8 @@ class GameViewModel @Inject constructor(
     private val gameRepository: GameRepository,
     private val notificationRepository: NotificationRepository,
     private val authRepository: AuthRepository,
-    private val userSessionManager: UserSessionManager
+    private val userSessionManager: UserSessionManager,
+    private val connectivityRepository: ConnectivityRepository
 ) : ViewModel() {
 
     private val _allChallenges = MutableStateFlow<UiState<List<Challenge>>>(UiState.Loading)
@@ -53,6 +55,9 @@ class GameViewModel @Inject constructor(
 
     private val _isRefreshing = MutableStateFlow(false)
     val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
+
+    val hasConnection = connectivityRepository.hasConnection()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
 
     val incomingChallenges: StateFlow<UiState<List<Challenge>>> = combine(
         _allChallenges,
@@ -143,6 +148,10 @@ class GameViewModel @Inject constructor(
     }
 
     private fun createChallenge(player2Id: String, gameId: String) {
+        if (!hasConnection.value) {
+            _challengeCreationState.value = ChallengeCreationState.Error("You're offline. Please check your connection.")
+            return
+        }
         viewModelScope.launch {
             _challengeCreationState.value = ChallengeCreationState.Loading
             when (val currentUserResult = authRepository.fetchCurrentUserProfile()) {
@@ -176,6 +185,10 @@ class GameViewModel @Inject constructor(
     }
 
     fun acceptChallenge(challenge: Challenge) {
+        if (!hasConnection.value) {
+            _errorState.value = "You're offline. Please check your connection."
+            return
+        }
         viewModelScope.launch {
             when (gameRepository.updateChallengeStatus(challenge.challengeId, "accepted")) {
                 is Result.Success -> {
@@ -188,6 +201,10 @@ class GameViewModel @Inject constructor(
     }
 
     fun rejectChallenge(challenge: Challenge) {
+        if (!hasConnection.value) {
+            _errorState.value = "You're offline. Please check your connection."
+            return
+        }
         viewModelScope.launch {
             when (gameRepository.updateChallengeStatus(challenge.challengeId, "rejected")) {
                 is Result.Success -> {
@@ -206,6 +223,10 @@ class GameViewModel @Inject constructor(
     }
 
     private fun fetchChallengesForCurrentUser() {
+        if (!hasConnection.value) {
+            _allChallenges.value = UiState.Error("You're offline. Please check your connection.")
+            return
+        }
         viewModelScope.launch {
             _currentUser.value = authRepository.fetchCurrentUserProfile()
             when (val currentUserResult = _currentUser.value) {
@@ -257,6 +278,10 @@ class GameViewModel @Inject constructor(
     }
 
     fun submitMatchResult(challenge: Challenge, result: String) {
+        if (!hasConnection.value) {
+            _matchSubmissionState.value = MatchSubmissionState.Error("You're offline. Please check your connection.")
+            return
+        }
         viewModelScope.launch {
             _matchSubmissionState.value = MatchSubmissionState.Loading
             val submitResult = gameRepository.submitMatchResult(challenge.challengeId, result)
@@ -281,6 +306,10 @@ class GameViewModel @Inject constructor(
     }
 
     fun fetchMatchHistory(playerId: String) {
+        if (!hasConnection.value) {
+            _matchHistory.value = UiState.Error("You're offline. Please check your connection.")
+            return
+        }
         viewModelScope.launch {
             _matchHistory.value = UiState.Loading
             when (val result = gameRepository.getMatchHistory(playerId)) {
@@ -292,6 +321,10 @@ class GameViewModel @Inject constructor(
     }
 
     fun fetchLeaderboard(gameId: String) {
+        if (!hasConnection.value) {
+            _leaderboard.value = UiState.Error("You're offline. Please check your connection.")
+            return
+        }
         viewModelScope.launch {
             _leaderboard.value = UiState.Loading
             when (val result = gameRepository.getLeaderboard(gameId)) {
@@ -308,6 +341,10 @@ class GameViewModel @Inject constructor(
     }
 
     private fun fetchPlayerProfilesForLeaderboard(playerIds: List<String>) {
+        if (!hasConnection.value) {
+            // Silently fail, as this is a secondary data load
+            return
+        }
         viewModelScope.launch {
             val profileDeferreds = playerIds.map {
                 async {
@@ -322,6 +359,10 @@ class GameViewModel @Inject constructor(
     }
 
     suspend fun getPlayerRanking(playerId: String, gameId: String): rankings? {
+        if (!hasConnection.value) {
+            _errorState.value = "You're offline. Please check your connection."
+            return null
+        }
         return when (val result = gameRepository.getPlayerRanking(playerId, gameId)) {
             is Result.Success -> result.data
             is Result.Error -> {

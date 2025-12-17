@@ -6,12 +6,15 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import gaming.xplay.data.model.Club
 import gaming.xplay.data.model.Player
 import gaming.xplay.data.model.Result
+import gaming.xplay.data.network.ConnectivityRepository
 import gaming.xplay.data.repo.AuthRepository
 import gaming.xplay.data.repo.ClubRepository
 import gaming.xplay.data.repo.NotificationRepository
 import gaming.xplay.presentation.ui.State.UiState
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -20,7 +23,8 @@ import javax.inject.Inject
 class NotificationViewModel @Inject constructor(
     private val clubRepository: ClubRepository,
     private val authRepository: AuthRepository,
-    private val notificationRepository: NotificationRepository
+    private val notificationRepository: NotificationRepository,
+    private val connectivityRepository: ConnectivityRepository
 ) : ViewModel() {
 
     private val _adminClubs = MutableStateFlow<UiState<List<Club>>>(UiState.Loading)
@@ -32,11 +36,18 @@ class NotificationViewModel @Inject constructor(
     private val _joinRequestState = MutableStateFlow<Map<String, UiState<Unit>>>(emptyMap())
     val joinRequestState: StateFlow<Map<String, UiState<Unit>>> = _joinRequestState
 
+    val hasConnection = connectivityRepository.hasConnection()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
     init {
         fetchAdminClubs()
     }
 
     fun fetchAdminClubs() {
+        if (!hasConnection.value) {
+            _adminClubs.value = UiState.Error("You're offline. Please check your connection.")
+            return
+        }
         viewModelScope.launch {
             _adminClubs.value = UiState.Loading
             when (val result = authRepository.fetchCurrentUserProfile()) {
@@ -61,6 +72,10 @@ class NotificationViewModel @Inject constructor(
     }
 
     private fun fetchPendingMembersForClubs(clubs: List<Club>) {
+        if (!hasConnection.value) {
+            _pendingMembers.value = UiState.Error("You're offline. Please check your connection.")
+            return
+        }
         viewModelScope.launch {
             _pendingMembers.value = UiState.Loading
             val pendingMembersMap = mutableMapOf<String, List<Player>>()
@@ -79,6 +94,11 @@ class NotificationViewModel @Inject constructor(
         }
     }
     fun approveJoinRequest(clubId: String, playerId: String, clubName: String) {
+        if (!hasConnection.value) {
+            val requestId = "$clubId-$playerId"
+            _joinRequestState.update { it + (requestId to UiState.Error("You're offline. Please check your connection.")) }
+            return
+        }
         val requestId = "$clubId-$playerId"
         viewModelScope.launch {
             _joinRequestState.update { it + (requestId to UiState.Loading) }
@@ -100,6 +120,11 @@ class NotificationViewModel @Inject constructor(
     }
 
     fun declineJoinRequest(clubId: String, playerId: String, clubName: String) {
+        if (!hasConnection.value) {
+            val requestId = "$clubId-$playerId"
+            _joinRequestState.update { it + (requestId to UiState.Error("You're offline. Please check your connection.")) }
+            return
+        }
         val requestId = "$clubId-$playerId"
         viewModelScope.launch {
             _joinRequestState.update { it + (requestId to UiState.Loading) }
@@ -128,6 +153,9 @@ class NotificationViewModel @Inject constructor(
     }
 
     private fun sendApprovalNotification(playerId: String, clubName: String) {
+        if (!hasConnection.value) {
+            return
+        }
         viewModelScope.launch {
             /*
             notificationRepository.sendNotification(
@@ -142,6 +170,9 @@ class NotificationViewModel @Inject constructor(
     }
 
     private fun sendRejectionNotification(playerId: String, clubName: String) {
+        if (!hasConnection.value) {
+            return
+        }
         viewModelScope.launch {
             /*
             notificationRepository.sendNotification(

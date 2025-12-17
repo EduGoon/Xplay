@@ -28,9 +28,14 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
@@ -59,7 +64,6 @@ data class OnboardingPage(
 fun OnboardingScreen(
     authViewModel: AuthViewModel = hiltViewModel()
 ) {
-    // ✅ FIX 1: Stable list across recompositions
     val pages = remember {
         listOf(
             OnboardingPage(
@@ -83,55 +87,68 @@ fun OnboardingScreen(
 
     val pagerState = rememberPagerState(pageCount = { pages.size })
     val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val showOfflineError by authViewModel.showOfflineError.collectAsState()
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        // ✅ FIX 2: Keyed pager pages
-        HorizontalPager(
-            state = pagerState,
-            modifier = Modifier.weight(1f),
-            key = { page -> pages[page].title }
-        ) { page ->
-            OnboardingPageContent(page = pages[page])
+    LaunchedEffect(showOfflineError) {
+        if (showOfflineError) {
+            snackbarHostState.showSnackbar("You're offline. Please check your connection.")
+            authViewModel.dismissOfflineError()
         }
+    }
 
-        PagerIndicator(
-            pageCount = pages.size,
-            currentPage = pagerState.currentPage,
-            modifier = Modifier.padding(vertical = 24.dp)
-        )
-
-        Button(
-            onClick = {
-                if (pagerState.currentPage == pages.lastIndex) {
-                    authViewModel.completeOnboarding()
-                } else {
-                    scope.launch {
-                        pagerState.animateScrollToPage(pagerState.currentPage + 1)
-                    }
-                }
-            },
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) }
+    ) { paddingValues ->
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .height(50.dp),
-            shape = RoundedCornerShape(12.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary
-            )
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+                .padding(paddingValues)
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            if (pagerState.currentPage == pages.lastIndex) {
-                Text(text = "Let's Go!", fontSize = 18.sp)
-            } else {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                    contentDescription = "Next"
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.weight(1f),
+                key = { page -> pages[page].title }
+            ) { page ->
+                OnboardingPageContent(page = pages[page])
+            }
+
+            PagerIndicator(
+                pageCount = pages.size,
+                currentPage = pagerState.currentPage,
+                modifier = Modifier.padding(vertical = 24.dp)
+            )
+
+            Button(
+                onClick = {
+                    if (pagerState.currentPage == pages.lastIndex) {
+                        authViewModel.completeOnboarding()
+                    } else {
+                        scope.launch {
+                            pagerState.animateScrollToPage(pagerState.currentPage + 1)
+                        }
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(50.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
                 )
+            ) {
+                if (pagerState.currentPage == pages.lastIndex) {
+                    Text(text = "Let's Go!", fontSize = 18.sp)
+                } else {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                        contentDescription = "Next"
+                    )
+                }
             }
         }
     }
@@ -140,7 +157,7 @@ fun OnboardingScreen(
 @Composable
 fun OnboardingPageContent(page: OnboardingPage) {
     Column(
-        modifier = Modifier.fillMaxSize(), // ✅ FIX 3: measurement-safe
+        modifier = Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
@@ -183,7 +200,6 @@ fun PagerIndicator(
         verticalAlignment = Alignment.CenterVertically
     ) {
         repeat(pageCount) { index ->
-            // ✅ FIX 4: Stable animation slots
             key(index) {
                 val width by animateDpAsState(
                     targetValue = if (currentPage == index) 24.dp else 8.dp,

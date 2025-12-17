@@ -51,6 +51,7 @@ fun NotificationsScreen(
     val pendingMembersState by notificationViewModel.pendingMembers.collectAsState()
     val joinRequestStates by notificationViewModel.joinRequestState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+    val hasConnection by notificationViewModel.hasConnection.collectAsState()
 
     joinRequestStates.forEach {
         val (requestId, state) = it
@@ -132,8 +133,20 @@ fun NotificationsScreen(
                                             clubName = club.clubName,
                                             member = member,
                                             requestState = joinRequestStates["${club.clubId}-${member.uid}"],
-                                            onAccept = { notificationViewModel.approveJoinRequest(club.clubId, member.uid, club.clubName) },
-                                            onDecline = { notificationViewModel.declineJoinRequest(club.clubId, member.uid, club.clubName) }
+                                            onAccept = { 
+                                                if(hasConnection){
+                                                    notificationViewModel.approveJoinRequest(club.clubId, member.uid, club.clubName) 
+                                                } else {
+                                                    // show snackbar
+                                                }
+                                            },
+                                            onDecline = { 
+                                                if(hasConnection){
+                                                    notificationViewModel.declineJoinRequest(club.clubId, member.uid, club.clubName) 
+                                                } else {
+                                                    // show snackbar
+                                                }
+                                            }
                                         )
                                     }
                                 }

@@ -100,6 +100,15 @@ fun MyProfileScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+    val hasConnection by authViewModel.hasConnection.collectAsState()
+    val showOfflineError by authViewModel.showOfflineError.collectAsState()
+
+    LaunchedEffect(showOfflineError) {
+        if (showOfflineError) {
+            snackbarHostState.showSnackbar("You're offline. Please check your connection.")
+            authViewModel.dismissOfflineError()
+        }
+    }
 
 
     LaunchedEffect(Unit) {
@@ -141,7 +150,11 @@ fun MyProfileScreen(
             updateProfileState = updateProfileState,
             onDismiss = { showEditProfileDialog = false },
             onSave = { name, imageUri ->
-                authViewModel.updateUserProfile(name, imageUri)
+                if(hasConnection){
+                    authViewModel.updateUserProfile(name, imageUri)
+                } else {
+                    authViewModel.showOfflineError
+                }
             }
         )
     }

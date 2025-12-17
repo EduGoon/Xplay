@@ -7,12 +7,15 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import gaming.xplay.data.model.Club
 import gaming.xplay.data.model.CreateClubRequest
 import gaming.xplay.data.model.Result
+import gaming.xplay.data.network.ConnectivityRepository
 import gaming.xplay.data.repo.ClubRepository
 import gaming.xplay.data.repo.StorageRepository
 import gaming.xplay.presentation.ui.State.UiState
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -25,7 +28,8 @@ sealed class ClubNavigationState {
 @HiltViewModel
 class ClubViewModel @Inject constructor(
     private val clubRepository: ClubRepository,
-    private val storageRepository: StorageRepository
+    private val storageRepository: StorageRepository,
+    private val connectivityRepository: ConnectivityRepository
 ) : ViewModel() {
 
     private val _clubs = MutableStateFlow<UiState<List<Club>>>(UiState.Loading)
@@ -40,11 +44,18 @@ class ClubViewModel @Inject constructor(
     private val _isRefreshing = MutableStateFlow(false)
     val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
 
+    val hasConnection = connectivityRepository.hasConnection()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
     init {
         fetchClubs()
     }
 
     fun fetchClubs(isRefresh: Boolean = false) {
+        if (!hasConnection.value) {
+            _clubs.value = UiState.Error("You're offline. Please check your connection.")
+            return
+        }
         viewModelScope.launch {
             if (!isRefresh) {
                 _clubs.value = UiState.Loading
@@ -65,6 +76,10 @@ class ClubViewModel @Inject constructor(
     }
 
     fun createClub(clubName: String, adminId: String, imageUri: Uri?) {
+        if (!hasConnection.value) {
+            _createClubState.value = UiState.Error("You're offline. Please check your connection.")
+            return
+        }
         viewModelScope.launch {
             _createClubState.value = UiState.Loading
             val imageUrl = imageUri?.let {

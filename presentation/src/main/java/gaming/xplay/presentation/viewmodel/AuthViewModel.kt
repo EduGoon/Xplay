@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import gaming.xplay.data.model.Player
 import gaming.xplay.data.model.Result
+import gaming.xplay.data.network.ConnectivityRepository
 import gaming.xplay.data.repo.AuthRepository
 import gaming.xplay.data.repo.GameRepository
 import gaming.xplay.presentation.model.PlayerSearchResult
@@ -14,10 +15,12 @@ import gaming.xplay.presentation.session.UserSessionManager
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -39,7 +42,8 @@ sealed class UpdateProfileState {
 class AuthViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val gameRepository: GameRepository,
-    private val userSessionManager: UserSessionManager
+    private val userSessionManager: UserSessionManager,
+    connectivityRepository: ConnectivityRepository
 ) : ViewModel() {
 
     private val _navigationState = MutableStateFlow<NavigationState>(NavigationState.Loading)
@@ -63,6 +67,13 @@ class AuthViewModel @Inject constructor(
     private val _updateProfileState = MutableStateFlow<UpdateProfileState>(UpdateProfileState.Idle)
     val updateProfileState: StateFlow<UpdateProfileState> = _updateProfileState.asStateFlow()
 
+    private val _showOfflineError = MutableStateFlow(false)
+    val showOfflineError: StateFlow<Boolean> = _showOfflineError.asStateFlow()
+
+    val hasConnection = connectivityRepository.hasConnection()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
+
     init {
         checkCurrentUser()
         userSessionManager.logoutEvents
@@ -79,6 +90,10 @@ class AuthViewModel @Inject constructor(
     }
 
     private fun checkCurrentUser() {
+        if (!hasConnection.value) {
+            _errorState.value = "You're offline. Some data may be outdated."
+            // We still allow the fetch to proceed to get data from the local cache.
+        }
         viewModelScope.launch {
             when (val result = authRepository.fetchCurrentUserProfile()) {
                 is Result.Success -> {
@@ -97,6 +112,11 @@ class AuthViewModel @Inject constructor(
         }
     }
 
+    fun dismissOfflineError() {
+        _showOfflineError.value = false
+    }
+
+
     fun resetUpdateProfileState() {
         _updateProfileState.value = UpdateProfileState.Idle
     }
@@ -106,6 +126,11 @@ class AuthViewModel @Inject constructor(
     }
 
     fun signInWithGoogle(idToken: String) {
+        if (!hasConnection.value) {
+            _showOfflineError.value = true
+            _signInState.value = false
+            return
+        }
         viewModelScope.launch {
             _isLoading.value = true
             when (val result = authRepository.signInWithGoogle(idToken)) {
@@ -130,6 +155,10 @@ class AuthViewModel @Inject constructor(
     }
 
     fun updateUserProfile(name: String, profilePictureUri: Uri?) {
+        if (!hasConnection.value) {
+            _updateProfileState.value = UpdateProfileState.Error("You're offline. Please check your connection.")
+            return
+        }
         viewModelScope.launch {
             _updateProfileState.value = UpdateProfileState.Loading
             val uid = checkCurrentUserUid()
@@ -150,6 +179,11 @@ class AuthViewModel @Inject constructor(
     }
 
     fun searchPlayers(query: String) {
+        if (!hasConnection.value) {
+            _errorState.value = "You're offline. Please check your connection."
+            _searchResults.value = emptyList()
+            return
+        }
         viewModelScope.launch {
             if (query.length < 2) {
                 _searchResults.value = emptyList()
@@ -192,6 +226,10 @@ class AuthViewModel @Inject constructor(
     }
 
     fun completeOnboarding() {
+        if (!hasConnection.value) {
+            _errorState.value = "You're offline. Please check your connection."
+            return
+        }
         viewModelScope.launch {
             when (val result = authRepository.completeOnboarding()) {
                 is Result.Success -> {
@@ -210,6 +248,11 @@ class AuthViewModel @Inject constructor(
     }
 
     suspend fun getPlayerProfile(playerId: String): Player? {
+        if (!hasConnection.value) {
+            // This is a suspend function, so we can't update state directly.
+            // The calling composable should handle the UI feedback.
+            return null
+        }
         return when (val result = authRepository.getPlayerProfile(playerId)) {
             is Result.Success -> result.data
             is Result.Error -> {

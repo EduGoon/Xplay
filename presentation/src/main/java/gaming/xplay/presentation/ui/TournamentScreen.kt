@@ -104,9 +104,18 @@ fun TournamentScreen(
 
     val currentUser by authViewModel.currentUser.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+    val hasConnection by authViewModel.hasConnection.collectAsState()
+    val showOfflineError by authViewModel.showOfflineError.collectAsState()
 
     var selectedSection by remember { mutableStateOf(TournamentSection.Participants) }
     var showSubmitResultDialog by remember { mutableStateOf<Fixture?>(null) }
+
+    LaunchedEffect(showOfflineError) {
+        if (showOfflineError) {
+            snackbarHostState.showSnackbar("You're offline. Please check your connection.")
+            authViewModel.dismissOfflineError()
+        }
+    }
 
     // --- Action feedback ---
     LaunchedEffect(Unit) {
@@ -188,11 +197,27 @@ fun TournamentScreen(
                             currentUserId = currentUser?.uid,
                             selectedSection = selectedSection,
                             onSectionChange = { selectedSection = it },
-                            onStartTournament = tournamentViewModel::startTournament,
-                            onJoinTournament = {
-                                currentUser?.uid?.let { tournamentViewModel.joinTournament(it) }
+                            onStartTournament = {
+                                if (hasConnection) {
+                                    tournamentViewModel.startTournament()
+                                } else {
+                                    authViewModel.showOfflineError
+                                }
                             },
-                            onSubmitResult = { showSubmitResultDialog = it }
+                            onJoinTournament = {
+                                if (hasConnection) {
+                                    currentUser?.uid?.let { tournamentViewModel.joinTournament(it) }
+                                } else {
+                                    authViewModel.showOfflineError
+                                }
+                            },
+                            onSubmitResult = { 
+                                if(hasConnection){
+                                    showSubmitResultDialog = it 
+                                } else {
+                                    authViewModel.showOfflineError
+                                }
+                            }
                         )
 
                         if (showSubmitResultDialog != null) {
@@ -200,7 +225,13 @@ fun TournamentScreen(
                                 fixture = showSubmitResultDialog!!,
                                 tournament = tournament,
                                 members = (membersState as? UiState.Success)?.data ?: emptyList(),
-                                onConfirm = tournamentViewModel::submitTournamentMatchResult,
+                                onConfirm = { fixture, winnerId ->
+                                    if (hasConnection) {
+                                        tournamentViewModel.submitTournamentMatchResult(fixture, winnerId)
+                                    } else {
+                                        authViewModel.showOfflineError
+                                    }
+                                },
                                 onDismiss = { showSubmitResultDialog = null },
                                 isLoading = submitMatchResultActionState is SubmitMatchResultActionState.Loading
                             )

@@ -12,6 +12,7 @@ import gaming.xplay.data.model.RankingType
 import gaming.xplay.data.model.Result
 import gaming.xplay.data.model.Tournament
 import gaming.xplay.data.model.rankings
+import gaming.xplay.data.network.ConnectivityRepository
 import gaming.xplay.data.repo.ClubRepository
 import gaming.xplay.data.repo.GameRepository
 import gaming.xplay.presentation.ui.State.UiState
@@ -20,8 +21,10 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -50,6 +53,7 @@ class ClubDetailsViewModel @Inject constructor(
     private val clubRepository: ClubRepository,
     private val gameRepository: GameRepository,
     private val notificationRepository: gaming.xplay.data.repo.NotificationRepository,
+    private val connectivityRepository: ConnectivityRepository,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -82,6 +86,9 @@ class ClubDetailsViewModel @Inject constructor(
     private val _isRefreshing = MutableStateFlow(false)
     val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
 
+    val hasConnection = connectivityRepository.hasConnection()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
     init {
         fetchClubDetails()
     }
@@ -95,6 +102,10 @@ class ClubDetailsViewModel @Inject constructor(
     }
 
     private fun fetchClubDetails(isRefresh: Boolean = false) {
+        if (!hasConnection.value) {
+            _club.value = UiState.Error("You're offline. Please check your connection.")
+            return
+        }
         viewModelScope.launch {
             if (!isRefresh) {
                 _club.value = UiState.Loading
@@ -118,6 +129,10 @@ class ClubDetailsViewModel @Inject constructor(
     }
 
     private fun fetchClubPosts(clubId: String) {
+        if (!hasConnection.value) {
+            _clubPosts.value = UiState.Error("You're offline. Please check your connection.")
+            return
+        }
         viewModelScope.launch {
             _clubPosts.value = UiState.Loading
             when (val result = clubRepository.getClubPosts(clubId)) {
@@ -128,6 +143,10 @@ class ClubDetailsViewModel @Inject constructor(
     }
 
     fun createClubPost(text: String, authorId: String) {
+        if (!hasConnection.value) {
+            _createPostState.value = CreatePostState.Error("You're offline. Please check your connection.")
+            return
+        }
         viewModelScope.launch {
             _createPostState.value = CreatePostState.Loading
             when (val result = clubRepository.createClubPost(clubId, authorId, text)) {
@@ -146,6 +165,10 @@ class ClubDetailsViewModel @Inject constructor(
     }
 
     private fun fetchClubMembers(memberIds: List<String>) {
+        if (!hasConnection.value) {
+            _members.value = UiState.Error("You're offline. Please check your connection.")
+            return
+        }
         viewModelScope.launch {
             when (val result = clubRepository.getClubMembers(memberIds)) {
                 is Result.Success -> {
@@ -159,6 +182,10 @@ class ClubDetailsViewModel @Inject constructor(
     }
 
     private fun fetchMemberRankings(members: List<Player>) {
+        if (!hasConnection.value) {
+            _rankings.value = UiState.Error("You're offline. Please check your connection.")
+            return
+        }
         viewModelScope.launch {
             val rankingsList = members.map { member ->
                 async {
@@ -173,6 +200,10 @@ class ClubDetailsViewModel @Inject constructor(
     }
 
     private fun fetchTournaments(clubId: String) {
+        if (!hasConnection.value) {
+            _tournaments.value = UiState.Error("You're offline. Please check your connection.")
+            return
+        }
         viewModelScope.launch {
             _tournaments.value = UiState.Loading
             when (val result = clubRepository.getTournamentsForClub(clubId)) {
@@ -183,6 +214,10 @@ class ClubDetailsViewModel @Inject constructor(
     }
 
     fun createTournament(tournamentName: String, adminId: String, rankingType: RankingType) {
+        if (!hasConnection.value) {
+            _createTournamentState.value = CreateTournamentState.Error("You're offline. Please check your connection.")
+            return
+        }
         viewModelScope.launch {
             _createTournamentState.value = CreateTournamentState.Loading
             val request = CreateTournamentRequest(clubId, adminId, tournamentName, rankingType)
@@ -198,6 +233,12 @@ class ClubDetailsViewModel @Inject constructor(
     }
 
     fun joinClub(playerId: String, club: Club, playerName: String) {
+        if (!hasConnection.value) {
+            viewModelScope.launch {
+                _joinClubActionState.emit(JoinClubActionState.Error("You're offline. Please check your connection."))
+            }
+            return
+        }
         viewModelScope.launch {
             val request = gaming.xplay.data.model.JoinClubRequest(clubId, playerId)
             when (val result = clubRepository.requestToJoinClub(request)) {
@@ -215,6 +256,9 @@ class ClubDetailsViewModel @Inject constructor(
     }
 
     private fun sendJoinClubRequestNotification(adminId: String, clubName: String, playerName: String) {
+        if (!hasConnection.value) {
+            return
+        }
         viewModelScope.launch {
             /*
             notificationRepository.sendNotification(

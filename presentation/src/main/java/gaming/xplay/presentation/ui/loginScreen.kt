@@ -15,11 +15,15 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.SportsEsports
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -35,6 +39,16 @@ fun LoginScreen(authViewModel: AuthViewModel, webClientId: String) {
     val signInState by authViewModel.signInState.collectAsState()
     val isLoading by authViewModel.isLoading.collectAsState()
     val context = LocalContext.current
+    val snackbarHostState = remember { SnackbarHostState() }
+    val hasConnection by authViewModel.hasConnection.collectAsState()
+    val showOfflineError by authViewModel.showOfflineError.collectAsState()
+
+    LaunchedEffect(showOfflineError) {
+        if (showOfflineError) {
+            snackbarHostState.showSnackbar("You're offline. Please check your connection.")
+            authViewModel.dismissOfflineError()
+        }
+    }
 
     val googleSignInLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
@@ -43,7 +57,11 @@ fun LoginScreen(authViewModel: AuthViewModel, webClientId: String) {
             val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
             val account = task.getResult(ApiException::class.java)
             account?.idToken?.let { idToken ->
-                authViewModel.signInWithGoogle(idToken)
+                if (hasConnection) {
+                    authViewModel.signInWithGoogle(idToken)
+                } else {
+                    authViewModel.showOfflineError
+                }
             } ?: run {
                 Log.w("LoginScreen", "Sign-in cancelled by user.")
             }
@@ -60,47 +78,50 @@ fun LoginScreen(authViewModel: AuthViewModel, webClientId: String) {
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .padding(16.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Icon(
-            imageVector = Icons.Outlined.SportsEsports,
-            contentDescription = null,
-            modifier = Modifier.size(120.dp),
-            tint = MaterialTheme.colorScheme.primary
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            text = "Welcome to Xplay",
-            style = MaterialTheme.typography.headlineMedium,
-            color = MaterialTheme.colorScheme.onBackground
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = "Join the ultimate gaming community. Sign in to connect with gamers, discover new challenges, and conquer the leaderboards.",
-            style = MaterialTheme.typography.bodyMedium,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.padding(horizontal = 24.dp),
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Spacer(modifier = Modifier.height(32.dp))
-        GoogleAuthButton(
-            onClick = {
-                val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-                    .requestIdToken(webClientId)
-                    .requestEmail()
-                    .build()
-                val googleSignInClient = GoogleSignIn.getClient(context, gso)
-                googleSignInClient.signOut().addOnCompleteListener {
-                    googleSignInLauncher.launch(googleSignInClient.signInIntent)
-                }
-            },
-            isLoading = isLoading
-        )
+    Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+                .padding(innerPadding)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.SportsEsports,
+                contentDescription = null,
+                modifier = Modifier.size(120.dp),
+                tint = MaterialTheme.colorScheme.primary
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = "Welcome to Xplay",
+                style = MaterialTheme.typography.headlineMedium,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Join the ultimate gaming community. Sign in to connect with gamers, discover new challenges, and conquer the leaderboards.",
+                style = MaterialTheme.typography.bodyMedium,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(horizontal = 24.dp),
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(32.dp))
+            GoogleAuthButton(
+                onClick = {
+                    val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+                        .requestIdToken(webClientId)
+                        .requestEmail()
+                        .build()
+                    val googleSignInClient = GoogleSignIn.getClient(context, gso)
+                    googleSignInClient.signOut().addOnCompleteListener {
+                        googleSignInLauncher.launch(googleSignInClient.signInIntent)
+                    }
+                },
+                isLoading = isLoading
+            )
+        }
     }
 }

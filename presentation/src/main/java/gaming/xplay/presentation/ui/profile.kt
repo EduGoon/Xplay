@@ -34,6 +34,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -68,6 +70,7 @@ import gaming.xplay.presentation.ui.State.UiState
 import gaming.xplay.presentation.viewmodel.AuthViewModel
 import gaming.xplay.presentation.viewmodel.ChallengeCreationState
 import gaming.xplay.presentation.viewmodel.GameViewModel
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -84,9 +87,19 @@ fun PlayerProfile(
 ) {
     var player by remember { mutableStateOf<Player?>(null) }
     val challengeCreationState by gameViewModel.challengeCreationState.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val showOfflineError by authViewModel.showOfflineError.collectAsState()
+    val hasConnection by authViewModel.hasConnection.collectAsState()
 
     LaunchedEffect(userId) {
         player = authViewModel.getPlayerProfile(userId)
+    }
+
+    LaunchedEffect(showOfflineError) {
+        if (showOfflineError) {
+            snackbarHostState.showSnackbar("You're offline. Please check your connection.")
+            authViewModel.dismissOfflineError()
+        }
     }
 
     if (challengeCreationState is ChallengeCreationState.Success || challengeCreationState is ChallengeCreationState.Error) {
@@ -113,7 +126,8 @@ fun PlayerProfile(
     val winRate = if (totalMatches > 0) ((wins ?: 0) * 100f / totalMatches).toInt() else 0
 
     Scaffold(
-        containerColor = Color.Transparent
+        containerColor = Color.Transparent,
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -171,7 +185,13 @@ fun PlayerProfile(
             val isLoading = challengeCreationState is ChallengeCreationState.Loading
 
             Button(
-                onClick = { gameViewModel.onChallengeCreate(userId, "FIFA") },
+                onClick = { 
+                    if(hasConnection){
+                        gameViewModel.onChallengeCreate(userId, "FIFA") 
+                    } else {
+                        authViewModel.showOfflineError
+                    }
+                },
                 enabled = !isLoading,
                 shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(

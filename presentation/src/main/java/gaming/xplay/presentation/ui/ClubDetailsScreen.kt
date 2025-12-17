@@ -119,11 +119,20 @@ fun ClubDetailsScreen(
     var showCreateTournamentDialog by remember { mutableStateOf(false) }
     var selectedSection by remember { mutableStateOf<ClubSection?>(null) }
     var postText by remember { mutableStateOf("") } // Hoisted state
+    val hasConnection by authViewModel.hasConnection.collectAsState()
+    val showOfflineError by authViewModel.showOfflineError.collectAsState()
 
     val isRefreshing by clubDetailsViewModel.isRefreshing.collectAsState()
     val pullToRefreshState = rememberPullToRefreshState()
     val isNewAdmin = navController.currentBackStackEntry?.arguments?.getBoolean("isNewAdmin") ?: false
     var showNewAdminMessage by rememberSaveable { mutableStateOf(isNewAdmin) }
+
+    LaunchedEffect(showOfflineError) {
+        if (showOfflineError) {
+            snackbarHostState.showSnackbar("You're offline. Please check your connection.")
+            authViewModel.dismissOfflineError()
+        }
+    }
 
 
     LaunchedEffect(Unit) {
@@ -187,8 +196,12 @@ fun ClubDetailsScreen(
                         isLoading = isPosting
                     ) {
                         if (postText.isNotBlank()) {
-                            currentUser?.let { user ->
-                                clubDetailsViewModel.createClubPost(postText, user.uid)
+                            if (hasConnection) {
+                                currentUser?.let { user ->
+                                    clubDetailsViewModel.createClubPost(postText, user.uid)
+                                }
+                            } else {
+                                authViewModel.showOfflineError
                             }
                         }
                     }
@@ -225,8 +238,12 @@ fun ClubDetailsScreen(
                         CreateTournamentDialog(
                             createTournamentState = createTournamentState,
                             onConfirm = { tournamentName, rankingType ->
-                                currentUser?.uid?.let { adminId ->
-                                    clubDetailsViewModel.createTournament(tournamentName, adminId, rankingType)
+                                if (hasConnection) {
+                                    currentUser?.uid?.let { adminId ->
+                                        clubDetailsViewModel.createTournament(tournamentName, adminId, rankingType)
+                                    }
+                                } else {
+                                    authViewModel.showOfflineError
                                 }
                             },
                             onDismiss = { showCreateTournamentDialog = false }
@@ -446,12 +463,16 @@ fun ClubDetailsScreen(
                                     val isPending = club.pendingMemberIds.contains(currentUser?.uid)
                                     Button(
                                         onClick = {
-                                            currentUser?.uid?.let { userId ->
-                                                clubDetailsViewModel.joinClub(
-                                                    userId,
-                                                    club,
-                                                    currentUser?.name ?: "A player"
-                                                )
+                                            if (hasConnection) {
+                                                currentUser?.uid?.let { userId ->
+                                                    clubDetailsViewModel.joinClub(
+                                                        userId,
+                                                        club,
+                                                        currentUser?.name ?: "A player"
+                                                    )
+                                                }
+                                            } else {
+                                                authViewModel.showOfflineError
                                             }
                                         },
                                         modifier = Modifier

@@ -25,6 +25,9 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
@@ -64,6 +67,16 @@ fun LeaderboardScreen(
     val leaderboardState by gameViewModel.leaderboard.collectAsState()
     val leaderboardPlayerProfiles by gameViewModel.leaderboardPlayerProfiles.collectAsState()
     val currentUser by authViewModel.currentUser.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val hasConnection by authViewModel.hasConnection.collectAsState()
+    val showOfflineError by authViewModel.showOfflineError.collectAsState()
+
+    LaunchedEffect(showOfflineError) {
+        if (showOfflineError) {
+            snackbarHostState.showSnackbar("You're offline. Please check your connection.")
+            authViewModel.dismissOfflineError()
+        }
+    }
 
     LaunchedEffect(currentUser) {
         if (currentUser != null) {
@@ -71,41 +84,52 @@ fun LeaderboardScreen(
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .padding(horizontal = 10.dp)
-    ) {
-        Spacer(modifier = Modifier.height(24.dp))
-        SearchBar(
-            searchQuery = searchQuery,
-            onQueryChange = {
-                searchQuery = it
-                authViewModel.searchPlayers(searchQuery)
-            }
-        )
-        Spacer(modifier = Modifier.height(32.dp))
-        if (searchQuery.isBlank()) {
-            LeaderboardSection(
-                leaderboardState = leaderboardState,
-                playerProfiles = leaderboardPlayerProfiles,
-                currentUser = currentUser,
-                onRefresh = {
-                    gameViewModel.fetchLeaderboard("FIFA")
-                },
-                navController = navController
-            )
-        } else {
-            if (isLoading) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+    Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+                .padding(innerPadding)
+                .padding(horizontal = 10.dp)
+        ) {
+            Spacer(modifier = Modifier.height(24.dp))
+            SearchBar(
+                searchQuery = searchQuery,
+                onQueryChange = {
+                    searchQuery = it
+                    if(hasConnection){
+                        authViewModel.searchPlayers(searchQuery)
+                    } else {
+                        authViewModel.showOfflineError
+                    }
                 }
-            } else {
-                SearchResultsList(
-                    results = searchResults,
+            )
+            Spacer(modifier = Modifier.height(32.dp))
+            if (searchQuery.isBlank()) {
+                LeaderboardSection(
+                    leaderboardState = leaderboardState,
+                    playerProfiles = leaderboardPlayerProfiles,
+                    currentUser = currentUser,
+                    onRefresh = {
+                        if (hasConnection) {
+                            gameViewModel.fetchLeaderboard("FIFA")
+                        } else {
+                            authViewModel.showOfflineError
+                        }
+                    },
                     navController = navController
                 )
+            } else {
+                if (isLoading) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                    }
+                } else {
+                    SearchResultsList(
+                        results = searchResults,
+                        navController = navController
+                    )
+                }
             }
         }
     }
