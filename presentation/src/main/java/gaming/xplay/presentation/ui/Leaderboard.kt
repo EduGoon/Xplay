@@ -112,14 +112,13 @@ fun LeaderboardScreen(
                 .background(MaterialTheme.colorScheme.background)
                 .padding(innerPadding)
                 .padding(horizontal = 10.dp)
-                .verticalScroll(rememberScrollState())
         ) {
             Spacer(modifier = Modifier.height(24.dp))
             SearchBar(
                 searchQuery = searchQuery,
                 onQueryChange = {
                     searchQuery = it
-                    if(hasConnection){
+                    if (hasConnection) {
                         authViewModel.searchPlayers(searchQuery)
                     } else {
                         authViewModel.showOfflineError
@@ -128,32 +127,38 @@ fun LeaderboardScreen(
             )
             Spacer(modifier = Modifier.height(32.dp))
             if (searchQuery.isBlank()) {
-                LeaderboardSection(
-                    leaderboardState = leaderboardState,
-                    playerProfiles = leaderboardPlayerProfiles,
-                    currentUser = currentUser,
-                    onRefresh = {
-                        if (hasConnection) {
-                            gameViewModel.fetchLeaderboard("FIFA")
-                        } else {
-                            authViewModel.showOfflineError
-                        }
-                    },
-                    navController = navController
-                )
+                Column(Modifier.verticalScroll(rememberScrollState())) {
+                    LeaderboardSection(
+                        leaderboardState = leaderboardState,
+                        playerProfiles = leaderboardPlayerProfiles,
+                        currentUser = currentUser,
+                        onRefresh = {
+                            if (hasConnection) {
+                                gameViewModel.fetchLeaderboard("FIFA")
+                            } else {
+                                authViewModel.showOfflineError
+                            }
+                        },
+                        navController = navController
+                    )
 
-                Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(24.dp))
 
-                val leaderboardList = (leaderboardState as? UiState.Success<List<rankings>>)?.data.orEmpty()
+                    val leaderboardList =
+                        (leaderboardState as? UiState.Success<List<rankings>>)?.data.orEmpty()
 
-                LeaderboardScatterChart(
-                    rankings = leaderboardList,
-                    playerProfiles = leaderboardPlayerProfiles,
-                    currentUser = currentUser
-                )
+                    LeaderboardScatterChart(
+                        rankings = leaderboardList,
+                        playerProfiles = leaderboardPlayerProfiles,
+                        currentUser = currentUser
+                    )
+                }
             } else {
                 if (isLoading) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
                         CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                     }
                 } else {
@@ -494,7 +499,9 @@ fun LeaderboardScatterChart(
         Text("XP vs Win Rate", style = MaterialTheme.typography.titleLarge)
         Spacer(Modifier.height(12.dp))
 
-        Box(modifier = Modifier.fillMaxWidth().height(360.dp)) {
+        Box(modifier = Modifier
+            .fillMaxWidth()
+            .height(360.dp)) {
 
             Canvas(
                 modifier = Modifier
@@ -583,7 +590,7 @@ fun LeaderboardScatterChart(
                                 scaleX = avatarScale
                                 scaleY = avatarScale
                             }
-                            .size(48.dp)
+                            .size(60.dp)
                             .offset {
                                 IntOffset(pos.x.roundToInt() - 24, pos.y.roundToInt() - 24)
                             }
@@ -597,35 +604,10 @@ fun LeaderboardScatterChart(
     }
 }
 
-@Composable
-private fun LegendItem(color: Color, label: String) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.Center
-    ) {
-        Canvas(modifier = Modifier.size(12.dp)) {
-            drawCircle(color = color)
-        }
-        Spacer(Modifier.width(6.dp))
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-    }
-}
-
 // Data classes
 private data class ChartPoint(
     val x: Float,
     val y: Float,
     val isCurrentUser: Boolean,
     val playerId: String
-)
-
-private data class ChartRange(
-    val minX: Float,
-    val maxX: Float,
-    val minY: Float,
-    val maxY: Float
 )
