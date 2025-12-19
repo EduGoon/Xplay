@@ -1,7 +1,13 @@
 package gaming.xplay.presentation.ui
 
+import android.graphics.Paint
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,13 +16,17 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
@@ -41,19 +51,30 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import coil.compose.AsyncImage
 import gaming.xplay.data.model.Player
 import gaming.xplay.data.model.rankings
 import gaming.xplay.presentation.model.PlayerSearchResult
 import gaming.xplay.presentation.ui.State.UiState
 import gaming.xplay.presentation.viewmodel.AuthViewModel
 import gaming.xplay.presentation.viewmodel.GameViewModel
+import kotlinx.coroutines.delay
+import kotlin.math.hypot
+import kotlin.math.roundToInt
 
 @Composable
 fun LeaderboardScreen(
@@ -91,6 +112,7 @@ fun LeaderboardScreen(
                 .background(MaterialTheme.colorScheme.background)
                 .padding(innerPadding)
                 .padding(horizontal = 10.dp)
+                .verticalScroll(rememberScrollState())
         ) {
             Spacer(modifier = Modifier.height(24.dp))
             SearchBar(
@@ -118,6 +140,16 @@ fun LeaderboardScreen(
                         }
                     },
                     navController = navController
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                val leaderboardList = (leaderboardState as? UiState.Success<List<rankings>>)?.data.orEmpty()
+
+                LeaderboardScatterChart(
+                    rankings = leaderboardList,
+                    playerProfiles = leaderboardPlayerProfiles,
+                    currentUser = currentUser
                 )
             } else {
                 if (isLoading) {
@@ -394,3 +426,206 @@ fun RankingRow(
         )
     }
 }
+
+@Composable
+fun LeaderboardScatterChart(
+    rankings: List<rankings>,
+    playerProfiles: Map<String, Player?>,
+    currentUser: Player?,
+    modifier: Modifier = Modifier
+) {
+    if (rankings.isEmpty()) return
+
+    // ---------- Data ----------
+    val chartData = remember(rankings, currentUser) {
+        rankings.mapNotNull { r ->
+            val games = r.wins + r.losses
+            if (games == 0) null else ChartPoint(
+                x = r.wins.toFloat() / games,
+                y = r.XPpoints.toFloat(),
+                isCurrentUser = r.playerid == currentUser?.uid,
+                playerId = r.playerid
+            )
+        }
+    }
+    if (chartData.isEmpty()) return
+
+    // ---------- Axis ----------
+    val xMin = 0f
+    val xMax = 1f
+    val yMinData = chartData.minOf { it.y }
+    val yMaxData = chartData.maxOf { it.y }
+    val yPad = (yMaxData - yMinData).takeIf { it > 0 }?.times(0.1f) ?: 10f
+    val yMin = yMinData - yPad
+    val yMax = yMaxData + yPad
+
+    // ---------- Density calculation ----------
+    val densityMap = remember(chartData) {
+        chartData.associate { p ->
+            val neighbors = chartData.count { o ->
+                hypot(p.x - o.x, p.y - o.y) < 0.12f
+            }
+            p.playerId to neighbors.coerceAtLeast(1)
+        }
+    }
+
+    // ---------- Colors ----------
+    val primary = MaterialTheme.colorScheme.primary
+    val secondary = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+    val grid = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+    val axis = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+
+    // ---------- Interaction state ----------
+    var tappedPlayer by remember { mutableStateOf<String?>(null) }
+    var tappedOffset by remember { mutableStateOf<Offset?>(null) }
+    val avatarAlpha by animateFloatAsState(if (tappedPlayer != null) 1f else 0f, label = "")
+    val avatarScale by animateFloatAsState(if (tappedPlayer != null) 1f else 0.6f, label = "")
+
+    // Auto-dismiss avatar
+    LaunchedEffect(tappedPlayer) {
+        if (tappedPlayer != null) {
+            delay(1400)
+            tappedPlayer = null
+            tappedOffset = null
+        }
+    }
+
+    Column(modifier = modifier.padding(horizontal = 16.dp)) {
+        Text("XP vs Win Rate", style = MaterialTheme.typography.titleLarge)
+        Spacer(Modifier.height(12.dp))
+
+        Box(modifier = Modifier.fillMaxWidth().height(360.dp)) {
+
+            Canvas(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(start = 70.dp, bottom = 60.dp, top = 20.dp, end = 20.dp)
+                    .pointerInput(chartData) {
+                        detectTapGestures { tap ->
+                            val w = size.width
+                            val h = size.height
+                            fun nx(x: Float) = (x - xMin) / (xMax - xMin)
+                            fun ny(y: Float) = (y - yMin) / (yMax - yMin)
+
+                            chartData.firstOrNull { p ->
+                                val px = nx(p.x) * w
+                                val py = h - ny(p.y) * h
+                                (Offset(px, py) - tap).getDistance() < 14.dp.toPx()
+                            }?.let { hit ->
+                                tappedPlayer = hit.playerId
+                                tappedOffset = Offset(nx(hit.x) * w, h - ny(hit.y) * h)
+                            }
+                        }
+                    }
+            ) {
+                val w = size.width
+                val h = size.height
+                fun nx(x: Float) = (x - xMin) / (xMax - xMin)
+                fun ny(y: Float) = (y - yMin) / (yMax - yMin)
+
+                // ---------- Grid + Y labels (spacing fix) ----------
+                val ticks = 5
+                val paint = android.graphics.Paint().apply {
+                    isAntiAlias = true
+                    textSize = 32f
+                    textAlign = android.graphics.Paint.Align.RIGHT
+                }
+
+                for (i in 0..ticks) {
+                    val y = h - i * h / ticks
+                    drawLine(grid, Offset(0f, y), Offset(w, y), 1f)
+
+                    val value = yMin + i * (yMax - yMin) / ticks
+                    drawContext.canvas.nativeCanvas.drawText(
+                        value.roundToInt().toString(),
+                        -30f,   // ← FIX: extra spacing from axis
+                        y + 10f,
+                        paint
+                    )
+                }
+
+                // Axes
+                drawLine(axis, Offset(0f, h), Offset(w, h), 2f)
+                drawLine(axis, Offset(0f, 0f), Offset(0f, h), 2f)
+
+                // ---------- Points (density-aware) ----------
+                chartData.forEach { p ->
+                    val density = densityMap[p.playerId] ?: 1
+                    val alpha = (1f / density).coerceIn(0.35f, 1f)
+                    val radius = (10f / density).coerceIn(6f, 12f)
+
+                    val x = nx(p.x) * w
+                    val y = h - ny(p.y) * h
+
+                    if (p.isCurrentUser) {
+                        drawCircle(primary.copy(alpha = 0.25f), 18f, Offset(x, y))
+                    }
+
+                    drawCircle(
+                        color = if (p.isCurrentUser) primary else secondary.copy(alpha = alpha),
+                        radius = if (p.isCurrentUser) 12f else radius,
+                        center = Offset(x, y)
+                    )
+                }
+            }
+
+            // ---------- Playful avatar pop ----------
+            tappedPlayer?.let { id ->
+                val player = playerProfiles[id]
+                val pos = tappedOffset
+                if (player != null && pos != null) {
+                    AsyncImage(
+                        model = player.profilePictureUrl,
+                        contentDescription = null,
+                        modifier = Modifier
+                            .graphicsLayer {
+                                alpha = avatarAlpha
+                                scaleX = avatarScale
+                                scaleY = avatarScale
+                            }
+                            .size(48.dp)
+                            .offset {
+                                IntOffset(pos.x.roundToInt() - 24, pos.y.roundToInt() - 24)
+                            }
+                            .clip(CircleShape)
+                            .border(1.dp, MaterialTheme.colorScheme.primary, CircleShape),
+                        contentScale = ContentScale.Crop
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun LegendItem(color: Color, label: String) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center
+    ) {
+        Canvas(modifier = Modifier.size(12.dp)) {
+            drawCircle(color = color)
+        }
+        Spacer(Modifier.width(6.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+    }
+}
+
+// Data classes
+private data class ChartPoint(
+    val x: Float,
+    val y: Float,
+    val isCurrentUser: Boolean,
+    val playerId: String
+)
+
+private data class ChartRange(
+    val minX: Float,
+    val maxX: Float,
+    val minY: Float,
+    val maxY: Float
+)

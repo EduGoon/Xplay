@@ -324,7 +324,11 @@ fun MyProfileScreen(
                     }
                     Spacer(Modifier.height(16.dp))
                     when (selectedTab) {
-                        0 -> { // My Clubs
+                        0 -> { // Match History
+                            MatchHistory(gameViewModel, authViewModel, currentUser?.uid ?: "")
+                        }
+
+                        1 -> { // My Clubs
                             when (val state = clubsState) {
                                 is UiState.Loading -> {
                                     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
@@ -356,10 +360,6 @@ fun MyProfileScreen(
                                     Text(state.message)
                                 }
                             }
-                        }
-
-                        1 -> { // Match History
-                            MatchHistory(gameViewModel, authViewModel, currentUser?.uid ?: "")
                         }
                     }
                 }
