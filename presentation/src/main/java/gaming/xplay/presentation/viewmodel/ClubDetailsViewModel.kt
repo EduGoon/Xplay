@@ -260,7 +260,6 @@ class ClubDetailsViewModel @Inject constructor(
             return
         }
         viewModelScope.launch {
-            /*
             notificationRepository.sendNotification(
                 gaming.xplay.data.model.NotificationRequest(
                     targetUserId = adminId,
@@ -268,7 +267,6 @@ class ClubDetailsViewModel @Inject constructor(
                     body = "$playerName wants to join $clubName"
                 )
             )
-             */
         }
     }
 }

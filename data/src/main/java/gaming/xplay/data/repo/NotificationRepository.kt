@@ -13,10 +13,6 @@ class NotificationRepository @Inject constructor(
     private val firestore: FirebaseFirestore,
     private val apiService: ApiService
 ) {
-    /**
-     * Sends FCM notification and waits for boolean feedback
-     * This is the main function you'll call from your ViewModel
-     */
     suspend fun sendNotificationAndAwaitFeedback(
         request: NotificationRequest,
         timeoutSeconds: Long = 30

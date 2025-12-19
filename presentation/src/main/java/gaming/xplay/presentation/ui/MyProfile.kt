@@ -36,7 +36,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
@@ -62,6 +61,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -270,18 +270,15 @@ fun MyProfileScreen(
                     elevation = CardDefaults.cardElevation(6.dp)
                 ) {
                     val xp = userRanking?.XPpoints ?: 0
-                    val targetXP = ((xp / 100) + 1) * 100
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text("XP Progress", style = MaterialTheme.typography.titleMedium)
-                        LinearProgressIndicator(
-                            progress = xp.toFloat() / targetXP.toFloat(),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(12.dp)
-                                .clip(RoundedCornerShape(6.dp)),
-                            color = MaterialTheme.colorScheme.primary
+                        XPBar(xp = xp)
+                        val xpText = if (xp >= 0) "$xp / 100 XP" else "$xp / -100 XP"
+                        Text(
+                            xpText, 
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.align(Alignment.CenterHorizontally)
                         )
-                        Text("$xp / $targetXP XP", style = MaterialTheme.typography.bodyMedium)
                     }
                 }
 
@@ -366,6 +363,58 @@ fun MyProfileScreen(
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+fun XPBar(xp: Int) {
+    val progress = xp.coerceIn(-100, 100) / 100f
+    val animatedProgress by animateFloatAsState(targetValue = progress, label = "xp_progress")
+
+    val positiveColor = MaterialTheme.colorScheme.primary
+    val negativeColor = MaterialTheme.colorScheme.error
+    val backgroundColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+    val zeroMarkerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(12.dp)
+                .clip(RoundedCornerShape(6.dp))
+        ) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val center = size.width / 2
+                // Draw background track
+                drawRoundRect(
+                    color = backgroundColor,
+                    size = size,
+                )
+
+                // Draw progress
+                if (animatedProgress != 0f) {
+                    val color = if (animatedProgress > 0) positiveColor else negativeColor
+                    val start = center
+                    val end = center + center * animatedProgress
+                    drawLine(
+                        color = color,
+                        start = Offset(if (start < end) start else end, size.height / 2),
+                        end = Offset(if (start < end) end else start, size.height / 2),
+                        strokeWidth = size.height,
+                        cap = StrokeCap.Butt
+                    )
+                }
+
+                // Draw zero marker
+                drawLine(
+                    color = zeroMarkerColor,
+                    start = Offset(center, 0f),
+                    end = Offset(center, size.height),
+                    strokeWidth = 2.dp.toPx(),
+                    cap = StrokeCap.Round
+                )
             }
         }
     }
@@ -552,7 +601,7 @@ fun WinLossDonutChart(
                 .fillMaxWidth(),
             contentAlignment = Alignment.Center
         ) {
-            Text("Play a match to see your stats!", style = MaterialTheme.typography.bodyLarge)
+            Text("Play a match to see your stats! ", style = MaterialTheme.typography.bodyLarge)
         }
         return
     }

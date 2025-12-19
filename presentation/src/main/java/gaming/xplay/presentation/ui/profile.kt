@@ -4,6 +4,7 @@ import android.text.format.DateUtils
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -70,7 +71,6 @@ import gaming.xplay.presentation.ui.State.UiState
 import gaming.xplay.presentation.viewmodel.AuthViewModel
 import gaming.xplay.presentation.viewmodel.ChallengeCreationState
 import gaming.xplay.presentation.viewmodel.GameViewModel
-import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -167,7 +167,32 @@ fun PlayerProfile(
 
             Spacer(Modifier.height(24.dp)) // Increased spacing
 
-            XPBar(currentXP = xpPoints ?: 0)
+            Column(
+                modifier = Modifier.fillMaxWidth(0.9f),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                val xp = xpPoints ?: 0
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "XP Progress",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Bold
+                        )
+                    )
+                    val xpText = if (xp >= 0) "$xp / 100 XP" else "$xp / -100 XP"
+                    Text(
+                        text = xpText,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Spacer(Modifier.height(8.dp))
+                XPBar(xp = xp)
+            }
 
             Spacer(Modifier.height(32.dp)) // Increased spacing
 
@@ -283,70 +308,6 @@ fun ChallengeResultDialog(
                     }
                 }
             }
-        }
-    }
-}
-
-@Composable
-fun XPBar(currentXP: Int) {
-    val level = (currentXP / 100) + 1
-    val xpForLevel = currentXP % 100
-    val progress = xpForLevel / 100f
-
-    // Animate the progress bar
-    val animatedProgress by animateFloatAsState(
-        targetValue = progress,
-        animationSpec = tween(durationMillis = 100, delayMillis = 200), label = ""
-    )
-
-    Column(
-        modifier = Modifier.fillMaxWidth(0.9f),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        // Text showing Level and XP
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Level $level",
-                style = MaterialTheme.typography.titleMedium.copy(
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            )
-            Text(
-                text = "$xpForLevel / 100 XP",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-
-        Spacer(Modifier.height(8.dp))
-
-        // Custom progress bar
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(16.dp) // Thicker bar
-                .clip(RoundedCornerShape(8.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant)
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(animatedProgress)
-                    .height(16.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(
-                        Brush.horizontalGradient(
-                            colors = listOf(
-                                MaterialTheme.colorScheme.primary,
-                                MaterialTheme.colorScheme.tertiary
-                            )
-                        )
-                    )
-            )
         }
     }
 }

@@ -157,7 +157,6 @@ class NotificationViewModel @Inject constructor(
             return
         }
         viewModelScope.launch {
-            /*
             notificationRepository.sendNotification(
                 gaming.xplay.data.model.NotificationRequest(
                     targetUserId = playerId,
@@ -165,7 +164,6 @@ class NotificationViewModel @Inject constructor(
                     body = "Your request to join $clubName has been approved."
                 )
             )
-             */
         }
     }
 
@@ -174,7 +172,6 @@ class NotificationViewModel @Inject constructor(
             return
         }
         viewModelScope.launch {
-            /*
             notificationRepository.sendNotification(
                 gaming.xplay.data.model.NotificationRequest(
                     targetUserId = playerId,
@@ -182,7 +179,6 @@ class NotificationViewModel @Inject constructor(
                     body = "Your request to join $clubName has been declined."
                 )
             )
-             */
         }
     }
 }
