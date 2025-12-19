@@ -273,7 +273,7 @@ fun MyProfileScreen(
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text("XP Progress", style = MaterialTheme.typography.titleMedium)
                         XPBar(xp = xp)
-                        val xpText = if (xp >= 0) "$xp / 100 XP" else "$xp / -100 XP"
+                        val xpText = "$xp / 100 XP"
                         Text(
                             xpText, 
                             style = MaterialTheme.typography.bodyMedium,

@@ -44,19 +44,6 @@ class NotificationRepository @Inject constructor(
     }
 
     /**
-     * Sends a one-way FCM notification without waiting for feedback.
-     */
-    suspend fun sendNotification(
-        request: NotificationRequest,
-        ) {
-        try {
-            apiService.sendNotification(request)
-        } catch (e: Exception) {
-            println("Error sending notification: ${e.message}")
-        }
-    }
-
-    /**
      * Listen for response updates in Firestore
      */
     private suspend fun waitForResponse(requestId: String): Boolean? =
@@ -85,5 +72,17 @@ class NotificationRepository @Inject constructor(
                 listener.remove()
             }
         }
-    
+
+    /**
+     * Sends a one-way FCM notification without waiting for feedback.
+     */
+    suspend fun sendNotification(
+        request: NotificationRequest,
+    ) {
+        try {
+            apiService.sendNotification(request)
+        } catch (e: Exception) {
+            println("Error sending notification: ${e.message}")
+        }
+    }
 }

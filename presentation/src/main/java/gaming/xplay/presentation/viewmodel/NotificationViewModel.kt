@@ -132,7 +132,7 @@ class NotificationViewModel @Inject constructor(
                 val request = gaming.xplay.data.model.JoinClubRequest(clubId, playerId)
                 when (val result = clubRepository.declineJoinRequest(request)) {
                     is Result.Success -> {
-                        // sendRejectionNotification(playerId, clubName)
+                        sendRejectionNotification(playerId, clubName)
                         fetchAdminClubs() // Refresh the list
                         _joinRequestState.update { it + (requestId to UiState.Success(Unit)) }
                     }
