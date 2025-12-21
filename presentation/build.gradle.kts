@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.kotlin.compose)
     id("kotlin-kapt")
     id("com.google.dagger.hilt.android")
 }
@@ -70,6 +71,7 @@ dependencies {
     implementation("com.google.android.gms:play-services-auth:21.0.0")
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.foundation)
+    implementation(libs.androidx.room.ktx)
     kapt("com.google.dagger:hilt-android-compiler:2.51.1")
 
     // Lottie

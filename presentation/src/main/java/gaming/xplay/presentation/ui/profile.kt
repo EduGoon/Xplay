@@ -64,6 +64,7 @@ import coil.compose.AsyncImage
 import com.airbnb.lottie.compose.LottieAnimation
 import com.airbnb.lottie.compose.LottieCompositionSpec
 import com.airbnb.lottie.compose.rememberLottieComposition
+import gaming.xplay.data.model.Badge
 import gaming.xplay.data.model.Match
 import gaming.xplay.data.model.Player
 import gaming.xplay.presentation.R
@@ -93,6 +94,10 @@ fun PlayerProfile(
 
     LaunchedEffect(userId) {
         player = authViewModel.getPlayerProfile(userId)
+    }
+
+    val currentBadge = player?.currentBadge?.let { badgeName ->
+        Badge.values().find { it.name == badgeName }
     }
 
     LaunchedEffect(showOfflineError) {
@@ -178,12 +183,16 @@ fun PlayerProfile(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "XP Progress",
+                        text = if (currentBadge != null) "${currentBadge.displayName} Tier" else "XP Progress",
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.Bold
                         )
                     )
-                    val xpText = if (xp >= 0) "$xp / 100 XP" else "$xp / -100 XP"
+                    val xpText = if (currentBadge != null) {
+                        "${xp % 100} / 100 XP"
+                    } else {
+                        if (xp >= 0) "$xp / 100 XP" else "$xp / -100 XP"
+                    }
                     Text(
                         text = xpText,
                         style = MaterialTheme.typography.bodyMedium,
@@ -191,7 +200,7 @@ fun PlayerProfile(
                     )
                 }
                 Spacer(Modifier.height(8.dp))
-                XPBar(xp = xp)
+                XPBar(xp = xp, badge = currentBadge)
             }
 
             Spacer(Modifier.height(32.dp)) // Increased spacing
@@ -210,9 +219,9 @@ fun PlayerProfile(
             val isLoading = challengeCreationState is ChallengeCreationState.Loading
 
             Button(
-                onClick = { 
+                onClick = {
                     if(hasConnection){
-                        gameViewModel.onChallengeCreate(userId, "FIFA") 
+                        gameViewModel.onChallengeCreate(userId, "FIFA")
                     } else {
                         authViewModel.showOfflineError
                     }

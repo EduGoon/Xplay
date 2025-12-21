@@ -7,5 +7,7 @@ data class Player(
     val profilePictureUrl: String? = null,
     val isFirstTime: Boolean = true,
     val isClubOwner: Boolean = false,
-    val clubs: List<String> = emptyList()
+    val clubs: List<String> = emptyList(),
+    val currentBadge: String? = null,
+    val unlockedBadges: List<String> = emptyList()
 )

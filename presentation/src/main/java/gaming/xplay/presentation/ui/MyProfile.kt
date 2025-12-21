@@ -33,10 +33,12 @@ import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -68,6 +70,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -80,14 +83,27 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import coil.compose.SubcomposeAsyncImage
 import coil.compose.SubcomposeAsyncImageContent
+import gaming.xplay.data.model.Badge
 import gaming.xplay.data.model.Club
 import gaming.xplay.data.model.Player
+import gaming.xplay.data.model.rankings
 import gaming.xplay.presentation.ui.State.UiState
 import gaming.xplay.presentation.viewmodel.AuthViewModel
 import gaming.xplay.presentation.viewmodel.ClubViewModel
 import gaming.xplay.presentation.viewmodel.GameViewModel
 import gaming.xplay.presentation.viewmodel.UpdateProfileState
 import kotlinx.coroutines.launch
+
+// Helper function to map Badge enum to a Compose Color
+@Composable
+fun badgeColor(badge: Badge): Color {
+    return when (badge) {
+        Badge.BRONZE -> Color(0xFFCD7F32)
+        Badge.SILVER -> Color(0xFFC0C0C0)
+        Badge.DIAMOND -> Color(0xFFB9F2FF)
+        Badge.GOLD -> Color(0xFFFFD700)
+    }
+}
 
 @Composable
 fun MyProfileScreen(
@@ -103,6 +119,7 @@ fun MyProfileScreen(
 
     var selectedDrawerItem by remember { mutableStateOf("Profile") }
     var showEditProfileDialog by remember { mutableStateOf(false) }
+    var showLogoutDialog by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
@@ -166,6 +183,16 @@ fun MyProfileScreen(
         )
     }
 
+    if (showLogoutDialog) {
+        LogoutConfirmationDialog(
+            onConfirm = {
+                authViewModel.signOut()
+                showLogoutDialog = false
+            },
+            onDismiss = { showLogoutDialog = false }
+        )
+    }
+
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
@@ -191,28 +218,6 @@ fun MyProfileScreen(
                     )
 
                     NavigationDrawerItem(
-                        icon = { Icon(Icons.Default.WorkspacePremium, contentDescription = "Badges") },
-                        label = { Text("Badges") },
-                        badge = {
-                            Icon(
-                                imageVector = if (badgesExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                                contentDescription = if (badgesExpanded) "Collapse" else "Expand"
-                            )
-                        },
-                        selected = false,
-                        onClick = { badgesExpanded = !badgesExpanded }
-                    )
-
-                    AnimatedVisibility(badgesExpanded) {
-                        Column(Modifier.padding(start = 32.dp)) {
-                            BadgeItem("Bronze", Color(0xFFCD7F32))
-                            BadgeItem("Silver", Color(0xFFC0C0C0))
-                            BadgeItem("Diamond", Color(0xFFB9F2FF))
-                            BadgeItem("Gold", Color(0xFFFFD700))
-                        }
-                    }
-
-                    NavigationDrawerItem(
                         icon = { Icon(Icons.Default.History, contentDescription = "Match History") },
                         label = { Text("Match History") },
                         selected = selectedDrawerItem == "Match History",
@@ -232,7 +237,38 @@ fun MyProfileScreen(
                         },
                         colors = drawerColors
                     )
+
+                    NavigationDrawerItem(
+                        icon = { Icon(Icons.Default.WorkspacePremium, contentDescription = "Badges") },
+                        label = { Text("Badges") },
+                        badge = {
+                            Icon(
+                                imageVector = if (badgesExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                                contentDescription = if (badgesExpanded) "Collapse" else "Expand"
+                            )
+                        },
+                        selected = false,
+                        onClick = { badgesExpanded = !badgesExpanded }
+                    )
+
+                    AnimatedVisibility(badgesExpanded) {
+                        Column(Modifier.padding(start = 32.dp)) {
+                            Badge.values().forEach { badge ->
+                                BadgeItem(
+                                    name = badge.displayName,
+                                    color = badgeColor(badge),
+                                    isUnlocked = currentUser?.unlockedBadges?.contains(badge.name) == true
+                                )
+                            }
+                        }
+                    }
+
                     Spacer(Modifier.weight(1f))
+                    val logoutDrawerColors = NavigationDrawerItemDefaults.colors(
+                        unselectedTextColor = MaterialTheme.colorScheme.error,
+                        unselectedIconColor = MaterialTheme.colorScheme.error
+                    )
+
                     NavigationDrawerItem(
                         icon = {
                             Icon(
@@ -242,7 +278,8 @@ fun MyProfileScreen(
                         },
                         label = { Text("Log Out") },
                         selected = false,
-                        onClick = { authViewModel.signOut() }
+                        onClick = { showLogoutDialog = true },
+                        colors = logoutDrawerColors
                     )
                 }
             }
@@ -275,7 +312,14 @@ fun MyProfileScreen(
                             is coil.compose.AsyncImagePainter.State.Empty -> Box(
                                 Modifier
                                     .fillMaxSize()
-                                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.4f))
+                                    .background(
+                                        Color(
+                                            MaterialTheme.colorScheme.primary.red,
+                                            MaterialTheme.colorScheme.primary.green,
+                                            MaterialTheme.colorScheme.primary.blue,
+                                            0.4f
+                                        )
+                                    )
                             )
 
                             else -> SubcomposeAsyncImageContent()
@@ -300,7 +344,12 @@ fun MyProfileScreen(
                             .align(Alignment.TopStart)
                             .padding(8.dp)
                             .background(
-                                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f),
+                                color = Color(
+                                    MaterialTheme.colorScheme.surface.red,
+                                    MaterialTheme.colorScheme.surface.green,
+                                    MaterialTheme.colorScheme.surface.blue,
+                                    0.5f
+                                ),
                                 shape = CircleShape
                             )
                     ) {
@@ -313,7 +362,12 @@ fun MyProfileScreen(
                             .align(Alignment.TopEnd)
                             .padding(8.dp)
                             .background(
-                                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f),
+                                color = Color(
+                                    MaterialTheme.colorScheme.surface.red,
+                                    MaterialTheme.colorScheme.surface.green,
+                                    MaterialTheme.colorScheme.surface.blue,
+                                    0.5f
+                                ),
                                 shape = CircleShape
                             )
                     ) {
@@ -338,7 +392,7 @@ fun MyProfileScreen(
 
                 when (selectedDrawerItem) {
                     "Profile" -> {
-                        ProfileSummary(userRanking = userRanking)
+                        ProfileSummary(userRanking = userRanking, currentUser = currentUser)
                     }
 
                     "Match History" -> {
@@ -375,7 +429,7 @@ fun MyProfileScreen(
                                             Spacer(Modifier.height(16.dp))
                                         }
                                     } else {
-                                        Text("You haven\'t joined any clubs yet.")
+                                        Text("You haven't joined any clubs yet.")
                                     }
                                 }
 
@@ -392,10 +446,16 @@ fun MyProfileScreen(
 }
 
 @Composable
-fun ProfileSummary(userRanking: gaming.xplay.data.model.rankings?) {
+fun ProfileSummary(
+    userRanking: rankings?,
+    currentUser: Player?
+) {
     val xp = userRanking?.XPpoints ?: 0
     val wins = userRanking?.wins ?: 0
     val losses = userRanking?.losses ?: 0
+    val currentBadge = currentUser?.currentBadge?.let { badgeName ->
+        Badge.values().find { it.name == badgeName }
+    }
 
     Column(modifier = Modifier.padding(horizontal = 16.dp)) {
         // ---------------- XP Panel ----------------
@@ -406,9 +466,10 @@ fun ProfileSummary(userRanking: gaming.xplay.data.model.rankings?) {
             elevation = CardDefaults.cardElevation(6.dp)
         ) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("XP Progress", style = MaterialTheme.typography.titleMedium)
-                XPBar(xp = xp)
-                val xpText = "$xp / 100 XP"
+                val badgeName = currentBadge?.displayName ?: "No Badge"
+                Text("$badgeName Tier", style = MaterialTheme.typography.titleMedium)
+                XPBar(xp = xp, badge = currentBadge)
+                val xpText = "${xp % 100} / 100 XP"
                 Text(
                     xpText,
                     style = MaterialTheme.typography.bodyMedium,
@@ -443,35 +504,62 @@ fun ProfileSummary(userRanking: gaming.xplay.data.model.rankings?) {
 }
 
 @Composable
-fun XPBar(xp: Int) {
-    val progress = xp.coerceIn(-100, 100) / 100f
-    val animatedProgress by animateFloatAsState(targetValue = progress, label = "xp_progress")
-
+fun XPBar(xp: Int, badge: Badge?) {
+    // Define colors from the theme here, within the composable context.
+    val onSurfaceColor = MaterialTheme.colorScheme.onSurface
     val positiveColor = MaterialTheme.colorScheme.primary
     val negativeColor = MaterialTheme.colorScheme.error
-    val backgroundColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
-    val zeroMarkerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+    val barColor = if (badge != null) badgeColor(badge) else Color.Transparent
 
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(12.dp)
-                .clip(RoundedCornerShape(6.dp))
-        ) {
-            Canvas(modifier = Modifier.fillMaxSize()) {
-                val center = size.width / 2
-                // Draw background track
+    val backgroundColor = Color(
+        onSurfaceColor.red,
+        onSurfaceColor.green,
+        onSurfaceColor.blue,
+        0.12f
+    )
+    val zeroMarkerColor = Color(
+        onSurfaceColor.red,
+        onSurfaceColor.green,
+        onSurfaceColor.blue,
+        0.5f
+    )
+
+    // State for Badged Player
+    val badgeProgress = if (badge != null) (xp % 100) / 100f else 0f
+    val animatedBadgeProgress by animateFloatAsState(targetValue = badgeProgress, label = "xp_badge_progress")
+
+    // State for Regular Player
+    val regularProgress = if (badge == null) xp.coerceIn(-100, 100) / 100f else 0f
+    val animatedRegularProgress by animateFloatAsState(targetValue = regularProgress, label = "xp_regular_progress")
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(12.dp)
+            .clip(RoundedCornerShape(6.dp))
+    ) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            // Draw background track for all cases
+            drawRoundRect(
+                color = backgroundColor,
+                size = size,
+            )
+
+            if (badge != null) {
+                // Badged player: Left-to-right progress bar
                 drawRoundRect(
-                    color = backgroundColor,
-                    size = size,
+                    color = barColor,
+                    size = Size(width = size.width * animatedBadgeProgress, height = size.height),
                 )
+            } else {
+                // Regular player: Centered progress bar for -100 to 100
+                val center = size.width / 2
 
                 // Draw progress
-                if (animatedProgress != 0f) {
-                    val color = if (animatedProgress > 0) positiveColor else negativeColor
+                if (animatedRegularProgress != 0f) {
+                    val color = if (animatedRegularProgress > 0) positiveColor else negativeColor
                     val start = center
-                    val end = center + center * animatedProgress
+                    val end = center + center * animatedRegularProgress
                     drawLine(
                         color = color,
                         start = Offset(if (start < end) start else end, size.height / 2),
@@ -489,6 +577,50 @@ fun XPBar(xp: Int) {
                     strokeWidth = 2.dp.toPx(),
                     cap = StrokeCap.Round
                 )
+            }
+        }
+    }
+}
+
+@Composable
+fun LogoutConfirmationDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.Start,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = "Log Out",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "Are you sure you want to log out?",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Spacer(Modifier.height(16.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text("No")
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    Button(
+                        onClick = onConfirm,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.error
+                        )
+                    ) {
+                        Text("Yes")
+                    }
+                }
             }
         }
     }
@@ -597,8 +729,7 @@ fun StatCard(title: String, value: String, modifier: Modifier = Modifier) {
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(14.dp),
-        elevation = CardDefaults.cardElevation(4.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        elevation = CardDefaults.cardElevation(4.dp)
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
@@ -620,8 +751,7 @@ fun StatCard(title: String, value: String, modifier: Modifier = Modifier) {
 fun ClubCard(club: Club, isAdmin: Boolean) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        shape = RoundedCornerShape(14.dp)
     ) {
         Column(Modifier.padding(16.dp)) {
 
@@ -646,7 +776,7 @@ fun ClubCard(club: Club, isAdmin: Boolean) {
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(50))
-                            .background(Color(0xFF3DDC84).copy(alpha = 0.25f))
+                            .background(Color(0x403DDC84))
                             .padding(horizontal = 10.dp, vertical = 4.dp)
                     ) {
                         Text(
@@ -691,7 +821,12 @@ fun WinLossDonutChart(
 
     val winRate = (winPercentage * 100).toInt()
 
-    val lossColor = MaterialTheme.colorScheme.error.copy(alpha = 0.2f)
+    val lossColor = Color(
+        MaterialTheme.colorScheme.error.red,
+        MaterialTheme.colorScheme.error.green,
+        MaterialTheme.colorScheme.error.blue,
+        0.2f
+    )
     val winColor = MaterialTheme.colorScheme.primary
 
     Box(
@@ -731,7 +866,7 @@ fun WinLossDonutChart(
 }
 
 @Composable
-fun BadgeItem(name: String, color: Color) {
+fun BadgeItem(name: String, color: Color, isUnlocked: Boolean) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -739,12 +874,22 @@ fun BadgeItem(name: String, color: Color) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
-            imageVector = Icons.Default.WorkspacePremium,
+            imageVector = if (isUnlocked) Icons.Default.WorkspacePremium else Icons.Default.Lock,
             contentDescription = null,
-            tint = color,
+            tint = if (isUnlocked) color else {
+                val c = MaterialTheme.colorScheme.onSurface
+                Color(c.red, c.green, c.blue, 0.6f)
+            },
             modifier = Modifier.size(20.dp)
         )
         Spacer(Modifier.width(16.dp))
-        Text(text = name, style = MaterialTheme.typography.labelLarge)
+        Text(
+            text = name,
+            style = MaterialTheme.typography.labelLarge,
+            color = if (isUnlocked) MaterialTheme.colorScheme.onSurface else {
+                val c = MaterialTheme.colorScheme.onSurface
+                Color(c.red, c.green, c.blue, 0.6f)
+            }
+        )
     }
 }
