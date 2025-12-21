@@ -3,6 +3,7 @@ package gaming.xplay.presentation.ui
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
@@ -28,7 +29,13 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Group
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -40,13 +47,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.NavigationDrawerItem
+import androidx.compose.material3.NavigationDrawerItemDefaults
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDrawerState
@@ -75,6 +81,7 @@ import coil.compose.AsyncImage
 import coil.compose.SubcomposeAsyncImage
 import coil.compose.SubcomposeAsyncImageContent
 import gaming.xplay.data.model.Club
+import gaming.xplay.data.model.Player
 import gaming.xplay.presentation.ui.State.UiState
 import gaming.xplay.presentation.viewmodel.AuthViewModel
 import gaming.xplay.presentation.viewmodel.ClubViewModel
@@ -94,14 +101,14 @@ fun MyProfileScreen(
     val leaderboardState by gameViewModel.leaderboard.collectAsState()
     val updateProfileState by authViewModel.updateProfileState.collectAsState()
 
-    var selectedTab by remember { mutableStateOf(0) }
-    val tabs = listOf("My Clubs", "Match History")
+    var selectedDrawerItem by remember { mutableStateOf("Profile") }
     var showEditProfileDialog by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val hasConnection by authViewModel.hasConnection.collectAsState()
     val showOfflineError by authViewModel.showOfflineError.collectAsState()
+    var badgesExpanded by remember { mutableStateOf(false) }
 
     LaunchedEffect(showOfflineError) {
         if (showOfflineError) {
@@ -150,7 +157,7 @@ fun MyProfileScreen(
             updateProfileState = updateProfileState,
             onDismiss = { showEditProfileDialog = false },
             onSave = { name, imageUri ->
-                if(hasConnection){
+                if (hasConnection) {
                     authViewModel.updateUserProfile(name, imageUri)
                 } else {
                     authViewModel.showOfflineError
@@ -162,14 +169,82 @@ fun MyProfileScreen(
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
-            ModalDrawerSheet(modifier = Modifier.fillMaxWidth(0.5f)) {
-                Spacer(Modifier.height(12.dp))
-                NavigationDrawerItem(
-                    icon = { Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Log Out") },
-                    label = { Text("Log Out") },
-                    selected = false,
-                    onClick = { authViewModel.signOut() }
-                )
+            ModalDrawerSheet(modifier = Modifier.fillMaxWidth(0.8f)) {
+                Column(Modifier.fillMaxSize()) {
+                    Spacer(Modifier.height(12.dp))
+
+                    val drawerColors = NavigationDrawerItemDefaults.colors(
+                        selectedContainerColor = MaterialTheme.colorScheme.primary,
+                        selectedTextColor = MaterialTheme.colorScheme.onPrimary,
+                        selectedIconColor = MaterialTheme.colorScheme.onPrimary
+                    )
+
+                    NavigationDrawerItem(
+                        icon = { Icon(Icons.Default.Person, contentDescription = "Profile") },
+                        label = { Text("Profile") },
+                        selected = selectedDrawerItem == "Profile",
+                        onClick = {
+                            selectedDrawerItem = "Profile"
+                            scope.launch { drawerState.close() }
+                        },
+                        colors = drawerColors
+                    )
+
+                    NavigationDrawerItem(
+                        icon = { Icon(Icons.Default.WorkspacePremium, contentDescription = "Badges") },
+                        label = { Text("Badges") },
+                        badge = {
+                            Icon(
+                                imageVector = if (badgesExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                                contentDescription = if (badgesExpanded) "Collapse" else "Expand"
+                            )
+                        },
+                        selected = false,
+                        onClick = { badgesExpanded = !badgesExpanded }
+                    )
+
+                    AnimatedVisibility(badgesExpanded) {
+                        Column(Modifier.padding(start = 32.dp)) {
+                            BadgeItem("Bronze", Color(0xFFCD7F32))
+                            BadgeItem("Silver", Color(0xFFC0C0C0))
+                            BadgeItem("Diamond", Color(0xFFB9F2FF))
+                            BadgeItem("Gold", Color(0xFFFFD700))
+                        }
+                    }
+
+                    NavigationDrawerItem(
+                        icon = { Icon(Icons.Default.History, contentDescription = "Match History") },
+                        label = { Text("Match History") },
+                        selected = selectedDrawerItem == "Match History",
+                        onClick = {
+                            selectedDrawerItem = "Match History"
+                            scope.launch { drawerState.close() }
+                        },
+                        colors = drawerColors
+                    )
+                    NavigationDrawerItem(
+                        icon = { Icon(Icons.Default.Group, contentDescription = "My Clubs") },
+                        label = { Text("My Clubs") },
+                        selected = selectedDrawerItem == "My Clubs",
+                        onClick = {
+                            selectedDrawerItem = "My Clubs"
+                            scope.launch { drawerState.close() }
+                        },
+                        colors = drawerColors
+                    )
+                    Spacer(Modifier.weight(1f))
+                    NavigationDrawerItem(
+                        icon = {
+                            Icon(
+                                Icons.AutoMirrored.Filled.Logout,
+                                contentDescription = "Log Out"
+                            )
+                        },
+                        label = { Text("Log Out") },
+                        selected = false,
+                        onClick = { authViewModel.signOut() }
+                    )
+                }
             }
         }
     ) {
@@ -261,77 +336,25 @@ fun MyProfileScreen(
                 }
                 Spacer(Modifier.height(16.dp))
 
-                // ---------------- XP Panel ----------------
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
-                    shape = RoundedCornerShape(14.dp),
-                    elevation = CardDefaults.cardElevation(6.dp)
-                ) {
-                    val xp = userRanking?.XPpoints ?: 0
-                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("XP Progress", style = MaterialTheme.typography.titleMedium)
-                        XPBar(xp = xp)
-                        val xpText = "$xp / 100 XP"
-                        Text(
-                            xpText, 
-                            style = MaterialTheme.typography.bodyMedium,
-                            modifier = Modifier.align(Alignment.CenterHorizontally)
-                        )
+                when (selectedDrawerItem) {
+                    "Profile" -> {
+                        ProfileSummary(userRanking = userRanking)
                     }
-                }
 
-                Spacer(Modifier.height(28.dp))
-
-                // ---------------- Info Cards ----------------
-                val wins = userRanking?.wins ?: 0
-                val losses = userRanking?.losses ?: 0
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                ) {
-                    StatCard(title = "Wins", value = wins.toString(), modifier = Modifier.weight(1f))
-                    StatCard(title = "Losses", value = losses.toString(), modifier = Modifier.weight(1f))
-                }
-
-                Spacer(Modifier.height(16.dp))
-
-                WinLossDonutChart(
-                    wins = wins,
-                    losses = losses,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
-                )
-
-
-                Spacer(Modifier.height(28.dp))
-
-
-                // ---------------- Section Panels ----------------
-                Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-                    TabRow(selectedTabIndex = selectedTab) {
-                        tabs.forEachIndexed { index, title ->
-                            Tab(
-                                selected = selectedTab == index,
-                                onClick = { selectedTab = index },
-                                text = { Text(text = title) }
-                            )
-                        }
-                    }
-                    Spacer(Modifier.height(16.dp))
-                    when (selectedTab) {
-                        0 -> { // Match History
+                    "Match History" -> {
+                        Column(modifier = Modifier.padding(horizontal = 16.dp)) {
                             MatchHistory(gameViewModel, authViewModel, currentUser?.uid ?: "")
                         }
+                    }
 
-                        1 -> { // My Clubs
+                    "My Clubs" -> {
+                        Column(modifier = Modifier.padding(horizontal = 16.dp)) {
                             when (val state = clubsState) {
                                 is UiState.Loading -> {
-                                    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                                    Box(
+                                        Modifier.fillMaxWidth(),
+                                        contentAlignment = Alignment.Center
+                                    ) {
                                         CircularProgressIndicator()
                                     }
                                 }
@@ -352,7 +375,7 @@ fun MyProfileScreen(
                                             Spacer(Modifier.height(16.dp))
                                         }
                                     } else {
-                                        Text("You haven't joined any clubs yet.")
+                                        Text("You haven\'t joined any clubs yet.")
                                     }
                                 }
 
@@ -365,6 +388,57 @@ fun MyProfileScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+fun ProfileSummary(userRanking: gaming.xplay.data.model.rankings?) {
+    val xp = userRanking?.XPpoints ?: 0
+    val wins = userRanking?.wins ?: 0
+    val losses = userRanking?.losses ?: 0
+
+    Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+        // ---------------- XP Panel ----------------
+        Card(
+            modifier = Modifier
+                .fillMaxWidth(),
+            shape = RoundedCornerShape(14.dp),
+            elevation = CardDefaults.cardElevation(6.dp)
+        ) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("XP Progress", style = MaterialTheme.typography.titleMedium)
+                XPBar(xp = xp)
+                val xpText = "$xp / 100 XP"
+                Text(
+                    xpText,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.align(Alignment.CenterHorizontally)
+                )
+            }
+        }
+
+        Spacer(Modifier.height(28.dp))
+
+        // ---------------- Info Cards ----------------
+        Row(
+            modifier = Modifier
+                .fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            StatCard(title = "Wins", value = wins.toString(), modifier = Modifier.weight(1f))
+            StatCard(title = "Losses", value = losses.toString(), modifier = Modifier.weight(1f))
+        }
+
+        Spacer(Modifier.height(16.dp))
+
+        WinLossDonutChart(
+            wins = wins,
+            losses = losses,
+            modifier = Modifier
+                .fillMaxWidth()
+        )
+
+        Spacer(Modifier.height(28.dp))
     }
 }
 
@@ -422,7 +496,7 @@ fun XPBar(xp: Int) {
 
 @Composable
 fun EditProfileDialog(
-    currentUser: gaming.xplay.data.model.Player?,
+    currentUser: Player?,
     updateProfileState: UpdateProfileState,
     onDismiss: () -> Unit,
     onSave: (String, Uri?) -> Unit
@@ -653,5 +727,24 @@ fun WinLossDonutChart(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
+    }
+}
+
+@Composable
+fun BadgeItem(name: String, color: Color) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp, horizontal = 16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = Icons.Default.WorkspacePremium,
+            contentDescription = null,
+            tint = color,
+            modifier = Modifier.size(20.dp)
+        )
+        Spacer(Modifier.width(16.dp))
+        Text(text = name, style = MaterialTheme.typography.labelLarge)
     }
 }

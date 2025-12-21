@@ -108,13 +108,13 @@ fun MainApp(authViewModel: AuthViewModel = hiltViewModel(), gameViewModel: GameV
                             indicatorColor = MaterialTheme.colorScheme.surface
                         )
                     )
-                    // Challenges Tab
+                    // Clubs Tab
                     NavigationBarItem(
-                        icon = { Icon(Icons.Filled.List, contentDescription = "Challenges") },
-                        label = { Text("Challenges") },
-                        selected = currentDestination?.hierarchy?.any { it.route == "challenges" } == true,
+                        icon = { Icon(Icons.Filled.SportsEsports, contentDescription = "Clubs") },
+                        label = { Text("Clubs") },
+                        selected = currentDestination?.hierarchy?.any { it.route == "clubs" } == true,
                         onClick = {
-                            navController.navigate("challenges") {
+                            navController.navigate("clubs") {
                                 popUpTo(navController.graph.findStartDestination().id) {
                                     saveState = true
                                 }
@@ -130,13 +130,13 @@ fun MainApp(authViewModel: AuthViewModel = hiltViewModel(), gameViewModel: GameV
                             indicatorColor = MaterialTheme.colorScheme.surface
                         )
                     )
-                    // Clubs Tab
+                    // Challenges Tab
                     NavigationBarItem(
-                        icon = { Icon(Icons.Filled.SportsEsports, contentDescription = "Clubs") },
-                        label = { Text("Clubs") },
-                        selected = currentDestination?.hierarchy?.any { it.route == "clubs" } == true,
+                        icon = { Icon(Icons.Filled.List, contentDescription = "Challenges") },
+                        label = { Text("Challenges") },
+                        selected = currentDestination?.hierarchy?.any { it.route == "challenges" } == true,
                         onClick = {
-                            navController.navigate("clubs") {
+                            navController.navigate("challenges") {
                                 popUpTo(navController.graph.findStartDestination().id) {
                                     saveState = true
                                 }
