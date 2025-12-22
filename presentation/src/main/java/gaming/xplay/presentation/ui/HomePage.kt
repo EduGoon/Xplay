@@ -16,6 +16,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.BrokenImage
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -28,6 +30,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -39,12 +43,15 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.SubcomposeAsyncImage
-import gaming.xplay.presentation.viewmodel.AuthViewModel
-import gaming.xplay.presentation.viewmodel.ClubViewModel
+import gaming.xplay.presentation.ui.State.UiState
+import gaming.xplay.presentation.viewmodel.NotificationViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomePage(navController: NavController) {
+fun HomePage(navController: NavController, notificationViewModel: NotificationViewModel = hiltViewModel()) {
+    val pendingMembersState by notificationViewModel.pendingMembers.collectAsState()
+    val notificationCount = (pendingMembersState as? UiState.Success)?.data?.values?.sumOf { it.size } ?: 0
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -59,11 +66,17 @@ fun HomePage(navController: NavController) {
                 },
                 actions = {
                     IconButton(onClick = { navController.navigate("notifications") }) {
-                        Icon(
-                            Icons.Default.Notifications,
-                            contentDescription = "Notifications",
-                            tint = MaterialTheme.colorScheme.onPrimary
-                        )
+                        BadgedBox(badge = {
+                            if (notificationCount > 0) {
+                                Badge { Text("$notificationCount") }
+                            }
+                        }) {
+                            Icon(
+                                Icons.Default.Notifications,
+                                contentDescription = "Notifications",
+                                tint = MaterialTheme.colorScheme.onPrimary
+                            )
+                        }
                     }
                     IconButton(onClick = { navController.navigate("myprofile") }) {
                         Icon(
