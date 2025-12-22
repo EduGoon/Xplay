@@ -1,5 +1,6 @@
 package gaming.xplay.presentation.ui
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -37,6 +38,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -45,12 +47,14 @@ import androidx.navigation.NavController
 import coil.compose.SubcomposeAsyncImage
 import gaming.xplay.presentation.ui.State.UiState
 import gaming.xplay.presentation.viewmodel.NotificationViewModel
+import gaming.xplay.presentation.theme.LocalGraffiti
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomePage(navController: NavController, notificationViewModel: NotificationViewModel = hiltViewModel()) {
     val pendingMembersState by notificationViewModel.pendingMembers.collectAsState()
     val notificationCount = (pendingMembersState as? UiState.Success)?.data?.values?.sumOf { it.size } ?: 0
+    val graffiti = LocalGraffiti.current
 
     Scaffold(
         topBar = {
@@ -93,15 +97,27 @@ fun HomePage(navController: NavController, notificationViewModel: NotificationVi
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
-                .padding(paddingValues)
-        ) {
-            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                Spacer(modifier = Modifier.height(32.dp))
-                UpcomingGamesSection()
+        Box(modifier = Modifier.fillMaxSize()) {
+            Image(
+                painter = painterResource(id = graffiti.background),
+                contentDescription = "Background",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(graffiti.overlay)
+            )
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+            ) {
+                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                    Spacer(modifier = Modifier.height(32.dp))
+                    UpcomingGamesSection()
+                }
             }
         }
     }
@@ -127,13 +143,13 @@ fun UpcomingGamesSection() {
             text = "Upcoming Games",
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onBackground
+            color = Color.White
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
             text = "Multiplayer games with more that 2 possible outcomes coming soon",
             style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = Color.White.copy(alpha = 0.8f),
         )
         Spacer(modifier = Modifier.height(16.dp))
 

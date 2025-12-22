@@ -3,11 +3,11 @@ package gaming.xplay.presentation.ui
 import android.graphics.Paint
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -56,8 +56,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -69,6 +71,7 @@ import coil.compose.AsyncImage
 import gaming.xplay.data.model.Player
 import gaming.xplay.data.model.rankings
 import gaming.xplay.presentation.model.PlayerSearchResult
+import gaming.xplay.presentation.theme.LocalGraffiti
 import gaming.xplay.presentation.ui.State.UiState
 import gaming.xplay.presentation.viewmodel.AuthViewModel
 import gaming.xplay.presentation.viewmodel.GameViewModel
@@ -91,6 +94,7 @@ fun LeaderboardScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val hasConnection by authViewModel.hasConnection.collectAsState()
     val showOfflineError by authViewModel.showOfflineError.collectAsState()
+    val graffiti = LocalGraffiti.current
 
     LaunchedEffect(showOfflineError) {
         if (showOfflineError) {
@@ -106,66 +110,78 @@ fun LeaderboardScreen(
     }
 
     Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
-                .padding(innerPadding)
-                .padding(horizontal = 10.dp)
-        ) {
-            Spacer(modifier = Modifier.height(24.dp))
-            SearchBar(
-                searchQuery = searchQuery,
-                onQueryChange = {
-                    searchQuery = it
-                    if (hasConnection) {
-                        authViewModel.searchPlayers(searchQuery)
-                    } else {
-                        authViewModel.showOfflineError
-                    }
-                }
+        Box(modifier = Modifier.fillMaxSize()) {
+            Image(
+                painter = painterResource(id = graffiti.background),
+                contentDescription = "Background",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
             )
-            Spacer(modifier = Modifier.height(32.dp))
-            if (searchQuery.isBlank()) {
-                Column(Modifier.verticalScroll(rememberScrollState())) {
-                    LeaderboardSection(
-                        leaderboardState = leaderboardState,
-                        playerProfiles = leaderboardPlayerProfiles,
-                        currentUser = currentUser,
-                        onRefresh = {
-                            if (hasConnection) {
-                                gameViewModel.fetchLeaderboard("FIFA")
-                            } else {
-                                authViewModel.showOfflineError
-                            }
-                        },
-                        navController = navController
-                    )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(graffiti.overlay)
+            )
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .padding(horizontal = 10.dp)
+            ) {
+                Spacer(modifier = Modifier.height(24.dp))
+                SearchBar(
+                    searchQuery = searchQuery,
+                    onQueryChange = {
+                        searchQuery = it
+                        if (hasConnection) {
+                            authViewModel.searchPlayers(searchQuery)
+                        } else {
+                            authViewModel.showOfflineError
+                        }
+                    }
+                )
+                Spacer(modifier = Modifier.height(32.dp))
+                if (searchQuery.isBlank()) {
+                    Column(Modifier.verticalScroll(rememberScrollState())) {
+                        LeaderboardSection(
+                            leaderboardState = leaderboardState,
+                            playerProfiles = leaderboardPlayerProfiles,
+                            currentUser = currentUser,
+                            onRefresh = {
+                                if (hasConnection) {
+                                    gameViewModel.fetchLeaderboard("FIFA")
+                                } else {
+                                    authViewModel.showOfflineError
+                                }
+                            },
+                            navController = navController
+                        )
 
-                    Spacer(modifier = Modifier.height(24.dp))
+                        Spacer(modifier = Modifier.height(24.dp))
 
-                    val leaderboardList =
-                        (leaderboardState as? UiState.Success<List<rankings>>)?.data.orEmpty()
+                        val leaderboardList =
+                            (leaderboardState as? UiState.Success<List<rankings>>)?.data.orEmpty()
 
-                    LeaderboardScatterChart(
-                        rankings = leaderboardList,
-                        playerProfiles = leaderboardPlayerProfiles,
-                        currentUser = currentUser
-                    )
-                }
-            } else {
-                if (isLoading) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                        LeaderboardScatterChart(
+                            rankings = leaderboardList,
+                            playerProfiles = leaderboardPlayerProfiles,
+                            currentUser = currentUser
+                        )
                     }
                 } else {
-                    SearchResultsList(
-                        results = searchResults,
-                        navController = navController
-                    )
+                    if (isLoading) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                        }
+                    } else {
+                        SearchResultsList(
+                            results = searchResults,
+                            navController = navController
+                        )
+                    }
                 }
             }
         }
@@ -207,7 +223,7 @@ fun SearchResultsList(
             Text(
                 text = "No players found.",
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = Color.White.copy(alpha = 0.8f)
             )
         }
     } else {
@@ -306,7 +322,7 @@ fun LeaderboardSection(
                 text = "🏆 Leaderboard",
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.ExtraBold,
-                color = MaterialTheme.colorScheme.primary
+                color = Color.White
             )
             IconButton(
                 onClick = { onRefresh() },
@@ -315,7 +331,7 @@ fun LeaderboardSection(
                 Icon(
                     imageVector = Icons.Default.Refresh,
                     contentDescription = "Refresh leaderboard",
-                    tint = MaterialTheme.colorScheme.primary
+                    tint = Color.White
                 )
             }
         }
@@ -332,7 +348,7 @@ fun LeaderboardSection(
                         Text(
                             text = "No rankings yet. Be the first one!",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = Color.White.copy(alpha = 0.8f)
                         )
                     }
                 } else {
@@ -476,9 +492,9 @@ fun LeaderboardScatterChart(
 
     // ---------- Colors ----------
     val primary = MaterialTheme.colorScheme.primary
-    val secondary = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-    val grid = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
-    val axis = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+    val secondary = Color.White.copy(alpha = 0.7f)
+    val grid = Color.White.copy(alpha = 0.2f)
+    val axis = Color.White.copy(alpha = 0.6f)
 
     // ---------- Interaction state ----------
     var tappedPlayer by remember { mutableStateOf<String?>(null) }
@@ -496,7 +512,7 @@ fun LeaderboardScatterChart(
     }
 
     Column(modifier = modifier.padding(horizontal = 16.dp)) {
-        Text("XP vs Win Rate", style = MaterialTheme.typography.titleLarge)
+        Text("XP vs Win Rate", style = MaterialTheme.typography.titleLarge, color = Color.White)
         Spacer(Modifier.height(12.dp))
 
         Box(modifier = Modifier
@@ -532,10 +548,11 @@ fun LeaderboardScatterChart(
 
                 // ---------- Grid + Y labels (spacing fix) ----------
                 val ticks = 5
-                val paint = android.graphics.Paint().apply {
+                val paint = Paint().apply {
                     isAntiAlias = true
                     textSize = 32f
-                    textAlign = android.graphics.Paint.Align.RIGHT
+                    textAlign = Paint.Align.RIGHT
+                    color = Color.White.toArgb()
                 }
 
                 for (i in 0..ticks) {
@@ -543,12 +560,14 @@ fun LeaderboardScatterChart(
                     drawLine(grid, Offset(0f, y), Offset(w, y), 1f)
 
                     val value = yMin + i * (yMax - yMin) / ticks
-                    drawContext.canvas.nativeCanvas.drawText(
-                        value.roundToInt().toString(),
-                        -30f,   // ← FIX: extra spacing from axis
-                        y + 10f,
-                        paint
-                    )
+                    drawIntoCanvas {
+                        it.nativeCanvas.drawText(
+                            value.roundToInt().toString(),
+                            -30f,   // ← FIX: extra spacing from axis
+                            y + 10f,
+                            paint
+                        )
+                    }
                 }
 
                 // Axes

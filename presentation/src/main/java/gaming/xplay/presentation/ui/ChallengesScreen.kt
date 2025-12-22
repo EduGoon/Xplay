@@ -5,6 +5,7 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -51,6 +52,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -68,6 +71,7 @@ import gaming.xplay.presentation.viewmodel.AuthViewModel
 import gaming.xplay.presentation.viewmodel.ChallengeDetailsViewModel
 import gaming.xplay.presentation.viewmodel.GameViewModel
 import gaming.xplay.presentation.viewmodel.MatchSubmissionState
+import gaming.xplay.presentation.theme.LocalGraffiti
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -81,6 +85,7 @@ fun ChallengesScreen(
     var selectedTabIndex by remember { mutableStateOf(0) }
     val tabs = listOf("Outgoing", "Incoming", "Active")
     val snackbarHostState = remember { SnackbarHostState() }
+    val graffiti = LocalGraffiti.current
 
     val currentUser by authViewModel.currentUser.collectAsState()
     val currentUserId = currentUser?.uid
@@ -119,70 +124,81 @@ fun ChallengesScreen(
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        containerColor = MaterialTheme.colorScheme.background
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
-                .padding(it)
-        ) {
-            PrimaryTabRow(
-                selectedTabIndex = selectedTabIndex,
-                containerColor = MaterialTheme.colorScheme.surface,
-                contentColor = MaterialTheme.colorScheme.onBackground
+    ) { paddingValues ->
+        Box(modifier = Modifier.fillMaxSize()) {
+            Image(
+                painter = painterResource(id = graffiti.background),
+                contentDescription = "Background",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(graffiti.overlay)
+            )
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
             ) {
-                tabs.forEachIndexed { index, title ->
-                    Tab(
-                        selected = selectedTabIndex == index,
-                        onClick = { selectedTabIndex = index },
-                        text = { Text(title, fontWeight = FontWeight.Bold) },
-                        selectedContentColor = MaterialTheme.colorScheme.primary,
-                        unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-
-            when (selectedTabIndex) {
-                0 -> {
-                    val outgoingState by gameViewModel.outgoingChallenges.collectAsState()
-                    val isRefreshing by gameViewModel.isRefreshing.collectAsState()
-                    RefreshableChallengeList(
-                        uiState = outgoingState,
-                        isRefreshing = isRefreshing,
-                        onRefresh = { gameViewModel.refreshOutgoingChallenges() }
-                    ) { challenge ->
-                        OutgoingChallengeCard(challenge, challengeDetailsViewModel)
+                PrimaryTabRow(
+                    selectedTabIndex = selectedTabIndex,
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    contentColor = MaterialTheme.colorScheme.onBackground
+                ) {
+                    tabs.forEachIndexed { index, title ->
+                        Tab(
+                            selected = selectedTabIndex == index,
+                            onClick = { selectedTabIndex = index },
+                            text = { Text(title, fontWeight = FontWeight.Bold) },
+                            selectedContentColor = MaterialTheme.colorScheme.primary,
+                            unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
 
-                1 -> {
-                    val incomingState by gameViewModel.incomingChallenges.collectAsState()
-                    val isRefreshing by gameViewModel.isRefreshing.collectAsState()
-                    RefreshableChallengeList(
-                        uiState = incomingState,
-                        isRefreshing = isRefreshing,
-                        onRefresh = { gameViewModel.refreshIncomingChallenges() }
-                    ) { challenge ->
-                        IncomingChallengeCard(challenge, gameViewModel, challengeDetailsViewModel)
+                when (selectedTabIndex) {
+                    0 -> {
+                        val outgoingState by gameViewModel.outgoingChallenges.collectAsState()
+                        val isRefreshing by gameViewModel.isRefreshing.collectAsState()
+                        RefreshableChallengeList(
+                            uiState = outgoingState,
+                            isRefreshing = isRefreshing,
+                            onRefresh = { gameViewModel.refreshOutgoingChallenges() }
+                        ) { challenge ->
+                            OutgoingChallengeCard(challenge, challengeDetailsViewModel)
+                        }
                     }
-                }
 
-                2 -> {
-                    val activeState by gameViewModel.activeChallenges.collectAsState()
-                    val isRefreshing by gameViewModel.isRefreshing.collectAsState()
-                    RefreshableChallengeList(
-                        uiState = activeState,
-                        isRefreshing = isRefreshing,
-                        onRefresh = { gameViewModel.refreshActiveChallenges() }
-                    ) { challenge ->
-                        if (currentUserId != null) {
-                            ActiveChallengeCard(
-                                challenge,
-                                currentUserId,
-                                gameViewModel,
-                                challengeDetailsViewModel
-                            )
+                    1 -> {
+                        val incomingState by gameViewModel.incomingChallenges.collectAsState()
+                        val isRefreshing by gameViewModel.isRefreshing.collectAsState()
+                        RefreshableChallengeList(
+                            uiState = incomingState,
+                            isRefreshing = isRefreshing,
+                            onRefresh = { gameViewModel.refreshIncomingChallenges() }
+                        ) { challenge ->
+                            IncomingChallengeCard(challenge, gameViewModel, challengeDetailsViewModel)
+                        }
+                    }
+
+                    2 -> {
+                        val activeState by gameViewModel.activeChallenges.collectAsState()
+                        val isRefreshing by gameViewModel.isRefreshing.collectAsState()
+                        RefreshableChallengeList(
+                            uiState = activeState,
+                            isRefreshing = isRefreshing,
+                            onRefresh = { gameViewModel.refreshActiveChallenges() }
+                        ) { challenge ->
+                            if (currentUserId != null) {
+                                ActiveChallengeCard(
+                                    challenge,
+                                    currentUserId,
+                                    gameViewModel,
+                                    challengeDetailsViewModel
+                                )
+                            }
                         }
                     }
                 }
@@ -216,7 +232,7 @@ fun <T> RefreshableChallengeList(
             is UiState.Success -> {
                 if (uiState.data.isEmpty()) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text("No challenges here.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("No challenges here.", color = Color.White.copy(alpha = 0.8f))
                     }
                 } else {
                     LazyColumn(modifier = Modifier.padding(16.dp)) {

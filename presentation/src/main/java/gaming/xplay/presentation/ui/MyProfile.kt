@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -36,6 +37,7 @@ import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Style
 import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -51,6 +53,7 @@ import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.NavigationDrawerItem
 import androidx.compose.material3.NavigationDrawerItemDefaults
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -87,11 +90,13 @@ import coil.compose.SubcomposeAsyncImageContent
 import gaming.xplay.data.model.Badge
 import gaming.xplay.data.model.Club
 import gaming.xplay.data.model.Player
+import gaming.xplay.data.model.Theme
 import gaming.xplay.data.model.rankings
 import gaming.xplay.presentation.ui.State.UiState
 import gaming.xplay.presentation.viewmodel.AuthViewModel
 import gaming.xplay.presentation.viewmodel.ClubViewModel
 import gaming.xplay.presentation.viewmodel.GameViewModel
+import gaming.xplay.presentation.viewmodel.ThemeViewModel
 import gaming.xplay.presentation.viewmodel.UpdateProfileState
 import kotlinx.coroutines.launch
 
@@ -110,17 +115,20 @@ fun badgeColor(badge: Badge): Color {
 fun MyProfileScreen(
     authViewModel: AuthViewModel = hiltViewModel(),
     clubViewModel: ClubViewModel = hiltViewModel(),
-    gameViewModel: GameViewModel = hiltViewModel()
+    gameViewModel: GameViewModel = hiltViewModel(),
+    themeViewModel: ThemeViewModel = hiltViewModel()
 ) {
     val currentUser by authViewModel.currentUser.collectAsState()
     val clubsState by clubViewModel.clubs.collectAsState()
     val createClubState by clubViewModel.createClubState.collectAsState()
     val leaderboardState by gameViewModel.leaderboard.collectAsState()
     val updateProfileState by authViewModel.updateProfileState.collectAsState()
+    val currentTheme by themeViewModel.theme.collectAsState()
 
     var selectedDrawerItem by remember { mutableStateOf("Profile") }
     var showEditProfileDialog by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
+    var showThemeDialog by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
@@ -199,6 +207,17 @@ fun MyProfileScreen(
         )
     }
 
+    if (showThemeDialog) {
+        ThemeSelectionDialog(
+            currentTheme = currentTheme,
+            onDismiss = { showThemeDialog = false },
+            onThemeSelected = { theme ->
+                themeViewModel.setTheme(theme)
+                showThemeDialog = false
+            }
+        )
+    }
+
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
@@ -266,6 +285,13 @@ fun MyProfileScreen(
                             }
                         }
                     }
+                    
+                    NavigationDrawerItem(
+                        icon = { Icon(Icons.Default.Style, contentDescription = "Theme") },
+                        label = { Text("Theme") },
+                        selected = false,
+                        onClick = { showThemeDialog = true }
+                    )
 
                     Spacer(Modifier.weight(1f))
                     val logoutDrawerColors = NavigationDrawerItemDefaults.colors(
@@ -459,6 +485,50 @@ fun MyProfileScreen(
                                     Text(state.message)
                                 }
                             }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ThemeSelectionDialog(
+    currentTheme: Theme,
+    onDismiss: () -> Unit,
+    onThemeSelected: (Theme) -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        ) {
+            Column(modifier = Modifier.padding(24.dp)) {
+                Text(
+                    text = "Theme",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(Modifier.height(16.dp))
+                Column {
+                    Theme.values().forEach { theme ->
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .selectable(
+                                    selected = (theme == currentTheme),
+                                    onClick = { onThemeSelected(theme) }
+                                )
+                                .padding(vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = (theme == currentTheme),
+                                onClick = null // Recommended for accessibility with screenreaders
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(text = theme.name.toLowerCase().capitalize(), style = MaterialTheme.typography.bodyLarge)
                         }
                     }
                 }

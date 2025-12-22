@@ -3,6 +3,7 @@ package gaming.xplay.presentation.ui
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -26,7 +27,6 @@ import androidx.compose.material.icons.filled.BrokenImage
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Groups
-import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -56,6 +56,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -67,7 +68,7 @@ import gaming.xplay.presentation.ui.State.UiState
 import gaming.xplay.presentation.viewmodel.AuthViewModel
 import gaming.xplay.presentation.viewmodel.ClubNavigationState
 import gaming.xplay.presentation.viewmodel.ClubViewModel
-import kotlinx.coroutines.flow.collectLatest
+import gaming.xplay.presentation.theme.LocalGraffiti
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -82,6 +83,7 @@ fun ClubsScreen(clubViewModel: ClubViewModel, authViewModel: AuthViewModel, navC
     val snackbarHostState = remember { SnackbarHostState() }
     val hasConnection by authViewModel.hasConnection.collectAsState()
     val showOfflineError by authViewModel.showOfflineError.collectAsState()
+    val graffiti = LocalGraffiti.current
 
     LaunchedEffect(showOfflineError) {
         if (showOfflineError) {
@@ -97,95 +99,112 @@ fun ClubsScreen(clubViewModel: ClubViewModel, authViewModel: AuthViewModel, navC
         }
     }
 
-    Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+    Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }) { paddingValues ->
+        Box(modifier = Modifier.fillMaxSize()) {
+            Image(
+                painter = painterResource(id = graffiti.background),
+                contentDescription = "Background",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(graffiti.overlay)
+            )
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .padding(16.dp)
             ) {
-                Text(
-                    text = "Available FIFA clubs",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-                TextButton(onClick = { showCreateClubDialog = true }) {
-                    Icon(Icons.Default.Add, contentDescription = "Create Club", modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Create Club")
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Available FIFA clubs",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                    TextButton(onClick = { showCreateClubDialog = true }) {
+                        Icon(Icons.Default.Add, contentDescription = "Create Club", modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Create Club")
+                    }
                 }
-            }
-            Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-            PullToRefreshBox(
-                isRefreshing = isRefreshing,
-                onRefresh = { clubViewModel.refreshClubs() },
-                state = pullToRefreshState
-            ) {
-                when (val state = clubsState) {
-                    is UiState.Loading -> {
-                        if (!isRefreshing) {
-                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                CircularProgressIndicator()
+                PullToRefreshBox(
+                    isRefreshing = isRefreshing,
+                    onRefresh = { clubViewModel.refreshClubs() },
+                    state = pullToRefreshState
+                ) {
+                    when (val state = clubsState) {
+                        is UiState.Loading -> {
+                            if (!isRefreshing) {
+                                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                    CircularProgressIndicator()
+                                }
                             }
                         }
-                    }
 
-                    is UiState.Success -> {
-                        val clubs = state.data
-                        if (clubs.isEmpty()) {
+                        is UiState.Success -> {
+                            val clubs = state.data
+                            if (clubs.isEmpty()) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(16.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Groups,
+                                            contentDescription = "No clubs",
+                                            modifier = Modifier.size(48.dp),
+                                            tint = Color.White.copy(alpha = 0.8f)
+                                        )
+                                        Spacer(modifier = Modifier.height(16.dp))
+                                        Text(
+                                            "No clubs available. Create one!",
+                                            color = Color.White.copy(alpha = 0.8f)
+                                        )
+                                    }
+                                }
+                            } else {
+                                LazyColumn(
+                                    modifier = Modifier.fillMaxSize(),
+                                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                                ) {
+                                    items(clubs) { club ->
+                                        FifaClubCard(club = club) {
+                                            navController.navigate("clubdetails/${club.clubId}")
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        is UiState.Error -> {
                             Box(
                                 modifier = Modifier
                                     .fillMaxSize()
                                     .padding(16.dp),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Column(
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Groups,
-                                        contentDescription = "No clubs",
-                                        modifier = Modifier.size(48.dp),
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    Spacer(modifier = Modifier.height(16.dp))
-                                    Text(
-                                        "No clubs available. Create one!",
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
+                                Text(text = state.message, color = MaterialTheme.colorScheme.error)
                             }
-                        } else {
-                            LazyColumn(
-                                modifier = Modifier.fillMaxSize(),
-                                verticalArrangement = Arrangement.spacedBy(16.dp)
-                            ) {
-                                items(clubs) { club ->
-                                    FifaClubCard(club = club) {
-                                        navController.navigate("clubdetails/${club.clubId}")
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    is UiState.Error -> {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(16.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(text = state.message, color = MaterialTheme.colorScheme.error)
                         }
                     }
                 }
             }
         }
-
         if (showCreateClubDialog) {
             CreateClubDialog(
                 onDismiss = { showCreateClubDialog = false },
