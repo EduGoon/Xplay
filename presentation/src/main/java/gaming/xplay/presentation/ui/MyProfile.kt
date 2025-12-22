@@ -488,8 +488,27 @@ fun ProfileSummary(
             elevation = CardDefaults.cardElevation(6.dp)
         ) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                val badgeName = currentBadge?.displayName ?: "No Badge"
-                Text("$badgeName Tier", style = MaterialTheme.typography.titleMedium)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    val badgeName = currentBadge?.displayName ?: "No Badge"
+                    Text("$badgeName Tier", style = MaterialTheme.typography.titleMedium)
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        currentUser?.unlockedBadges?.forEach { badgeName ->
+                            val badge = Badge.values().find { it.name == badgeName }
+                            if (badge != null) {
+                                Icon(
+                                    imageVector = Icons.Default.WorkspacePremium,
+                                    contentDescription = badge.displayName,
+                                    tint = badgeColor(badge),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                    }
+                }
                 XPBar(xp = xp, badge = currentBadge)
                 val xpText = "${xp % 100} / 100 XP"
                 Text(
