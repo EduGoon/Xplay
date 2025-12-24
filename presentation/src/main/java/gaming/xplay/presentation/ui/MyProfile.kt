@@ -445,7 +445,13 @@ fun MyProfileScreen(
 
                     "Match History" -> {
                         Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-                            MatchHistory(gameViewModel, authViewModel, currentUser?.uid ?: "")
+                            MatchHistory(
+                                gameViewModel = gameViewModel,
+                                authViewModel = authViewModel,
+                                userId = currentUser?.uid ?: "",
+                                wins = userRanking?.wins,
+                                losses = userRanking?.losses
+                            )
                         }
                     }
 

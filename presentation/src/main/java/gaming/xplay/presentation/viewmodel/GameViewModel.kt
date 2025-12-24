@@ -372,6 +372,10 @@ class GameViewModel @Inject constructor(
         }
     }
 
+    fun clearMatchHistory() {
+        _matchHistory.value = UiState.Loading
+    }
+
     fun clearAllData() {
         _allChallenges.value = UiState.Loading
         _matchHistory.value = UiState.Loading

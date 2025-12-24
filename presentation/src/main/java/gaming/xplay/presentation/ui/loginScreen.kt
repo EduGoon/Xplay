@@ -24,6 +24,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
@@ -67,14 +68,7 @@ fun LoginScreen(authViewModel: AuthViewModel, webClientId: String) {
             }
         } catch (e: ApiException) {
             Log.e("LoginScreen", "Google sign in failed after user selection.", e)
-            authViewModel.resetSignInState() // Also reset on this failure
-        }
-    }
-
-    // Optional: handle sign-in failure UI, like showing a toast.
-    LaunchedEffect(signInState) {
-        if (signInState == false) {
-            Log.d("LoginScreen", "Sign-in failed as reported by ViewModel.")
+            authViewModel.resetSignInState()
         }
     }
 
@@ -92,7 +86,7 @@ fun LoginScreen(authViewModel: AuthViewModel, webClientId: String) {
                 painter = painterResource(id = R.drawable.xplaylogo),
                 contentDescription = null,
                 modifier = Modifier.size(120.dp),
-                tint = MaterialTheme.colorScheme.primary
+                tint = Color.Unspecified
             )
             Spacer(modifier = Modifier.height(16.dp))
             Text(

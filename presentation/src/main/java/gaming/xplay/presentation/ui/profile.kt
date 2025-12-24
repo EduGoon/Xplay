@@ -2,22 +2,26 @@ package gaming.xplay.presentation.ui
 
 import android.text.format.DateUtils
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -30,27 +34,35 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Divider
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -72,6 +84,7 @@ import gaming.xplay.presentation.ui.State.UiState
 import gaming.xplay.presentation.viewmodel.AuthViewModel
 import gaming.xplay.presentation.viewmodel.ChallengeCreationState
 import gaming.xplay.presentation.viewmodel.GameViewModel
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -97,8 +110,10 @@ fun PlayerProfile(
     }
 
     val currentBadge = player?.currentBadge?.let { badgeName ->
-        Badge.values().find { it.name == badgeName }
+        Badge.entries.find { it.name == badgeName }
     }
+
+    val badgeMainColor = currentBadge?.let { badgeColor(it) }
 
     LaunchedEffect(showOfflineError) {
         if (showOfflineError) {
@@ -127,8 +142,6 @@ fun PlayerProfile(
 
     val playerName = player?.name ?: "Loading..."
     val playerAvi = player?.profilePictureUrl
-    val totalMatches = (wins ?: 0) + (losses ?: 0)
-    val winRate = if (totalMatches > 0) ((wins ?: 0) * 100f / totalMatches).toInt() else 0
 
     Scaffold(
         containerColor = Color.Transparent,
@@ -138,14 +151,23 @@ fun PlayerProfile(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(
-                            MaterialTheme.colorScheme.surface,
-                            MaterialTheme.colorScheme.background
+                    brush = if (badgeMainColor != null) {
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                badgeMainColor.copy(alpha = 0.3f),
+                                MaterialTheme.colorScheme.background
+                            )
                         )
-                    )
+                    } else {
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                MaterialTheme.colorScheme.surface,
+                                MaterialTheme.colorScheme.background
+                            )
+                        )
+                    }
                 )
-                .verticalScroll(rememberScrollState()) // Make the page scrollable
+                .verticalScroll(rememberScrollState())
                 .padding(paddingValues)
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
@@ -156,7 +178,11 @@ fun PlayerProfile(
                 modifier = Modifier
                     .size(110.dp)
                     .clip(CircleShape)
-                    .border(3.dp, MaterialTheme.colorScheme.primary, CircleShape),
+                    .border(
+                        3.dp,
+                        badgeMainColor ?: MaterialTheme.colorScheme.primary,
+                        CircleShape
+                    ),
                 contentScale = ContentScale.Crop
             )
 
@@ -170,7 +196,7 @@ fun PlayerProfile(
                 color = MaterialTheme.colorScheme.onBackground
             )
 
-            Spacer(Modifier.height(24.dp)) // Increased spacing
+            Spacer(Modifier.height(24.dp))
 
             Column(
                 modifier = Modifier.fillMaxWidth(0.9f),
@@ -201,17 +227,7 @@ fun PlayerProfile(
                 }
                 Spacer(Modifier.height(8.dp))
                 XPBar(xp = xp, badge = currentBadge)
-            }
 
-            Spacer(Modifier.height(32.dp)) // Increased spacing
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                StatCard("Wins", wins ?: 0, MaterialTheme.colorScheme.primary)
-                StatCard("Losses", losses ?: 0, MaterialTheme.colorScheme.error)
-                StatCard("Winrate", "$winRate%", MaterialTheme.colorScheme.tertiary)
             }
 
             Spacer(Modifier.height(24.dp))
@@ -247,7 +263,7 @@ fun PlayerProfile(
 
             Spacer(Modifier.height(40.dp))
 
-            MatchHistory(gameViewModel, authViewModel, userId)
+            MatchHistory(gameViewModel, authViewModel, userId, wins, losses)
         }
     }
 }
@@ -321,36 +337,21 @@ fun ChallengeResultDialog(
     }
 }
 
-@Composable
-fun StatCard(label: String, value: Any, color: Color, modifier: Modifier = Modifier) {
-    Column(
-        modifier = modifier,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text(
-            text = "$value",
-            style = MaterialTheme.typography.headlineSmall.copy(
-                color = color,
-                fontWeight = FontWeight.Bold
-            )
-        )
-        Text(
-            text = label.uppercase(),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-    }
-}
-
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun MatchHistory(
     gameViewModel: GameViewModel,
     authViewModel: AuthViewModel,
-    userId: String
+    userId: String,
+    wins: Int?,
+    losses: Int?
 ) {
     val matchHistoryState by gameViewModel.matchHistory.collectAsState()
+    val pagerState = rememberPagerState(pageCount = { 2 })
+    val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(userId) {
+        gameViewModel.clearMatchHistory()
         gameViewModel.fetchMatchHistory(userId)
     }
 
@@ -372,44 +373,185 @@ fun MatchHistory(
                 modifier = Modifier.padding(bottom = 16.dp)
             )
 
-            when (val state = matchHistoryState) {
-                is UiState.Loading -> {
-                    Box(
-                        modifier = Modifier.fillMaxWidth(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator()
-                    }
-                }
+            PrimaryTabRow(selectedTabIndex = pagerState.currentPage) {
+                Tab(
+                    selected = pagerState.currentPage == 0,
+                    onClick = { coroutineScope.launch { pagerState.animateScrollToPage(0) } },
+                    text = { Text("Stats") }
+                )
+                Tab(
+                    selected = pagerState.currentPage == 1,
+                    onClick = { coroutineScope.launch { pagerState.animateScrollToPage(1) } },
+                    text = { Text("Results") }
+                )
+            }
 
-                is UiState.Success -> {
-                    val matches = state.data
-                    if (matches.isEmpty()) {
-                        EmptyState(
-                            icon = Icons.Outlined.History,
-                            text = "No match history found"
-                        )
-                    } else {
-                        val groupedMatches =
-                            matches.groupBy { getFormattedDate(it.playedAt) }
-                        groupedMatches.forEach { (date, matches) ->
-                            DateDivider(date = date)
-                            matches.forEach { match ->
-                                MatchCard(
-                                    match = match,
-                                    currentUserId = userId,
-                                    authViewModel = authViewModel
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
+            val opponentCache = remember { mutableStateMapOf<String, Player?>() }
+
+            HorizontalPager(state = pagerState, modifier = Modifier.height(300.dp)) { page ->
+                when (page) {
+                    0 -> StatsTab(matchHistoryState, userId, wins, losses, authViewModel, opponentCache)
+                    1 -> ResultsTab(matchHistoryState, userId, authViewModel, opponentCache)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun StatsTab(
+    matchHistoryState: UiState<List<Match>>,
+    userId: String,
+    wins: Int?,
+    losses: Int?,
+    authViewModel: AuthViewModel,
+    opponentCache: MutableMap<String, Player?>
+) {
+    when (val state = matchHistoryState) {
+        is UiState.Loading -> {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator()
+            }
+        }
+        is UiState.Success -> {
+            val matches = state.data
+            val totalGames = matches.size
+            val winsCount = wins ?: matches.count { it.winnerId == userId }
+            val lossesCount = losses ?: matches.count { it.winnerId != userId && it.winnerId.isNotEmpty() }
+            val winRate = if (totalGames > 0) (winsCount * 100f / totalGames) else 0f
+            val opponents = matches.map { if (it.player1Id == userId) it.player2Id else it.player1Id }
+            val opponentCounts = opponents.groupingBy { it }.eachCount()
+            val sortedOpponents = opponentCounts.entries.sortedByDescending { it.value }
+
+            Column(modifier = Modifier.padding(16.dp).verticalScroll(rememberScrollState())) {
+                // Overall Stats
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    StatItem("Played", totalGames.toString())
+                    StatItem("Wins", winsCount.toString())
+                    StatItem("Losses", lossesCount.toString())
+                    StatItem("Winrate", "${String.format("%.1f", winRate)}%")
+                }
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Most Faced Opponents
+                Text("Most Faced Opponents", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(12.dp))
+
+                if (sortedOpponents.isNotEmpty()) {
+                    sortedOpponents.forEach { (opponentId, count) ->
+                        val opponent = opponentCache.getOrPut(opponentId) { null }
+                        LaunchedEffect(opponentId) {
+                            if (opponent == null) {
+                                opponentCache[opponentId] = authViewModel.getPlayerProfile(opponentId)
                             }
+                        }
+                        val percentage = (count * 100f) / totalGames
+                        OpponentStatCard(opponentCache[opponentId], count, percentage)
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+                } else {
+                    Text("No opponent data available.", style = MaterialTheme.typography.bodyMedium)
+                }
+            }
+        }
+        is UiState.Error -> {
+            Text(state.message, modifier = Modifier.padding(16.dp))
+        }
+    }
+}
+
+@Composable
+fun StatItem(label: String, value: String) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(value, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+@Composable
+fun OpponentStatCard(opponent: Player?, count: Int, percentage: Float) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        elevation = CardDefaults.cardElevation(2.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                AsyncImage(
+                    model = opponent?.profilePictureUrl ?: "",
+                    contentDescription = "Opponent Avatar",
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .border(1.dp, MaterialTheme.colorScheme.onSurface, CircleShape),
+                    contentScale = ContentScale.Crop
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(opponent?.name ?: "Opponent :", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+            }
+            Text("$count games (${String.format("%.1f", percentage)}%)", style = MaterialTheme.typography.bodyMedium)
+        }
+    }
+}
+
+@Composable
+fun ResultsTab(
+    matchHistoryState: UiState<List<Match>>,
+    userId: String,
+    authViewModel: AuthViewModel,
+    opponentCache: MutableMap<String, Player?>
+) {
+    when (val state = matchHistoryState) {
+        is UiState.Loading -> {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator()
+            }
+        }
+        is UiState.Success -> {
+            val matches = state.data
+            if (matches.isEmpty()) {
+                EmptyState(
+                    icon = Icons.Outlined.History,
+                    text = "No match results found"
+                )
+            } else {
+                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                    val groupedMatches =
+                        matches.groupBy { getFormattedDate(it.playedAt) }
+                    groupedMatches.forEach { (date, matches) ->
+                        DateDivider(date = date)
+                        matches.forEach { match ->
+                            MatchCard(
+                                match = match,
+                                currentUserId = userId,
+                                authViewModel = authViewModel,
+                                opponentCache = opponentCache
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
                         }
                     }
                 }
-
-                is UiState.Error -> {
-                    Text(state.message)
-                }
             }
+        }
+        is UiState.Error -> {
+            Text(state.message, modifier = Modifier.padding(16.dp))
         }
     }
 }
@@ -423,7 +565,7 @@ fun DateDivider(date: String) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center
     ) {
-        Divider(
+        HorizontalDivider(
             modifier = Modifier.weight(1f),
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
         )
@@ -433,7 +575,7 @@ fun DateDivider(date: String) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(horizontal = 16.dp)
         )
-        Divider(
+        HorizontalDivider(
             modifier = Modifier.weight(1f),
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
         )
@@ -451,60 +593,82 @@ fun getFormattedDate(date: Date?): String {
 }
 
 @Composable
-fun MatchCard(match: Match, currentUserId: String, authViewModel: AuthViewModel) {
+fun MatchCard(
+    match: Match,
+    currentUserId: String,
+    authViewModel: AuthViewModel,
+    opponentCache: MutableMap<String, Player?>
+) {
     val opponentId = if (match.player1Id == currentUserId) match.player2Id else match.player1Id
-    var opponent by remember { mutableStateOf<Player?>(null) }
+    val opponent = opponentCache.getOrPut(opponentId) { null }
 
     LaunchedEffect(opponentId) {
-        opponent = authViewModel.getPlayerProfile(opponentId)
+        if (opponent == null) {
+            opponentCache[opponentId] = authViewModel.getPlayerProfile(opponentId)
+        }
     }
 
     val won = match.winnerId == currentUserId
-    val cardColor = if (won) Color(0xFF3DDC84).copy(alpha = 0.1f) else MaterialTheme.colorScheme.error.copy(alpha = 0.1f)
-    val borderColor = if (won) Color(0xFF3DDC84) else MaterialTheme.colorScheme.error
+    val resultColor = if (won) Color(0xFF3DDC84) else MaterialTheme.colorScheme.error
+    val resultText = if (won) "WIN" else "LOSS"
 
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = cardColor),
-        border = BorderStroke(1.dp, borderColor)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(2.dp)
     ) {
         Row(
-            modifier = Modifier
-                .padding(12.dp)
-                .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+            modifier = Modifier.height(IntrinsicSize.Min)
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            // Result indicator bar
+            Box(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .width(6.dp)
+                    .background(resultColor)
+            )
+
+            // Player and game info
+            Row(
+                modifier = Modifier
+                    .padding(horizontal = 12.dp, vertical = 12.dp)
+                    .weight(1f),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 AsyncImage(
-                    model = opponent?.profilePictureUrl ?: "",
+                    model = opponentCache[opponentId]?.profilePictureUrl ?: "",
                     contentDescription = "Opponent Avatar",
                     modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .border(1.dp, MaterialTheme.colorScheme.onSurface, CircleShape),
+                        .size(48.dp)
+                        .clip(CircleShape),
                     contentScale = ContentScale.Crop
                 )
-                Spacer(modifier = Modifier.width(12.dp))
+
+                Spacer(Modifier.width(12.dp))
+
                 Column {
                     Text(
-                        text = opponent?.name ?: "Opponent",
-                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold)
+                        text = opponentCache[opponentId]?.name ?: "Opponent",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
                     )
                     Text(
                         text = "Game: ${match.gameId}",
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
+
+            // Result text
             Text(
-                text = if (won) "WIN" else "LOSS",
-                style = MaterialTheme.typography.bodyLarge.copy(
-                    fontWeight = FontWeight.Bold,
-                    color = borderColor
-                )
+                text = resultText,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold,
+                color = resultColor,
+                modifier = Modifier.padding(end = 16.dp)
             )
         }
     }
