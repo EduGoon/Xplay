@@ -144,4 +144,41 @@ class GameRepository @Inject constructor(
             Result.Error(e)
         }
     }
+
+    suspend fun getSuggestedMatchUps(
+        playerId: String,
+        gameId: String
+    ): Result<List<rankings>> {
+        return try {
+            when (val playerRankingResult = getPlayerRanking(playerId, gameId)) {
+                is Result.Success -> {
+                    val playerXP = playerRankingResult.data?.XPpoints
+                    if (playerXP != null) {
+                        val minXP = playerXP - 10
+                        val maxXP = playerXP + 10
+
+                        val suggestedMatchUps = db.collection("rankings")
+                            .whereEqualTo("gameid", gameId)
+                            .whereGreaterThanOrEqualTo("XPpoints", minXP)
+                            .whereLessThanOrEqualTo("XPpoints", maxXP)
+                            .limit(10)
+                            .get()
+                            .await()
+                            .toObjects(rankings::class.java)
+                            .filter { it.playerid != playerId }
+
+                        Result.Success(suggestedMatchUps)
+                    } else {
+                        Result.Success(emptyList())
+                    }
+                }
+                is Result.Error -> {
+                    Result.Error(playerRankingResult.exception)
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("GameRepository", "error getting suggested match ups", e)
+            Result.Error(e)
+        }
+    }
 }

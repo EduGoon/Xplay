@@ -132,10 +132,18 @@ class GameViewModel @Inject constructor(
     private val _matchSubmissionState = MutableStateFlow<MatchSubmissionState>(MatchSubmissionState.Idle)
     val matchSubmissionState: StateFlow<MatchSubmissionState> = _matchSubmissionState.asStateFlow()
 
+    private val _suggestedMatchUps = MutableStateFlow<UiState<List<rankings>>>(UiState.Loading)
+    val suggestedMatchUps: StateFlow<UiState<List<rankings>>> = _suggestedMatchUps.asStateFlow()
+
+    private val _suggestedMatchUpsPlayerProfiles = MutableStateFlow<Map<String, Player?>>(emptyMap())
+    val suggestedMatchUpsPlayerProfiles: StateFlow<Map<String, Player?>> = _suggestedMatchUpsPlayerProfiles.asStateFlow()
+
     init {
         userSessionManager.logoutEvents
             .onEach { clearAllData() }
             .launchIn(viewModelScope)
+
+        fetchSuggestedMatchUps("FIFA")
     }
 
     fun onChallengeCreationStatusConsumed() {
@@ -372,6 +380,56 @@ class GameViewModel @Inject constructor(
         }
     }
 
+    fun fetchSuggestedMatchUps(gameId: String) {
+        if (!hasConnection.value) {
+            _suggestedMatchUps.value = UiState.Error("You're offline. Please check your connection.")
+            return
+        }
+        viewModelScope.launch {
+            if (_suggestedMatchUps.value is UiState.Loading) {
+                when (val currentUserResult = authRepository.fetchCurrentUserProfile()) {
+                    is Result.Success -> {
+                        val currentUser = currentUserResult.data
+                        if (currentUser != null) {
+                            when (val result = gameRepository.getSuggestedMatchUps(currentUser.uid, gameId)) {
+                                is Result.Success -> {
+                                    _suggestedMatchUps.value = UiState.Success(result.data)
+                                    val playerIds = result.data.map { it.playerid }
+                                    fetchPlayerProfilesForSuggestedMatchUps(playerIds)
+                                }
+                                is Result.Error -> _suggestedMatchUps.value =
+                                    UiState.Error(result.exception.message ?: "An unknown error occurred")
+                            }
+                        } else {
+                            _suggestedMatchUps.value = UiState.Error("User not logged in")
+                        }
+                    }
+                    is Result.Error -> {
+                        _suggestedMatchUps.value = UiState.Error("Failed to fetch user")
+                    }
+                }
+            }
+        }
+    }
+
+    private fun fetchPlayerProfilesForSuggestedMatchUps(playerIds: List<String>) {
+        if (!hasConnection.value) {
+            // Silently fail, as this is a secondary data load
+            return
+        }
+        viewModelScope.launch {
+            val profileDeferreds = playerIds.map {
+                async {
+                    when (val profileResult = authRepository.getPlayerProfile(it)) {
+                        is Result.Success -> it to profileResult.data
+                        is Result.Error -> it to null
+                    }
+                }
+            }
+            _suggestedMatchUpsPlayerProfiles.value = profileDeferreds.awaitAll().toMap()
+        }
+    }
+
     fun clearMatchHistory() {
         _matchHistory.value = UiState.Loading
     }
@@ -382,5 +440,7 @@ class GameViewModel @Inject constructor(
         _leaderboard.value = UiState.Loading
         _currentUser.value = Result.Error(Exception("Not logged in"))
         _leaderboardPlayerProfiles.value = emptyMap()
+        _suggestedMatchUps.value = UiState.Loading
+        _suggestedMatchUpsPlayerProfiles.value = emptyMap()
     }
 }

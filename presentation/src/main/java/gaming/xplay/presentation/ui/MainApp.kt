@@ -43,8 +43,10 @@ import gaming.xplay.presentation.viewmodel.NavigationState
 
 @OptIn(ExperimentalAnimationApi::class)
 @Composable
-fun MainApp(authViewModel: AuthViewModel = hiltViewModel(), gameViewModel: GameViewModel = hiltViewModel(), clubViewModel: ClubViewModel = hiltViewModel(), webClientId: String) {
+fun MainApp(authViewModel: AuthViewModel = hiltViewModel(), webClientId: String) {
     val navController = rememberAnimatedNavController()
+    val gameViewModel: GameViewModel = hiltViewModel()
+    val clubViewModel: ClubViewModel = hiltViewModel()
     val navigationState by authViewModel.navigationState.collectAsState()
     val errorState by authViewModel.errorState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -188,7 +190,7 @@ fun MainApp(authViewModel: AuthViewModel = hiltViewModel(), gameViewModel: GameV
             composable("splash") { SplashScreen() }
             composable("login") { LoginScreen(authViewModel, webClientId) }
             composable("onboardingScreen") { OnboardingScreen(authViewModel) }
-            composable("home") { HomePage(navController) }
+            composable("home") { HomePage(navController, gameViewModel = gameViewModel) }
             composable("challenges") { ChallengesScreen(gameViewModel, authViewModel) }
             composable("clubs") { ClubsScreen(clubViewModel, authViewModel, navController) }
             composable("leaderboard") { LeaderboardScreen(navController, authViewModel, gameViewModel) }
