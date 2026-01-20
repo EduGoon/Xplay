@@ -83,7 +83,7 @@ class ClubViewModel @Inject constructor(
         viewModelScope.launch {
             _createClubState.value = UiState.Loading
             val imageUrl = imageUri?.let {
-                when (val result = storageRepository.uploadImage(it)) {
+                when (val result = storageRepository.uploadImage(it, "club_images")) {
                     is Result.Success -> result.data
                     is Result.Error -> {
                         _createClubState.value = UiState.Error("Failed to upload image")

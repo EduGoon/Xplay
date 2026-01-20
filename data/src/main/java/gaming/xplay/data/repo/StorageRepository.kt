@@ -11,10 +11,10 @@ class StorageRepository @Inject constructor(
     private val storage: FirebaseStorage
 ) {
 
-    suspend fun uploadImage(imageUri: Uri): Result<String> {
+    suspend fun uploadImage(imageUri: Uri, path: String): Result<String> {
         return try {
             val storageRef = storage.reference
-            val imageRef = storageRef.child("club_images/${UUID.randomUUID()}")
+            val imageRef = storageRef.child("$path/${UUID.randomUUID()}")
             val uploadTask = imageRef.putFile(imageUri).await()
             val downloadUrl = uploadTask.storage.downloadUrl.await().toString()
             Result.Success(downloadUrl)

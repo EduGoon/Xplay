@@ -45,7 +45,6 @@ dependencies {
     kapt("com.google.dagger:hilt-android-compiler:2.51.1")
 
     // 1. Declare the Firebase BoM once.
-    // Make sure 'libs.firebase.bom' in your version catalog points to a recent version like "34.6.0"
     implementation(platform(libs.firebase.bom))
 
     // 2. Declare Firebase dependencies without the "-ktx" suffix.
@@ -54,8 +53,10 @@ dependencies {
     implementation("com.google.firebase:firebase-auth")
     implementation("com.google.firebase:firebase-storage")
 
-    // coroutines support for Play services (if you use await() on Tasks)
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
+    // Coroutines support for Play services (fixes await() on Tasks)
+    // Using string literals to ensure sync succeeds and fixes the unresolved .await() issue
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.8.1")
 
     // Retrofit
     implementation(libs.retrofit)

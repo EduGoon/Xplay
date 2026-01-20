@@ -5,12 +5,10 @@ import android.util.Log
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.storage.FirebaseStorage
 import gaming.xplay.data.model.Player
 import gaming.xplay.data.model.Result
 import gaming.xplay.data.network.ApiService
 import kotlinx.coroutines.tasks.await
-import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -19,7 +17,7 @@ class AuthRepository @Inject constructor(
     private val auth: FirebaseAuth,
     private val firestore: FirebaseFirestore,
     private val apiService: ApiService,
-    private val storage: FirebaseStorage
+    private val storageRepository: StorageRepository
 ) {
 
     suspend fun signInWithGoogle(googleIdToken: String): Result<Player> {
@@ -83,7 +81,12 @@ class AuthRepository @Inject constructor(
 
             var newProfilePictureUrl = user.profilePictureUrl
             if (profilePictureUri != null) {
-                newProfilePictureUrl = uploadImage(profilePictureUri)
+                val uploadResult = storageRepository.uploadImage(profilePictureUri, "profile_pictures")
+                if (uploadResult is Result.Success) {
+                    newProfilePictureUrl = uploadResult.data
+                } else if (uploadResult is Result.Error) {
+                    throw uploadResult.exception
+                }
             }
 
             val updatedPlayer = user.copy(
@@ -98,13 +101,6 @@ class AuthRepository @Inject constructor(
             Result.Error(e)
         }
     }
-
-    private suspend fun uploadImage(imageUri: Uri): String {
-        val storageRef = storage.reference.child("profile_pictures/${UUID.randomUUID()}")
-        val uploadTask = storageRef.putFile(imageUri).await()
-        return uploadTask.storage.downloadUrl.await().toString()
-    }
-
 
     suspend fun updateFCMToken(token: String) {
         val userId = auth.currentUser?.uid ?: return
